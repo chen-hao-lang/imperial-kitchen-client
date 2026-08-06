@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4aeb9dc1a11d13746899e07acafdc7fb, type: 3}
+  m_Name: BoilingRecipeSOTest
+  m_EditorClassIdentifier: 
+  inputs:
+  - {fileID: 11400000, guid: 149d4ffb27f8405458f6a85b22d92d93, type: 2}
+  - {fileID: 11400000, guid: 032844852b048fc44af755c58acbc41c, type: 2}
+  - {fileID: 11400000, guid: f9787f3abd1c2034a81167d8f855ddc7, type: 2}
+  isBoiling: 0
+  maxBoilingTimer: 6

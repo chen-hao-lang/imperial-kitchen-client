@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fde2d65f4b1c0414b9d92916553f1d3c, type: 3}
+  m_Name: XiaoLongBao
+  m_EditorClassIdentifier: 
+  input: {fileID: 11400000, guid: 3187bbce57fc8634e8ba14670d36837a, type: 2}
+  output: {fileID: 11400000, guid: 5dd9c6994ad7f344fb992b8956c037c0, type: 2}
+  steamingTimerMax: 6

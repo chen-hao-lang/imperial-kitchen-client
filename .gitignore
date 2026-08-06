@@ -1,0 +1,46 @@
+# ============ Unity 自动生成目录 ============
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# 保留 Assets 下的 meta 文件（Unity 必需）
+!/[Aa]ssets/**/*.meta
+
+# ============ IDE / 编辑器缓存 ============
+.vs/
+.vscode/
+.idea/
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.tmp
+*.suo
+
+# Unity 自动生成的 IDE 工程文件（打开编辑器时重新生成）
+*.csproj
+*.sln
+*.unityproj
+*.opendb
+
+# ============ 构建产物 ============
+*.apk
+*.aab
+*.unitypackage
+*.app
+*.exe
+*.dll
+
+# ============ 其他 ============
+sysinfo.txt
+crashlytics-build.properties
+
+# 打包的 Addressables 数据
+/[Aa]ssets/[Aa]ddressable[Aa]ssets[Dd]ata/*/*.bin*
