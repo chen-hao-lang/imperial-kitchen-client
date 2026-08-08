@@ -96,6 +96,8 @@ public class NetworkManager : MonoBehaviour
     public event Action<int> OnPlateDestroy;
 
     public event Action<int,int> OnRemovePlate;
+
+    public event Action<int,string> OnReceiverMessage;
     #endregion
 
     void Awake()
@@ -323,6 +325,11 @@ public class NetworkManager : MonoBehaviour
         Send(NetworkMessage.Create_RegisterPlate(_plateId,_plateSO));
     }
     #endregion
+    
+    public void SendMessage(int _playerId,string _message)
+    {
+        Send(NetworkMessage.Create_SendMessage(_playerId,_message));
+    }
     #endregion
 
     #region 接受消息
@@ -411,6 +418,13 @@ public class NetworkManager : MonoBehaviour
         {
             var (counterId,plateId) = NetworkMessage.Parse_RemotePlate(_body);
             OnRemovePlate?.Invoke(counterId,plateId);     
+            return;
+        }
+
+        if(_type == MessageType.SendMessage)
+        {
+            var (playerId,message) = NetworkMessage.Parse_SendMessage(_body);
+            OnReceiverMessage?.Invoke(playerId,message);
             return;
         }
 

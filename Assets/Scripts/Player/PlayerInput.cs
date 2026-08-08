@@ -37,10 +37,14 @@ public class PlayerInput : MonoBehaviour
         (mousePos.y / (float)Screen.height - 0.5f) * 2f
     );
 
+    private bool openChatPanel = false;
+
     public event EventHandler OnInteractAction;
     public event EventHandler OnInteractAlternate;
     public event EventHandler OnPauseAction;
     public event EventHandler OnBindingRebind;
+
+    public event Action<bool> OnOpenChatPanel;
 
     void Awake()
     {
@@ -57,6 +61,12 @@ public class PlayerInput : MonoBehaviour
         _playerAction.Player.InteractAlternate.performed += ctx => OnInteractAlternate?.Invoke(this, EventArgs.Empty);
 
         _playerAction.Player.Mouse.performed += ctx => mousePos = ctx.ReadValue<Vector2>();
+
+        _playerAction.Player.OpenChatPanel.performed += ctx =>
+        {
+            openChatPanel = !openChatPanel;
+            OnOpenChatPanel?.Invoke(openChatPanel);
+        };
     }
 
     private void Move(InputAction.CallbackContext context)
@@ -146,7 +156,8 @@ public class PlayerInput : MonoBehaviour
         }
 
         inputAction.PerformInteractiveRebinding(bindingIndex)
-            .OnComplete(callback => {
+            .OnComplete(callback =>
+            {
                 callback.Dispose();
                 _playerAction.Player.Enable();
                 onActionRebound();

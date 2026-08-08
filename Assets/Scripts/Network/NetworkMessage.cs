@@ -227,6 +227,14 @@ public static class NetworkMessage
     }
     #endregion
 
+    public static byte[] Create_SendMessage(int _playerId,string _message)
+    {
+        using var ms = new MemoryStream();
+        using var writer = new BinaryWriter(ms);
+        writer.Write(_playerId);
+        writer.Write(_message);
+        return Pack(MessageType.C2S_SendMessage,ms.ToArray());
+    }
     #endregion
 
     #region  服务端 → 客户端：消息解析方法
@@ -497,5 +505,14 @@ public static class NetworkMessage
         return (plateId, ingredientIndex);
     }
     #endregion
+
+    public static (int playerId,string message) Parse_SendMessage(byte[] _body)
+    {
+        using var ms = new MemoryStream(_body);
+        using var reader = new BinaryReader(ms);
+        int playerId = reader.ReadInt32();
+        string message = reader.ReadString();
+        return (playerId, message);
+    }
     #endregion
 }

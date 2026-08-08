@@ -29,6 +29,9 @@ public enum MessageType : byte
     PlateDestroy = 21,      // 盘子销毁（plateId）
     PlateRemoveIngredient = 22, // 盘子配料移除广播（plateId + ingredientIndex）
 
+    // 消息
+    SendMessage = 23,
+
 
     // ========== 客户端 → 服务端 ==========
     C2S_Connect = 100, // 请求连接（附带玩家名字）
@@ -48,4 +51,7 @@ public enum MessageType : byte
     C2S_RegisterPlateSO = 113,
     C2S_RemotePlate = 114,
     C2S_PlateRemoveIngredient = 115, // 盘子移除配料（plateId + ingredientIndex）
+
+    // 消息
+    C2S_SendMessage = 116,// 向服务器发送玩家之间的沟通消息
 }
