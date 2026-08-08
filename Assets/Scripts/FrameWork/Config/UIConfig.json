@@ -1,0 +1,16 @@
+[
+  {
+    "type": "TestPanel01",
+    "packageName": "UI",
+    "panelName": "TestPanel01",
+    "layer": "Normal",
+    "isWindow": false
+  },
+  {
+    "type": "StartPanel",
+    "packageName": "UI",
+    "panelName": "StartPanel",
+    "layer": "Normal",
+    "isWindow": false
+  }
+]

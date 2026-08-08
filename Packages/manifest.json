@@ -9,6 +9,7 @@
     "com.unity.ide.vscode": "1.2.5",
     "com.unity.inputsystem": "1.14.2",
     "com.unity.render-pipelines.universal": "14.0.12",
+    "com.unity.scriptablebuildpipeline": "2.1.5",
     "com.unity.test-framework": "1.3.9",
     "com.unity.textmeshpro": "3.0.9",
     "com.unity.timeline": "1.8.6",
@@ -44,6 +45,16 @@
     "com.unity.modules.video": "1.0.0",
     "com.unity.modules.vr": "1.0.0",
     "com.unity.modules.wind": "1.0.0",
-    "com.unity.modules.xr": "1.0.0"
-  }
+    "com.unity.modules.xr": "1.0.0",
+    "com.tuyoogame.yooasset":"3.0.5"
+  },
+  "scopedRegistries": [
+    {
+      "name": "package.openupm.com",
+      "url": "https://package.openupm.com",
+      "scopes": [
+        "com.tuyoogame.yooasset"
+      ]
+    }
+  ]
 }
