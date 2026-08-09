@@ -1,12 +1,11 @@
 using System;
+using LiteGameFramework;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class OptionPanel : MonoBehaviour
+public class OptionPanel : BasePanel
 {
-    public static OptionPanel Instance { get; private set; }
-
     [Header("Button")]
     [SerializeField] private Button soundEffectsButton;
     [SerializeField] private Button musicButton;
@@ -35,30 +34,39 @@ public class OptionPanel : MonoBehaviour
     [SerializeField] private TextMeshProUGUI gamepadInteractText;
     [SerializeField] private TextMeshProUGUI gamepadInteractAlternateText;
     [SerializeField] private TextMeshProUGUI gamepadPauseText;
-    [SerializeField] private Transform pressToRebindKeyTransform;
-
+    [SerializeField] private RectTransform pressToRebindKeyTransform;
 
     private Action onCloseButtonAction;
 
-
-    private void Awake()
+    public override void LoadPanel()
     {
-        Instance = this;
+        base.LoadPanel();
 
-        soundEffectsButton.onClick.AddListener(() => {
+        HidePressToRebindKey();
+    }
+
+    public override void OnAddListener()
+    {
+        base.OnAddListener();
+
+        soundEffectsButton.onClick.AddListener(() =>
+        {
             //TODO
             //SoundManager.Instance.ChangeVolume();
             UpdateVisual();
         });
-        musicButton.onClick.AddListener(() => {
+        musicButton.onClick.AddListener(() =>
+        {
             //TODO
             //MusicManager.Instance.ChangeVolume();
             UpdateVisual();
         });
-        closeButton.onClick.AddListener(() => {
-            Hide();
+        closeButton.onClick.AddListener(() =>
+        {
+            HidePanel();
             onCloseButtonAction();
         });
+
 
         moveUpButton.onClick.AddListener(() => { RebindBinding(PlayerInput.Binding.Move_Up); });
         moveDownButton.onClick.AddListener(() => { RebindBinding(PlayerInput.Binding.Move_Down); });
@@ -70,23 +78,21 @@ public class OptionPanel : MonoBehaviour
         gamepadInteractButton.onClick.AddListener(() => { RebindBinding(PlayerInput.Binding.Gamepad_Interact); });
         gamepadInteractAlternateButton.onClick.AddListener(() => { RebindBinding(PlayerInput.Binding.Gamepad_InteractAlternate); });
         gamepadPauseButton.onClick.AddListener(() => { RebindBinding(PlayerInput.Binding.Gamepad_Pause); });
+
+        KitchenGameManager.Instance.OnGameUnpaused += KitchenGameManager_OnGameUnpaused;
+        PlayerSpawner.Instance.OnLocalPlayerSpawned += UpdateVisual;
     }
 
-    private void Start()
+    public override void OpenPanel()
     {
-        KitchenGameManager.Instance.OnGameUnpaused += KitchenGameManager_OnGameUnpaused;
+        base.OpenPanel();
 
-        // UpdateVisual();
-
-        HidePressToRebindKey();
-        Hide();
-
-        PlayerSpawner.Instance.OnLocalPlayerSpawned += UpdateVisual;
+        soundEffectsButton.Select();
     }
 
     private void KitchenGameManager_OnGameUnpaused(object sender, System.EventArgs e)
     {
-        Hide();
+        HidePanel();
     }
 
     private void UpdateVisual()
@@ -107,20 +113,6 @@ public class OptionPanel : MonoBehaviour
         gamepadPauseText.text = PlayerInput.Instance.GetBindingText(PlayerInput.Binding.Gamepad_Pause);
     }
 
-    public void Show(Action onCloseButtonAction)
-    {
-        this.onCloseButtonAction = onCloseButtonAction;
-
-        gameObject.SetActive(true);
-
-        soundEffectsButton.Select();
-    }
-
-    private void Hide()
-    {
-        gameObject.SetActive(false);
-    }
-
     private void ShowPressToRebindKey()
     {
         pressToRebindKeyTransform.gameObject.SetActive(true);
@@ -134,7 +126,8 @@ public class OptionPanel : MonoBehaviour
     private void RebindBinding(PlayerInput.Binding binding)
     {
         ShowPressToRebindKey();
-        PlayerInput.Instance.RebindBinding(binding, () => {
+        PlayerInput.Instance.RebindBinding(binding, () =>
+        {
             HidePressToRebindKey();
             UpdateVisual();
         });

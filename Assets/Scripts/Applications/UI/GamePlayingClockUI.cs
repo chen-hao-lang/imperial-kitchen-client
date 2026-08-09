@@ -1,17 +1,26 @@
-using System.Collections;
-using TMPro;
+using LiteGameFramework;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class GamePlayingClockUI : MonoBehaviour
+public class GamePlayingClockUI : BasePanel
 {
     [SerializeField] private Image timerImage;
-    //[SerializeField] private TextMeshProUGUI timerText;
 
-    // Update is called once per frame
-    void Update()
+    public override void OnAddListener()
     {
-        timerImage.fillAmount = KitchenGameManager.Instance.GetGamePlayingTimerNormalized();
-        //timerText.text = KitchenGameManager.Instance.GetGamePlayingTimerSeconds().ToString() + "s";
+        base.OnAddListener();
+
+        KitchenGameManager.Instance.OnGamePlayingTimerUpdate += UpdateTimerImage;
+    }
+
+    public override void OnRemoveListener()
+    {
+        base.OnRemoveListener();
+        KitchenGameManager.Instance.OnGamePlayingTimerUpdate -= UpdateTimerImage;
+    }
+
+    private void UpdateTimerImage(float obj)
+    {
+        timerImage.fillAmount = obj;
     }
 }

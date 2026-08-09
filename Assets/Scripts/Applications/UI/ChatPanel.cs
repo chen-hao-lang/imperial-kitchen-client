@@ -1,10 +1,11 @@
 using System.Collections;
 using System.Collections.Generic;
+using LiteGameFramework;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class ChatPanel : MonoBehaviour
+public class ChatPanel : BasePanel
 {
     [SerializeField] private RectTransform inputLabel;
     [SerializeField] private TMP_InputField inputField;
@@ -24,19 +25,22 @@ public class ChatPanel : MonoBehaviour
     /// <summary> 收到消息后自动关闭的时长（秒） </summary>
     private const float MESSAGE_SHOW_DURATION = 1f;
 
-    void Awake()
+    public override void LoadPanel()
     {
-        sendButton.onClick.AddListener(SendMessage);
-        scrollbar.onValueChanged.AddListener(OnScrollbarDrag);
+        base.LoadPanel();
 
         // 初始隐藏输入框和消息框
         inputLabel.gameObject.SetActive(false);
         messageLabel.gameObject.SetActive(false);
     }
 
-    // Start is called before the first frame update
-    void Start()
+    public override void OnAddListener()
     {
+        base.OnAddListener();
+
+        sendButton.onClick.AddListener(SendMessage);
+        scrollbar.onValueChanged.AddListener(OnScrollbarDrag);
+
         NetworkManager.Instance.OnReceiverMessage += OnReciveMessage;
 
         // PlayerInput 挂在本地玩家预制体上，由 PlayerSpawner 在连接成功后才生成，
@@ -44,8 +48,13 @@ public class ChatPanel : MonoBehaviour
         PlayerSpawner.Instance.OnLocalPlayerSpawned += OnLocalPlayerSpawned;
     }
 
-    private void OnDestroy()
+    public override void OnRemoveListener()
     {
+        base.OnRemoveListener();
+
+        sendButton.onClick.RemoveAllListeners();
+        scrollbar.onValueChanged.RemoveAllListeners();
+
         if (NetworkManager.Instance != null)
         {
             NetworkManager.Instance.OnReceiverMessage -= OnReciveMessage;
@@ -73,7 +82,7 @@ public class ChatPanel : MonoBehaviour
 
     private void OpenOrClosePanel(bool obj)
     {
-        if(obj)
+        if (obj)
         {
             OpenInputLabel();
         }

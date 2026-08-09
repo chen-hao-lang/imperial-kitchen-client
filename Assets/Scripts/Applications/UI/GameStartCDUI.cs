@@ -1,8 +1,9 @@
 using System;
+using LiteGameFramework;
 using TMPro;
 using UnityEngine;
 
-public class GameStartCDUI : MonoBehaviour
+public class GameStartCDUI : BasePanel
 {
     private const string NUMBER_POPUP = "NumberPopup";
 
@@ -11,17 +12,22 @@ public class GameStartCDUI : MonoBehaviour
     private Animator animator;
     private int previousCDNumber;
 
-    private void Awake()
+    public override void LoadPanel()
     {
-        animator = GetComponent<Animator>();    
+        base.LoadPanel();
+        animator = GetComponent<Animator>();
     }
 
-    // Start is called before the first frame update
-    void Start()
+    public override void OnAddListener()
     {
+        base.OnAddListener();
         KitchenGameManager.Instance.OnStateChanged += KitchenGameManager_OnStateChanged;
+    }
 
-        Hide();
+    public override void OnRemoveListener()
+    {
+        base.OnRemoveListener();
+        KitchenGameManager.Instance.OnStateChanged -= KitchenGameManager_OnStateChanged;
     }
 
     private void Update()
@@ -29,7 +35,7 @@ public class GameStartCDUI : MonoBehaviour
         int cdNumber = Mathf.CeilToInt(KitchenGameManager.Instance.GetCDToStartTimer());
         cdText.text = cdNumber.ToString();
 
-        if(previousCDNumber != cdNumber)
+        if (previousCDNumber != cdNumber)
         {
             previousCDNumber = cdNumber;
             animator.SetTrigger(NUMBER_POPUP);
@@ -37,25 +43,15 @@ public class GameStartCDUI : MonoBehaviour
         }
     }
 
-    private void Show()
-    {
-        gameObject.SetActive(true);
-    }
-
-    private void Hide()
-    {
-        gameObject.SetActive(false);
-    }
-
     private void KitchenGameManager_OnStateChanged(object sender, EventArgs e)
     {
         if (KitchenGameManager.Instance.IsCDToStartActive())
         {
-            Show();
+            OpenPanel();
         }
         else
         {
-            Hide();
+            HidePanel();
         }
     }
 }

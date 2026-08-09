@@ -10,6 +10,8 @@ public class KitchenGameManager : MonoBehaviour
     public event EventHandler OnGamePaused;
     public event EventHandler OnGameUnpaused;
 
+    public event Action<float> OnGamePlayingTimerUpdate;
+
     public enum State
     {
         WaitingToStart,
@@ -55,6 +57,7 @@ public class KitchenGameManager : MonoBehaviour
                 break;
             case State.GamePlaying:
                 gamePlayingTimer -= Time.deltaTime;
+                OnGamePlayingTimerUpdate?.Invoke(1-(gamePlayingTimer / gamePlayingTimerMax));
                 if (gamePlayingTimer < 0f)
                 {
                     state = State.GameOver;
@@ -115,11 +118,6 @@ public class KitchenGameManager : MonoBehaviour
     {
         return state == State.GameOver;
     }   
-
-    public float GetGamePlayingTimerNormalized()
-    {
-        return 1 - (gamePlayingTimer / gamePlayingTimerMax);
-    }
 
     public int GetGamePlayingTimerSeconds()
     {

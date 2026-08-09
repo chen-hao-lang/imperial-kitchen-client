@@ -1,15 +1,17 @@
+using LiteGameFramework;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class GamePausePanel : MonoBehaviour
+public class GamePausePanel : BasePanel
 {
     [SerializeField] private Button resumeButton;
     [SerializeField] private Button mainMenuButton;
     [SerializeField] private Button optionsButton;
 
-
-    private void Awake()
+    public override void OnAddListener()
     {
+        base.OnAddListener();
+
         resumeButton.onClick.AddListener(() => {
             KitchenGameManager.Instance.TogglePauseGame();
         });
@@ -18,38 +20,37 @@ public class GamePausePanel : MonoBehaviour
             // SceneManager.Load(SceneManager.Scene.MainMenuScene);
         });
         optionsButton.onClick.AddListener(() => {
-            Hide();
-            OptionPanel.Instance.Show(Show);
+            HidePanel();
+            //TODO:
+            // OptionPanel.Instance.Show(Show);
         });
-    }
 
-    private void Start()
-    {
         KitchenGameManager.Instance.OnGamePaused += KitchenGameManager_OnGamePaused;
         KitchenGameManager.Instance.OnGameUnpaused += KitchenGameManager_OnGameUnpaused;
-
-        Hide();
     }
 
-    private void KitchenGameManager_OnGameUnpaused(object sender, System.EventArgs e)
+    public override void OnRemoveListener()
     {
-        Hide();
+        base.OnRemoveListener();
+
+        KitchenGameManager.Instance.OnGamePaused -= KitchenGameManager_OnGamePaused;
+        KitchenGameManager.Instance.OnGameUnpaused -= KitchenGameManager_OnGameUnpaused;
     }
 
-    private void KitchenGameManager_OnGamePaused(object sender, System.EventArgs e)
+    public override void OpenPanel()
     {
-        Show();
-    }
-
-    private void Show()
-    {
-        gameObject.SetActive(true);
+        base.OpenPanel();
 
         resumeButton.Select();
     }
 
-    private void Hide()
+    private void KitchenGameManager_OnGameUnpaused(object sender, System.EventArgs e)
     {
-        gameObject.SetActive(false);
+        HidePanel();
+    }
+
+    private void KitchenGameManager_OnGamePaused(object sender, System.EventArgs e)
+    {
+        OpenPanel();
     }
 }

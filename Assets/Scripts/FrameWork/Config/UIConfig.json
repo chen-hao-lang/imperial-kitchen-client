@@ -3,13 +3,55 @@
     "type": "DeliveryManagerUI",
     "packageName": "UI",
     "panelName": "DeliveryManagerUI",
-    "layer": "SceneLayer",
+    "layer": "Normal",
     "isWindow": false
   },
   {
     "type": "MainMenuPanel",
     "packageName": "UI",
     "panelName": "MainMenuPanel",
+    "layer": "Normal",
+    "isWindow": false
+  },
+  {
+    "type": "GameOverPanel",
+    "packageName": "UI",
+    "panelName": "GameOverPanel",
+    "layer": "Top",
+    "isWindow": false
+  },
+  {
+    "type": "OptionPanel",
+    "packageName": "UI",
+    "panelName": "OptionPanel",
+    "layer": "SceneLayer",
+    "isWindow": false
+  },
+  {
+    "type": "GameStartCDPanel",
+    "packageName": "UI",
+    "panelName": "GameStartCDPanel",
+    "layer": "Top",
+    "isWindow": false
+  },
+  {
+    "type": "GamePlayingClockUI",
+    "packageName": "UI",
+    "panelName": "GamePlayingClockUI",
+    "layer": "Normal",
+    "isWindow": false
+  },
+  {
+    "type": "GamePausePanel",
+    "packageName": null,
+    "panelName": "GamePausePanel",
+    "layer": "Normal",
+    "isWindow": false
+  },
+  {
+    "type": "SucessPanel",
+    "packageName": "UI",
+    "panelName": "SucessPanel",
     "layer": "Normal",
     "isWindow": false
   }

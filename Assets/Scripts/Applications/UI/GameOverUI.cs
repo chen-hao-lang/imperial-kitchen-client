@@ -1,45 +1,41 @@
 using System;
+using LiteGameFramework;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class GameOverUI : MonoBehaviour
+public class GameOverUI : BasePanel
 {
     [SerializeField] private TextMeshProUGUI recipesDeliveredText;
     [SerializeField] private Button reStartBtn;
 
-    // Start is called before the first frame update
-    void Start()
+    public override void OnAddListener()
     {
+        base.OnAddListener();
+
         KitchenGameManager.Instance.OnStateChanged += Instance_OnStateChanged;
         reStartBtn.onClick.AddListener(ReStartBtnOnClick);
-
-        Hide();
     }
 
-
-
-    private void Show()
+    public override void OnRemoveListener()
     {
-        gameObject.SetActive(true);
-    }
+        base.OnRemoveListener();
 
-    private void Hide()
-    {
-        gameObject.SetActive(false);
+        KitchenGameManager.Instance.OnStateChanged -= Instance_OnStateChanged;
+        reStartBtn.onClick.AddListener(ReStartBtnOnClick);
     }
 
     private void Instance_OnStateChanged(object sender, EventArgs e)
     {
         if (KitchenGameManager.Instance.IsGameOver())
         {
-            Show();
+            OpenPanel();
 
             recipesDeliveredText.text = DeliveryManager.Instance.GetSuccessfulRecipesAmount().ToString();
         }
         else
         {
-            Hide();
+            HidePanel();
         }
     }
 

@@ -1,9 +1,12 @@
 using System.Collections;
 using System.Collections.Generic;
+using LiteGameFramework;
 using UnityEngine;
+using YooAsset;
 
 public class Launch : MonoBehaviour
 {
+    public EPlayMode ePlayMode = EPlayMode.None;
     // Start is called before the first frame update
     void Start()
     {
@@ -14,5 +17,11 @@ public class Launch : MonoBehaviour
     void Update()
     {
         
+    }
+
+    IEnumerator Init()
+    {
+        yield return UIManager.Instance.InitUIConfig(ePlayMode);
+        yield return UIManager.Instance.PreLoadPanel(EUIType.MainMenuPanel);
     }
 }
