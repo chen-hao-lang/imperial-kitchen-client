@@ -10,7 +10,7 @@ public class LoaderCallBack : MonoBehaviour
         { 
             isFristUpdate = false;  
 
-            SceneManager.LoadedCallBack();
+            SceneManager.Instance.LoadedCallBack();
         }
     }
 }

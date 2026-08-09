@@ -16,7 +16,7 @@ public class CuttingCounuter : BaseCounter, IHasPrograss
     /// <summary>
     /// 是否处于网络模式
     /// </summary>
-    private bool IsNetworkMode => NetworkManager.Instance != null && NetworkManager.Instance.IsConnected;
+    // private bool IsNetworkMode => NetworkManager.Instance != null && NetworkManager.Instance.IsConnected;
 
     /// <summary>
     /// 进度类操作台：InteractAlternate 的进度由服务器驱动

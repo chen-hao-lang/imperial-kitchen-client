@@ -45,7 +45,7 @@ public class GameOverUI : MonoBehaviour
 
     private void ReStartBtnOnClick()
     {
-        //重新加载游戏场景
-        SceneManager.Load(SceneManager.Scene.GameScene);    
+        //TODO:重新加载游戏场景
+        // SceneManager.Load(SceneManager.Scene.GameScene);    
     }
 }

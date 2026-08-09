@@ -1,18 +1,21 @@
+using LiteGameFramework;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class MainMenuPanel : MonoBehaviour
+public class MainMenuPanel : BasePanel
 {
     [SerializeField] private Button playBtn;
     [SerializeField] private Button quitBtn;
 
-    // Start is called before the first frame update
-    void Start()
+    public override void OnAddListener()
     {
+        base.OnAddListener();
+
         playBtn.onClick.AddListener(() =>
-        {
-            SceneManager.Load(SceneManager.Scene.GameScene);
-        });
+                {
+                    //TODO:切换场景
+                    // SceneManager.Load(SceneManager.Scene.GameScene);
+                });
 
         quitBtn.onClick.AddListener(() =>
             {

@@ -1,23 +1,35 @@
+using LiteGameFramework;
 using UnityEngine;
 
-public class DeliveryManagerUI : MonoBehaviour
+public class DeliveryManagerUI : BasePanel
 {
     [SerializeField] private Transform container;
     [SerializeField] private Transform recipeTemplete;
 
-
-    private void Awake()
+    protected override void Awake()
     {
+        base.Awake();
+
         recipeTemplete.gameObject.SetActive(false);
     }
 
-    // Start is called before the first frame update
-    void Start()
+    public override void LoadPanel()
+    {
+        base.LoadPanel();
+
+        UpdateVisual();
+    }
+
+    public override void OnAddListener()
     {
         DeliveryManager.Instance.OnRecipeSpawned += Instance_OnRecipeSpawned;
         DeliveryManager.Instance.OnRecipeCompleted += Instance_OnRecipeCompleted;
-            
-        UpdateVisual();
+    }
+
+    public override void OnRemoveListener()
+    {
+        DeliveryManager.Instance.OnRecipeSpawned -= Instance_OnRecipeSpawned;
+        DeliveryManager.Instance.OnRecipeCompleted -= Instance_OnRecipeCompleted;
     }
 
     private void UpdateVisual()

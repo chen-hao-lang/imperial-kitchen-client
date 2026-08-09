@@ -33,7 +33,8 @@ namespace LiteGameFramework
         }
         else
         {
-            SceneManager.LoadScene(mainScene);
+            //TODO:切换场景
+            // SceneManager.LoadScene(mainScene);
         }
     }
 

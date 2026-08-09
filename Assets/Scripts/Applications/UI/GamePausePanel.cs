@@ -14,7 +14,8 @@ public class GamePausePanel : MonoBehaviour
             KitchenGameManager.Instance.TogglePauseGame();
         });
         mainMenuButton.onClick.AddListener(() => {
-            SceneManager.Load(SceneManager.Scene.MainMenuScene);
+            //TODO:切换场景
+            // SceneManager.Load(SceneManager.Scene.MainMenuScene);
         });
         optionsButton.onClick.AddListener(() => {
             Hide();

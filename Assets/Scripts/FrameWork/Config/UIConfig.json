@@ -1,15 +1,15 @@
 [
   {
-    "type": "TestPanel01",
+    "type": "DeliveryManagerUI",
     "packageName": "UI",
-    "panelName": "TestPanel01",
-    "layer": "Normal",
+    "panelName": "DeliveryManagerUI",
+    "layer": "SceneLayer",
     "isWindow": false
   },
   {
-    "type": "StartPanel",
+    "type": "MainMenuPanel",
     "packageName": "UI",
-    "panelName": "StartPanel",
+    "panelName": "MainMenuPanel",
     "layer": "Normal",
     "isWindow": false
   }

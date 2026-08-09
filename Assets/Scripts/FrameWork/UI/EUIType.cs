@@ -1,9 +1,6 @@
-namespace LiteGameFramework
+public enum EUIType
 {
-    public enum EUIType
-    {
-        TestPanel01,
-        StartPanel,
-        Max
-    }
+    DeliveryManagerUI,
+    MainMenuPanel,
+    Max
 }

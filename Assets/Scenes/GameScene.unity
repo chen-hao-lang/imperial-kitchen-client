@@ -1535,7 +1535,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0.00018662693}
+  m_AnchoredPosition: {x: 0, y: 0.0004102325}
   m_SizeDelta: {x: 0, y: 300}
   m_Pivot: {x: 0, y: 1}
 --- !u!1 &214676249
@@ -8307,7 +8307,7 @@ MonoBehaviour:
   m_HandleRect: {fileID: 343997444}
   m_Direction: 3
   m_Value: 0
-  m_Size: 0.9999828
+  m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -12327,6 +12327,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3a77ab7b8e45084449b1201c3ed2412d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  layer: 0
+  isWindow: 0
   container: {fileID: 1338913219}
   recipeTemplete: {fileID: 1472475882}
 --- !u!1 &2140186019
