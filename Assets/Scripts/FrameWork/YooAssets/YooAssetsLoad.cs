@@ -145,6 +145,7 @@ namespace LiteGameFramework
         var option = new LoadPackageManifestOptions(_version, 60);
         var operation = package.LoadPackageManifestAsync(option);
 
+        yield return operation;
         if (operation.Status == EOperationStatus.Succeeded)
         {
             Debug.Log($"成功更新包：{_packageName} 的清单信息");

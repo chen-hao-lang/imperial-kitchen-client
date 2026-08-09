@@ -54,5 +54,12 @@
     "panelName": "SucessPanel",
     "layer": "Normal",
     "isWindow": false
+  },
+  {
+    "type": "ChatPanel",
+    "packageName": "UI",
+    "panelName": "ChatPanel",
+    "layer": "Normal",
+    "isWindow": false
   }
 ]

@@ -8,5 +8,6 @@ public enum EUIType
     GamePlayingClockUI,
     GamePausePanel,
     SucessPanel,
+    ChatPanel,
     Max
 }
