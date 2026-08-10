@@ -14,7 +14,7 @@ namespace LiteGameFramework
 
     public void OnEnter()
     {
-        CoroutineManager.Instance.Start(UpdateMainfest());
+        CoroutineManager.Instance.StartCoroutine(UpdateMainfest());
     }
 
     public void OnExit()

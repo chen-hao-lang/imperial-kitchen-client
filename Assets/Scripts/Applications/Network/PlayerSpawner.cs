@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using LiteGameFramework;
 
 public class PlayerSpawner : MonoBehaviour
 {
@@ -37,20 +38,20 @@ public class PlayerSpawner : MonoBehaviour
             return;
         }
 
-        NetworkManager.Instance.OnConnected += OnConnetced;
-        NetworkManager.Instance.OnPlayerJoined += OnPlayerJoined;
-        NetworkManager.Instance.OnPlayerLeft += OnPlayerLeft;
+        EventManager.AddListener<OnNetworkConnected>(this, OnConnetced);
+        EventManager.AddListener<OnNetworkPlayerJoined>(this, OnPlayerJoined);
+        EventManager.AddListener<OnNetworkPlayerLeft>(this, OnPlayerLeft);
 
-        NetworkManager.Instance.OnFullSync += OnFullSyncReceived;
+        EventManager.AddListener<OnFullSync>(this, OnFullSyncReceived);
     }
 
     private void OnDestroy()
     {
         if (NetworkManager.Instance != null)
         {
-            NetworkManager.Instance.OnConnected -= OnConnetced;
-            NetworkManager.Instance.OnPlayerJoined -= OnPlayerJoined;
-            NetworkManager.Instance.OnPlayerLeft -= OnPlayerLeft;
+            EventManager.RemoveListener<OnNetworkConnected>(this, OnConnetced);
+            EventManager.RemoveListener<OnNetworkPlayerJoined>(this, OnPlayerJoined);
+            EventManager.RemoveListener<OnNetworkPlayerLeft>(this, OnPlayerLeft);
         }
     }
 
@@ -59,8 +60,9 @@ public class PlayerSpawner : MonoBehaviour
     /// </summary>
     /// <param name="_myPlayerId"></param>
     /// <exception cref="NotImplementedException"></exception>
-    private void OnConnetced(int _myPlayerId)
+    private void OnConnetced(OnNetworkConnected _arg)
     {
+        int _myPlayerId = _arg.playerId;
         Debug.Log($"[PlayerSpawner] 本地玩家已连接，ID={_myPlayerId},生成本地角色");
 
         Vector3 spawnPos = GetSpawnPosition(_myPlayerId);
@@ -107,11 +109,11 @@ public class PlayerSpawner : MonoBehaviour
     /// </summary>
     /// <param name="_playerId">加入的玩家的id</param>
     /// <param name="_playerName">加入的玩家的名字</param>
-    private void OnPlayerJoined(int _playerId, string _playerName)
+    private void OnPlayerJoined(OnNetworkPlayerJoined _arg)
     {
-        if (_playerId == NetworkManager.Instance.PlayerID) return;
+        if (_arg.playerId == NetworkManager.Instance.PlayerID) return;
 
-        Debug.Log($"[PlayerSpawner] 远程玩家加入：{_playerId}({_playerName})");
+        Debug.Log($"[PlayerSpawner] 远程玩家加入：{_arg.playerId}({_arg.playerName})");
 
         if (remotePlayerPrefab == null)
         {
@@ -119,16 +121,16 @@ public class PlayerSpawner : MonoBehaviour
             return;
         }
 
-        Vector3 spawnPos = GetSpawnPosition(_playerId);
+        Vector3 spawnPos = GetSpawnPosition(_arg.playerId);
         GameObject playerObj = Instantiate(remotePlayerPrefab, spawnPos, Quaternion.identity);
-        playerObj.name = $"Player_{_playerId}({_playerName})";
+        playerObj.name = $"Player_{_arg.playerId}({_arg.playerName})";
 
         // 设置身份
         PlayerController pc = playerObj.GetComponent<PlayerController>();
         if (pc != null)
         {
-            pc.SetPlayerIdentity(_playerId, false);
-            spawnedPlayers[_playerId] = pc;
+            pc.SetPlayerIdentity(_arg.playerId, false);
+            spawnedPlayers[_arg.playerId] = pc;
         }
 
         // 初始化NetworkPlayer组件
@@ -137,36 +139,34 @@ public class PlayerSpawner : MonoBehaviour
         {
             np = playerObj.AddComponent<NetworkPlayer>();
         }
-        np.Initialize(_playerId);
+        np.Initialize(_arg.playerId);
     }
 
     /// <summary>
     /// 有玩家离开。
     /// </summary>
     /// <param name="_playerId">离开的玩家ID</param>
-    private void OnPlayerLeft(int _playerId)
+    private void OnPlayerLeft(OnNetworkPlayerLeft _arg)
     {
-        Debug.Log($"[PlayerSpawner] 玩家离开: {_playerId}");
+        Debug.Log($"[PlayerSpawner] 玩家离开: {_arg.playerId}");
 
-        if (spawnedPlayers.TryGetValue(_playerId, out var pc))
+        if (spawnedPlayers.TryGetValue(_arg.playerId, out var pc))
         {
-            spawnedPlayers.Remove(_playerId);
+            spawnedPlayers.Remove(_arg.playerId);
 
             // 触发事件
-            OnRemotePlayerDestroyed?.Invoke(_playerId);
+            OnRemotePlayerDestroyed?.Invoke(_arg.playerId);
 
             // 销毁玩家
             Destroy(pc.gameObject);
         }
     }
 
-    private void OnFullSyncReceived(
-    (int id, string name, float x, float y, float z, float rotY)[] players,
-    (int counterId, int itemIndex)[] counters)
+    private void OnFullSyncReceived(OnFullSync _arg)
     {
-        Debug.Log($"[PlayerSpawner] 收到全量同步: {players.Length} 个已有玩家");
+        Debug.Log($"[PlayerSpawner] 收到全量同步: {_arg.players.Length} 个已有玩家");
 
-        foreach (var p in players)
+        foreach (var p in _arg.players)
         {
             // 不给自己生成
             if (p.id == NetworkManager.Instance.PlayerID) continue;

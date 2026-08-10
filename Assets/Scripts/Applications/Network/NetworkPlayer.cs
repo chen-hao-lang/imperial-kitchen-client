@@ -1,3 +1,5 @@
+using System;
+using LiteGameFramework;
 using UnityEngine;
 
 public class NetworkPlayer : MonoBehaviour
@@ -33,41 +35,43 @@ public class NetworkPlayer : MonoBehaviour
         targetRotation = transform.rotation;
         lastReceivedPosition = transform.position;
 
-        NetworkManager.Instance.OnPlayerPosition += OnPlayerPositionReceived;
-        NetworkManager.Instance.OnPlayerInteract += OnInteractionSyncReceived;
+        EventManager.AddListener<OnNetworkPlayerInteract>(this, OnInteractionSyncReceived);
+
+        EventManager.AddListener<OnPlayerPosition>(this, OnPlayerPositionReceived);
     }
 
     private void OnDestroy()
     {
         if (NetworkManager.Instance != null)
         {
-            NetworkManager.Instance.OnPlayerPosition -= OnPlayerPositionReceived;
-            NetworkManager.Instance.OnPlayerInteract -= OnInteractionSyncReceived;
+            EventManager.RemoveListener<OnNetworkPlayerInteract>(this, OnInteractionSyncReceived);
+
+            EventManager.RemoveListener<OnPlayerPosition>(this, OnPlayerPositionReceived);
         }
     }
 
-    private void OnPlayerPositionReceived(int _playerId, float _x, float _y, float _z, float _rotY)
+    private void OnPlayerPositionReceived(OnPlayerPosition _arg)
     {
-        if (_playerId != this.playerId) return; // 不是发给我的
+        if (_arg.playerId != this.playerId) return; // 不是发给我的
 
-        targetPosition = new Vector3(_x, _y, _z);
-        targetRotation = Quaternion.Euler(0, _rotY, 0);
+        targetPosition = _arg.pos;
+        targetRotation = _arg.rotation;
 
         // 判断是否在移动：如果和上一次收到位置的距离大于阈值，就是在走
         float distance = Vector3.Distance(
-            new Vector3(_x, 0, _z),
+            new Vector3(_arg.pos.x, 0, _arg.pos.z),
             new Vector3(lastReceivedPosition.x, 0, lastReceivedPosition.z)
         );
         isTargetWalking = distance > stationaryThreshold;
 
-        lastReceivedPosition = new Vector3(_x, _y, _z);
+        lastReceivedPosition = _arg.pos;
     }
 
-    private void OnInteractionSyncReceived(int _playerId, int _playerItem)
+    private void OnInteractionSyncReceived(OnNetworkPlayerInteract _arg)
     {
-        if (_playerId != this.playerId) return; // 不是发给我的
+        if (_arg.playerId != this.playerId) return; // 不是发给我的
 
-        ApplyHeldItem(_playerItem);
+        ApplyHeldItem(_arg.itemIndex);
     }
 
     /// <summary>

@@ -25,9 +25,9 @@ public class GameOverUI : BasePanel
         reStartBtn.onClick.AddListener(ReStartBtnOnClick);
     }
 
-    private void Instance_OnStateChanged(object sender, EventArgs e)
+    private void Instance_OnStateChanged(EGameState _state)
     {
-        if (KitchenGameManager.Instance.IsGameOver())
+        if (_state == EGameState.GameOver)
         {
             OpenPanel();
 

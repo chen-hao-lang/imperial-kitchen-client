@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using LiteGameFramework;
 
 /// <summary>
 /// 盘子中央管理器（唯一权威）。
@@ -31,23 +32,23 @@ public class PlateManager : MonoBehaviour
 
     void Start()
     {
-        NetworkManager.Instance.OnPlateSpawned += OnPlateSpawned;
-        NetworkManager.Instance.OnPlateOwnerSync += OnPlateOwnerSync;
-        NetworkManager.Instance.OnPlateIngredientSync += OnPlateIngredientSyncReceived;
-        NetworkManager.Instance.OnPlateIngredientRemoved += OnPlateIngredientRemovedReceived;
-        NetworkManager.Instance.OnPlateDestroy += OnPlateDestroyReceived;
-        NetworkManager.Instance.OnRemovePlate += OnRemotePlateRemoved;
+        EventManager.AddListener<OnPlateSpawned>(this, OnPlateSpawned);
+        EventManager.AddListener<OnPlateOwnerSync>(this, OnPlateOwnerSync);
+        EventManager.AddListener<OnPlateIngredientSync>(this, OnPlateIngredientSyncReceived);
+        EventManager.AddListener<OnPlateIngredientRemoved>(this, OnPlateIngredientRemovedReceived);
+        EventManager.AddListener<OnPlateDestroy>(this, OnPlateDestroyReceived);
+        EventManager.AddListener<OnRemotePlateRemoved>(this, OnRemotePlateRemoved);
     }
 
     private void OnDestroy()
     {
         if (NetworkManager.Instance == null) return;
-        NetworkManager.Instance.OnPlateSpawned -= OnPlateSpawned;
-        NetworkManager.Instance.OnPlateOwnerSync -= OnPlateOwnerSync;
-        NetworkManager.Instance.OnPlateIngredientSync -= OnPlateIngredientSyncReceived;
-        NetworkManager.Instance.OnPlateIngredientRemoved -= OnPlateIngredientRemovedReceived;
-        NetworkManager.Instance.OnPlateDestroy -= OnPlateDestroyReceived;
-        NetworkManager.Instance.OnRemovePlate -= OnRemotePlateRemoved;
+        EventManager.RemoveListener<OnPlateSpawned>(this, OnPlateSpawned);
+        EventManager.RemoveListener<OnPlateOwnerSync>(this, OnPlateOwnerSync);
+        EventManager.RemoveListener<OnPlateIngredientSync>(this, OnPlateIngredientSyncReceived);
+        EventManager.RemoveListener<OnPlateIngredientRemoved>(this, OnPlateIngredientRemovedReceived);
+        EventManager.RemoveListener<OnPlateDestroy>(this, OnPlateDestroyReceived);
+        EventManager.RemoveListener<OnRemotePlateRemoved>(this, OnRemotePlateRemoved);
     }
 
     #region 生成 & 池化
@@ -55,16 +56,16 @@ public class PlateManager : MonoBehaviour
     /// <summary>
     /// 服务器生成了盘子 → 创建池化盘子（失活）并通知对应 PlateCounter 视觉。
     /// </summary>
-    private void OnPlateSpawned(int _counterId, int _plateId)
+    private void OnPlateSpawned(OnPlateSpawned _arg)
     {
-        PlateCounter plateCounter = CountersManager.Instance?.GetCounter(_counterId) as PlateCounter;
+        PlateCounter plateCounter = CountersManager.Instance?.GetCounter(_arg.counterId) as PlateCounter;
         if (plateCounter == null)
         {
-            Debug.LogWarning($"[PlateManager] PlateSpawned：操作台 {_counterId} 不是 PlateCounter");
+            Debug.LogWarning($"[PlateManager] PlateSpawned：操作台 {_arg.counterId} 不是 PlateCounter");
             return;
         }
 
-        SpawnPooledPlate(plateCounter, _plateId, plateCounter.PlateKitchenObjectSO);
+        SpawnPooledPlate(plateCounter, _arg.plateId, plateCounter.PlateKitchenObjectSO);
     }
 
     /// <summary>创建一个失活盘子并放入对应操作台的池子，触发视觉。</summary>
@@ -183,10 +184,10 @@ public class PlateManager : MonoBehaviour
     }
 
     /// <summary>收到服务器广播的盘子配料变化 → 应用到本地盘子。</summary>
-    private void OnPlateIngredientSyncReceived(int _plateId, int _ingredientIndex)
+    private void OnPlateIngredientSyncReceived(OnPlateIngredientSync _arg)
     {
-        if (!plates.TryGetValue(_plateId, out var plate)) return;
-        KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetByIndex(_ingredientIndex);
+        if (!plates.TryGetValue(_arg.plateId, out var plate)) return;
+        KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetByIndex(_arg.ingredientIndex);
         if (so != null) plate.TryAddIngredient(so);
     }
 
@@ -209,10 +210,10 @@ public class PlateManager : MonoBehaviour
     }
 
     /// <summary>收到服务器广播的盘子配料移除 → 应用到本地盘子。</summary>
-    private void OnPlateIngredientRemovedReceived(int _plateId, int _ingredientIndex)
+    private void OnPlateIngredientRemovedReceived(OnPlateIngredientRemoved _arg)
     {
-        if (!plates.TryGetValue(_plateId, out var plate)) return;
-        KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetByIndex(_ingredientIndex);
+        if (!plates.TryGetValue(_arg.plateId, out var plate)) return;
+        KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetByIndex(_arg.ingredientIndex);
         if (so != null) plate.RemoveIngredient(so);
     }
 
@@ -220,24 +221,24 @@ public class PlateManager : MonoBehaviour
 
     #region 持有者变更（接收）
 
-    private void OnPlateOwnerSync(int _plateId, int _ownerType, int _ownerId, List<int> _ingredients)
+    private void OnPlateOwnerSync(OnPlateOwnerSync _arg)
     {
-        if (!plates.TryGetValue(_plateId, out var plate))
+        if (!plates.TryGetValue(_arg.plateId, out var plate))
         {
             // 盘子还没生成（消息乱序）：若是玩家持有，缓存等 RegisterPlayerHeldPlate 补应用
-            if (_ownerType == 0)
+            if (_arg.ownerType == 0)
             {
-                pendingPlayerOwnerSyncs[_ownerId] = (_plateId, new List<int>(_ingredients));
+                pendingPlayerOwnerSyncs[_arg.ownerId] = (_arg.plateId, new List<int>(_arg.ingredients));
             }
             else
             {
-                Debug.LogWarning($"[PlateManager] owner sync 未找到盘子 {_plateId}");
+                Debug.LogWarning($"[PlateManager] owner sync 未找到盘子 {_arg.plateId}");
             }
             return;
         }
 
-        MovePlateToOwner(plate, _ownerType, _ownerId);
-        ApplyOwnerSyncData(plate, _ownerType, _ownerId, _ingredients);
+        MovePlateToOwner(plate, _arg.ownerType, _arg.ownerId);
+        ApplyOwnerSyncData(plate, _arg.ownerType, _arg.ownerId, _arg.ingredients);
     }
 
     /// <summary>把唯一盘子实体挂到新持有者（玩家手/操作台）。</summary>
@@ -305,18 +306,18 @@ public class PlateManager : MonoBehaviour
 
     #region 销毁 & 移除
 
-    private void OnPlateDestroyReceived(int _plateId)
+    private void OnPlateDestroyReceived(OnPlateDestroy _arg)
     {
-        if (!plates.TryGetValue(_plateId, out var plate)) return;
+        if (!plates.TryGetValue(_arg.plateId, out var plate)) return;
 
         // 防御：盘子已被其他路径销毁但仍在字典里 → 直接移除
         if (plate == null)
         {
-            plates.Remove(_plateId);
+            plates.Remove(_arg.plateId);
             return;
         }
 
-        plates.Remove(_plateId);
+        plates.Remove(_arg.plateId);
         RemoveFromAnyPool(plate);
 
         // 先解绑（必须在销毁前读取 parent）
@@ -332,13 +333,13 @@ public class PlateManager : MonoBehaviour
         if (playerHeldPlates.Remove(plate.OwnerId)) { }
 
         Destroy(plate.gameObject);
-        Debug.Log($"[PlateManager] 销毁盘子 {_plateId}");
+        Debug.Log($"[PlateManager] 销毁盘子 {_arg.plateId}");
     }
 
     /// <summary>服务器广播"某操作台盘子被拿走" → 该操作台视觉减少一个。</summary>
-    private void OnRemotePlateRemoved(int _counterId, int _plateId)
+    private void OnRemotePlateRemoved(OnRemotePlateRemoved _arg)
     {
-        PlateCounter plateCounter = CountersManager.Instance?.GetCounter(_counterId) as PlateCounter;
+        PlateCounter plateCounter = CountersManager.Instance?.GetCounter(_arg.counterId) as PlateCounter;
         if (plateCounter != null)
         {
             plateCounter.OnPlateRemove?.Invoke();

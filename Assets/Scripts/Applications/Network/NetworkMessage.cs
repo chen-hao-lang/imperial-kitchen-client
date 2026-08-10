@@ -97,9 +97,12 @@ public static class NetworkMessage
     /// <summary>
     /// 玩家准备就绪。
     /// </summary>
-    public static byte[] Create_PlayerReady()
+    public static byte[] Create_PlayerReady(int _playerId)
     {
-        return Pack(MessageType.C2S_PlayerReady, Array.Empty<byte>());
+        using var ms = new MemoryStream();
+        using var writer = new BinaryWriter(ms);
+        writer.Write(_playerId);
+        return Pack(MessageType.C2S_PlayerReady, ms.ToArray());
     }
 
     /// <summary>

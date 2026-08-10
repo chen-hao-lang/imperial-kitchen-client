@@ -631,7 +631,7 @@ Camera:
   field of view: 42.3
   orthographic: 0
   orthographic size: 5
-  m_Depth: -1
+  m_Depth: 1
   m_CullingMask:
     serializedVersion: 2
     m_Bits: 4294967295
@@ -2213,7 +2213,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1744846745}
-  - component: {fileID: 1744846746}
   - component: {fileID: 1744846747}
   m_Layer: 0
   m_Name: kitchenGameManager
@@ -2237,20 +2236,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1744846746
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1744846744}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 694e6e2bd0aa1604ea04424742d4dd44, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  cdToStartTimer: 3
-  gamePlayingTimerMax: 60
 --- !u!114 &1744846747
 MonoBehaviour:
   m_ObjectHideFlags: 0

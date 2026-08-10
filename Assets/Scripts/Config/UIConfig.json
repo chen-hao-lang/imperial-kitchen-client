@@ -28,9 +28,9 @@
     "isWindow": false
   },
   {
-    "type": "GameStartCDPanel",
+    "type": "GameStartCDUI",
     "packageName": "UI",
-    "panelName": "GameStartCDPanel",
+    "panelName": "GameStartCDUI",
     "layer": "Top",
     "isWindow": false
   },

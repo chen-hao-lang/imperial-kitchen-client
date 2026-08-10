@@ -41,7 +41,7 @@ public class ChatPanel : BasePanel
         sendButton.onClick.AddListener(SendMessage);
         scrollbar.onValueChanged.AddListener(OnScrollbarDrag);
 
-        NetworkManager.Instance.OnReceiverMessage += OnReciveMessage;
+        EventManager.AddListener<OnNetworkMessage>(this, OnReciveMessage);
 
         // PlayerInput 挂在本地玩家预制体上，由 PlayerSpawner 在连接成功后才生成，
         // 所以这里先订阅 OnLocalPlayerSpawned，等玩家生成后再订阅 PlayerInput 的事件
@@ -57,7 +57,7 @@ public class ChatPanel : BasePanel
 
         if (NetworkManager.Instance != null)
         {
-            NetworkManager.Instance.OnReceiverMessage -= OnReciveMessage;
+            EventManager.RemoveListener<OnNetworkMessage>(this, OnReciveMessage);
         }
         if (PlayerSpawner.Instance != null)
         {
@@ -161,12 +161,12 @@ public class ChatPanel : BasePanel
         messageLabel.gameObject.SetActive(false);
     }
 
-    public void OnReciveMessage(int _playerId, string _messageContent)
+    public void OnReciveMessage(OnNetworkMessage _arg)
     {
         //打开messageLabel
         //显示消息,显示格式为"Plyer{_playerId}:{_messageContent}"
         //显示1s后自动关闭messageLabel
-        AppendMessage(_playerId, _messageContent);
+        AppendMessage(_arg.playerId, _arg.message);
 
         messageLabel.gameObject.SetActive(true);
 

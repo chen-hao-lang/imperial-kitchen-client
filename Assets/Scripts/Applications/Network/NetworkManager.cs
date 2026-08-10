@@ -3,11 +3,12 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Threading;
+using LiteGameFramework;
+using Unity.VisualScripting;
 using UnityEngine;
 
-public class NetworkManager : MonoBehaviour
+public class NetworkManager : SingletonMono<NetworkManager>
 {
-    public static NetworkManager Instance { get; private set; }
     // 服务器配置
     [SerializeField] private string serverIP = "127.0.0.1";
     [SerializeField] private int serverPort = 7777;
@@ -28,89 +29,6 @@ public class NetworkManager : MonoBehaviour
     // 主线程消息队列
     private readonly ConcurrentQueue<Action> mainThreadActions = new ConcurrentQueue<Action>();
 
-    #region 游戏事件
-    /// <summary> 连接成功并收到自己的 PlayerId 后触发 </summary>
-    public event Action<int> OnConnected;
-
-    /// <summary> 连接断开 </summary>
-    public event Action OnDisconnected;
-
-    /// <summary> 有新玩家加入（玩家ID，玩家名字） </summary>
-    public event Action<int, string> OnPlayerJoined;
-
-    /// <summary> 有玩家离开 </summary>
-    public event Action<int> OnPlayerLeft;
-
-    /// <summary> 收到玩家位置更新（玩家ID, x, y, z, rotY） </summary>
-    public event Action<int, float, float, float, float> OnPlayerPosition;
-
-    /// <summary>
-    /// 当玩家交互（Interact）时触发，参数为玩家ID和玩家手中物品的索引
-    /// </summary>
-    public event Action<int, int> OnPlayerInteract;
-
-    /// <summary> 游戏状态变化：0=Waiting, 1=CD, 2=Playing, 3=Over </summary>
-    public event Action<byte> OnGameStateChange;
-    /// <summary> 游戏计时器同步 </summary>
-    public event Action<float> OnTimerSync;
-
-    /// <summary> 新订单出现 </summary>
-    public event Action<int> OnRecipeSpawned;
-
-    /// <summary> 订单完成 </summary>
-    public event Action<int> OnRecipeCompleted;
-
-    /// <summary> 交付失败 </summary>
-    public event Action OnRecipeFailed;
-
-    /// <summary> 分数更新 </summary>
-    public event Action<int> OnScoreUpdate;
-
-    /// <summary> 开局倒计时 </summary>
-    public event Action<float> OnGameStartCD;
-
-    /// <summary> 全量同步（新玩家加入时收到） </summary>
-    public event Action<
-        (int id, string name, float x, float y, float z, float rotY)[],
-        (int counterId, int itemIndex)[]
-    > OnFullSync;
-
-    /// <summary> 操作台进度同步（操作台ID, 进度0~1） </summary>
-    public event Action<int, float> OnCounterProgressSync;
-
-    /// <summary> 操作台扩展数据同步（操作台ID, 扩展数据） </summary>
-    public event Action<int, byte> OnCounterExtraSync;
-
-    /// <summary> 盘子配料变化（plateId, ingredientIndex） </summary>
-    public event Action<int, int> OnPlateIngredientSync;
-
-    /// <summary> 盘子配料移除（plateId, ingredientIndex） </summary>
-    public event Action<int, int> OnPlateIngredientRemoved;
-
-    /// <summary> 新盘子出现/持有者变更（plateId, ownerType, ownerId, soIndex, ingredients[]） </summary>
-    public event Action<int,int> OnPlateSpawned;
-
-    public event Action<int,int,int,List<int>> OnPlateOwnerSync;
-
-    /// <summary> 盘子销毁（plateId） </summary>
-    public event Action<int> OnPlateDestroy;
-
-    public event Action<int,int> OnRemovePlate;
-
-    public event Action<int,string> OnReceiverMessage;
-    #endregion
-
-    void Awake()
-    {
-        if (Instance != null)
-        {
-            Destroy(gameObject);
-            return;
-        }
-        Instance = this;
-        DontDestroyOnLoad(gameObject);
-    }
-
     // Update is called once per frame
     void Update()
     {
@@ -121,12 +39,12 @@ public class NetworkManager : MonoBehaviour
         }
     }
 
-    private void OnDestroy()
+    protected override void OnDestroy()
     {
         Disconnect();
     }
 
-    private void OnApplicationQuit()
+    protected override void OnApplicationQuit()
     {
         Disconnect();
     }
@@ -222,7 +140,7 @@ public class NetworkManager : MonoBehaviour
         catch (Exception ex)
         {
             Debug.LogError($"[NetworkManager] 发送失败: {ex.Message}");
-            EnqueueOnMainThread(() => OnDisconnected?.Invoke());
+            EnqueueOnMainThread(() => EventManager.Invoke<OnNetworkDisconnected>());
             Disconnect();
         }
     }
@@ -240,9 +158,9 @@ public class NetworkManager : MonoBehaviour
     }
 
     /// <summary> 上报玩家准备就绪 </summary>
-    public void SendPlayerReady()
+    public void SendPlayerReady(int _playerId)
     {
-        Send(NetworkMessage.Create_PlayerReady());
+        Send(NetworkMessage.Create_PlayerReady(_playerId));
     }
 
     public void SendPlayerInteract(int playerId, int playerItemIndex)
@@ -281,9 +199,9 @@ public class NetworkManager : MonoBehaviour
         Send(NetworkMessage.Create_CounterStartMark(_counterId, _maxBoilingTimer));
     }
 
-    public void SendRemotePlate(int _counterId,int _plateId)
+    public void SendRemotePlate(int _counterId, int _plateId)
     {
-        Send(NetworkMessage.Create_RemotePlate(_counterId,_plateId));
+        Send(NetworkMessage.Create_RemotePlate(_counterId, _plateId));
     }
     #endregion
     #region 盘子
@@ -320,15 +238,15 @@ public class NetworkManager : MonoBehaviour
         Send(NetworkMessage.Create_PlateRemoveIngredient(_plateId, _ingredientIndex));
     }
 
-    public void SendPlateRegisterSO(int _plateId,int _plateSO)
+    public void SendPlateRegisterSO(int _plateId, int _plateSO)
     {
-        Send(NetworkMessage.Create_RegisterPlate(_plateId,_plateSO));
+        Send(NetworkMessage.Create_RegisterPlate(_plateId, _plateSO));
     }
     #endregion
-    
-    public void SendMessage(int _playerId,string _message)
+
+    public void SendMessage(int _playerId, string _message)
     {
-        Send(NetworkMessage.Create_SendMessage(_playerId,_message));
+        Send(NetworkMessage.Create_SendMessage(_playerId, _message));
     }
     #endregion
 
@@ -402,7 +320,7 @@ public class NetworkManager : MonoBehaviour
         {
             IsConnected = false;
             PlayerID = -1;
-            OnDisconnected?.Invoke();
+            EventManager.Invoke<OnNetworkDisconnected>();
             Debug.Log("[NetworkManager] 与服务器的连接已断开");
         });
     }
@@ -414,17 +332,24 @@ public class NetworkManager : MonoBehaviour
     /// <param name="_body">消息体</param>
     private void HandleMessage(MessageType _type, byte[] _body)
     {
-        if(_type == MessageType.RemotePlate)
+        if (_type == MessageType.RemotePlate)
         {
-            var (counterId,plateId) = NetworkMessage.Parse_RemotePlate(_body);
-            OnRemovePlate?.Invoke(counterId,plateId);     
+            var (counterId, plateId) = NetworkMessage.Parse_RemotePlate(_body);
+            EventManager.Invoke<OnRemotePlateRemoved>(new OnRemotePlateRemoved(counterId, plateId));
             return;
         }
 
-        if(_type == MessageType.SendMessage)
+        if (_type == MessageType.SendMessage)
         {
-            var (playerId,message) = NetworkMessage.Parse_SendMessage(_body);
-            OnReceiverMessage?.Invoke(playerId,message);
+            var (playerId, message) = NetworkMessage.Parse_SendMessage(_body);
+            EventManager.Invoke<OnNetworkMessage>(new OnNetworkMessage(playerId, message));
+            return;
+        }
+
+        if (_type == MessageType.PlayerPosition)
+        {
+            var (playerId, x, y, z, rotY) = NetworkMessage.Parse_PlayerPosition(_body);
+            EventManager.Invoke<OnPlayerPosition>(new OnPlayerPosition(playerId,x,y,z,rotY));
             return;
         }
 
@@ -433,97 +358,92 @@ public class NetworkManager : MonoBehaviour
             case MessageType.AssignPlayerId:
                 PlayerID = NetworkMessage.Parse_AssignPlayerId(_body);
                 Debug.Log($"[NetworkManager] 我的玩家ID: {PlayerID}");
-                OnConnected?.Invoke(PlayerID);
+                EventManager.Invoke<OnNetworkConnected>(new OnNetworkConnected(PlayerID));
                 break;
 
             case MessageType.PlayerJoined:
                 var (pjId, pjName) = NetworkMessage.Parse_PlayerJoined(_body);
                 Debug.Log($"[NetworkManager] 玩家加入: {pjId} ({pjName})");
-                OnPlayerJoined?.Invoke(pjId, pjName);
+                EventManager.Invoke<OnNetworkPlayerJoined>(new OnNetworkPlayerJoined(pjId, pjName));
                 break;
 
             case MessageType.PlayerLeft:
                 int plId = NetworkMessage.Parse_PlayerLeft(_body);
                 Debug.Log($"[NetworkManager] 玩家离开: {plId}");
-                OnPlayerLeft?.Invoke(plId);
+                EventManager.Invoke<OnNetworkPlayerLeft>(new OnNetworkPlayerLeft(plId));
                 break;
-
-            case MessageType.PlayerPosition:
-                var (ppId, px, py, pz, pRotY) = NetworkMessage.Parse_PlayerPosition(_body);
-                OnPlayerPosition?.Invoke(ppId, px, py, pz, pRotY);
-                break;
-
             case MessageType.PlayerInteract:
                 var (playerId, playerItem) = NetworkMessage.Parse_PlayerIneract(_body);
-                OnPlayerInteract?.Invoke(playerId, playerItem);
+                EventManager.Invoke<OnNetworkPlayerInteract>(new OnNetworkPlayerInteract(playerId, playerItem));
                 break;
 
             case MessageType.GameStateChange:
                 byte state = NetworkMessage.Parse_GameStateChange(_body);
-                OnGameStateChange?.Invoke(state);
+                // OnGameStateChange?.Invoke(state);
+                EventManager.Invoke<OnGameStateChange>(new OnGameStateChange(state));
                 break;
 
             case MessageType.TimerSync:
                 float time = NetworkMessage.Parse_TimerSync(_body);
-                OnTimerSync?.Invoke(time);
+                EventManager.Invoke<OnGameTimerSync>(new OnGameTimerSync(time));
                 break;
 
             case MessageType.RecipeSpawned:
                 int rsIndex = NetworkMessage.Parse_RecipeSpawned(_body);
-                OnRecipeSpawned?.Invoke(rsIndex);
+                EventManager.Invoke<OnRecipeSpawned>(new OnRecipeSpawned(rsIndex));
                 break;
 
             case MessageType.RecipeCompleted:
                 int rcIndex = NetworkMessage.Parse_RecipeCompleted(_body);
-                OnRecipeCompleted?.Invoke(rcIndex);
+                EventManager.Invoke<OnRecipeCompleted>(new OnRecipeCompleted(rcIndex));
                 break;
 
             case MessageType.RecipeFailed:
-                OnRecipeFailed?.Invoke();
+                EventManager.Invoke<OnRecipeFailed>();
                 break;
 
             case MessageType.ScoreUpdate:
                 int score = NetworkMessage.Parse_ScoreUpdate(_body);
-                OnScoreUpdate?.Invoke(score);
+                EventManager.Invoke<OnScoreUpdate>(new OnScoreUpdate(score));
                 break;
 
             case MessageType.GameStartCD:
                 float cd = NetworkMessage.Parse_GameStartCD(_body);
-                OnGameStartCD?.Invoke(cd);
+                EventManager.Invoke<OnGameStartCD>(new OnGameStartCD(cd));
                 break;
 
             case MessageType.FullSync:
                 NetworkMessage.Parse_FullSync(_body, out var players, out var counters, out var plates);
-                OnFullSync?.Invoke(players, counters);
+                EventManager.Invoke<OnFullSync>(new OnFullSync(players, counters));
                 PlateManager.Instance?.RestorePlatesFromFullSync(plates);
                 break;
             case MessageType.CounterProgressSync:
                 var (ctId, progress) = NetworkMessage.Parse_CounterProgressSync(_body);
-                OnCounterProgressSync?.Invoke(ctId, progress);
+                EventManager.Invoke<OnCounterProgressSync>(new OnCounterProgressSync(ctId, progress));
                 break;
             case MessageType.CounterAddIngredient:
                 var (caId, ingredientIndex) = NetworkMessage.Parse_CounterAddIngredient(_body);
-                OnCounterExtraSync?.Invoke(caId, (byte)ingredientIndex);
+                EventManager.Invoke<OnCounterExtraSync>(new OnCounterExtraSync(caId, (byte)ingredientIndex));
                 break;
             case MessageType.PlateAddIngredient:
                 var (plateId, ingIdx) = NetworkMessage.Parse_PlateIngredientSync(_body);
-                OnPlateIngredientSync?.Invoke(plateId, ingIdx);
+                EventManager.Invoke<OnPlateIngredientSync>(new OnPlateIngredientSync(plateId, ingIdx));
                 break;
             case MessageType.PlateRemoveIngredient:
                 var (rmPlateId, rmIngIdx) = NetworkMessage.Parse_PlateRemoveIngredient(_body);
-                OnPlateIngredientRemoved?.Invoke(rmPlateId, rmIngIdx);
+                EventManager.Invoke<OnPlateIngredientRemoved>(new OnPlateIngredientRemoved(rmPlateId, rmIngIdx));
                 break;
             case MessageType.PlateSpawned:
-                var (counterId,pd) = NetworkMessage.Parse_PlateSpawned(_body);
-                OnPlateSpawned?.Invoke(counterId,pd);
+                var (counterId, pd) = NetworkMessage.Parse_PlateSpawned(_body);
+                EventManager.Invoke<OnPlateSpawned>(new OnPlateSpawned(counterId, pd));
                 break;
             case MessageType.PlateOnwerSync:
-                var (pId1,ownerType,ownerId,ingredients) = NetworkMessage.Parse_PlateOwnerSync(_body);
-                OnPlateOwnerSync?.Invoke(pId1,ownerType,ownerId,ingredients);
+                var (pId1, ownerType, ownerId, ingredients) = NetworkMessage.Parse_PlateOwnerSync(_body);
+                EventManager.Invoke<OnPlateOwnerSync>(new OnPlateOwnerSync(pId1, ownerType, ownerId, ingredients));
                 break;
             case MessageType.PlateDestroy:
                 int destroyId = NetworkMessage.Parse_PlateDestroy(_body);
-                OnPlateDestroy?.Invoke(destroyId);
+                EventManager.Invoke<OnPlateDestroy>(new OnPlateDestroy(destroyId));
                 break;
             default:
                 Debug.LogWarning($"[NetworkManager] 未处理的消息类型: {_type}");

@@ -293,7 +293,7 @@ namespace LiteGameFramework
             }
             else
             {
-                EditorGUILayout.HelpBox("请从左侧列表选择一个面板进行配置，或点击“+添加面板”创建新的UI配置", MessageType.Info);
+                EditorGUILayout.HelpBox("请从左侧列表选择一个面板进行配置，或点击“+添加面板”创建新的UI配置", UnityEditor.MessageType.Info);
             }
 
             EditorGUILayout.Space(8);

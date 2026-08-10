@@ -25,7 +25,7 @@ namespace LiteGameFramework
     /// <summary>
     /// 启动一个普通协程。
     /// </summary>
-    public Coroutine Start(IEnumerator routine)
+    public new Coroutine StartCoroutine(IEnumerator routine)
     {
         return base.StartCoroutine(routine);
     }
@@ -33,7 +33,7 @@ namespace LiteGameFramework
     /// <summary>
     /// 按枚举 key 启动协程，重复启动同一个 key 时会先停止旧协程。
     /// </summary>
-    public Coroutine Start(CoroutineKey key, IEnumerator routine)
+    public Coroutine StartCoroutine(CoroutineKey key, IEnumerator routine)
     {
         if (key == CoroutineKey.None)
         {
@@ -109,7 +109,7 @@ namespace LiteGameFramework
 
     private IEnumerator TrackRoutine(CoroutineKey key, IEnumerator routine)
     {
-        yield return StartCoroutine(routine);
+        yield return base.StartCoroutine(routine);
         _coroutines.Remove(key);
     }
 

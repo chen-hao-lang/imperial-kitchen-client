@@ -186,8 +186,8 @@ GameObject:
   m_Component:
   - component: {fileID: 867672363270476029}
   - component: {fileID: 1658020786006027077}
-  - component: {fileID: 1473526363075334368}
   - component: {fileID: 723112234889642232}
+  - component: {fileID: 8150313687618298894}
   m_Layer: 0
   m_Name: CuttingCounter
   m_TagString: Untagged
@@ -234,25 +234,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1.5051433, y: 1.2771274, z: 1.4665558}
   m_Center: {x: 0.000000059604645, y: -0.9769611, z: 0.02630958}
---- !u!114 &1473526363075334368
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6576317291051123704}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d2bef2896ad46334b9cfcff8bc8fbb76, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  conterTopPoint: {fileID: 3493260129143676936}
-  _cuttingRecipeSOArray:
-  - {fileID: 11400000, guid: 66706b847aca18247b60a60c781e44e8, type: 2}
-  - {fileID: 11400000, guid: 9e601c1b12916ee44b6cf60652d94ce9, type: 2}
-  - {fileID: 11400000, guid: 7128ee63bc652ee47848b1cc5d0f69e3, type: 2}
-  - {fileID: 11400000, guid: 3bb38c6b9e0b2c6488f3616dbb69745a, type: 2}
-  - {fileID: 11400000, guid: cc05982a937b8aa4b99e045b39d72e22, type: 2}
 --- !u!114 &723112234889642232
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -265,7 +246,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4c8d64de0d11d3442a78854b32383a15, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  baseCounter: {fileID: 1473526363075334368}
+  baseCounter: {fileID: 0}
   _modelMeshRendererList:
   - {fileID: 7083903400578527894}
   - {fileID: 6296658174022394473}
@@ -273,6 +254,28 @@ MonoBehaviour:
   _selectedMaterial: {fileID: 2100000, guid: 585969259a2290145ba02eb7bb085f02, type: 2}
   _selectScale: 1.05
   _duration: 0.5
+--- !u!114 &8150313687618298894
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6576317291051123704}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d2bef2896ad46334b9cfcff8bc8fbb76, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  counterId: -1
+  counterType: 3
+  conterTopPoint: {fileID: 3493260129143676936}
+  _cuttingRecipeSOArray:
+  - {fileID: 11400000, guid: 66706b847aca18247b60a60c781e44e8, type: 2}
+  - {fileID: 11400000, guid: 9e601c1b12916ee44b6cf60652d94ce9, type: 2}
+  - {fileID: 11400000, guid: 7d0661feb194e9244817f4cd46825763, type: 2}
+  - {fileID: 11400000, guid: 3bb38c6b9e0b2c6488f3616dbb69745a, type: 2}
+  - {fileID: 11400000, guid: cc05982a937b8aa4b99e045b39d72e22, type: 2}
+  - {fileID: 11400000, guid: 7128ee63bc652ee47848b1cc5d0f69e3, type: 2}
 --- !u!1001 &352022968486284284
 PrefabInstance:
   m_ObjectHideFlags: 0

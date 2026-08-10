@@ -1,36 +1,40 @@
 using DG.Tweening;
+using LiteGameFramework;
 using System;
 using UnityEngine;
 
-public class KitchenGameManager : MonoBehaviour
+public enum EGameState : byte
 {
-    public static KitchenGameManager Instance { get; private set; }
+    WaitingToStart = 0,
+    CDToStart = 1,
+    GamePlaying = 2,
+    GameOver = 3,
+}
 
-    public event EventHandler OnStateChanged;
+public class KitchenGameManager : SingletonMono<KitchenGameManager>
+{
+    public event Action<EGameState> OnStateChanged;
     public event EventHandler OnGamePaused;
     public event EventHandler OnGameUnpaused;
 
     public event Action<float> OnGamePlayingTimerUpdate;
+    public event Action OnCDToStart;
+    public event Action<float> OnCDToStartTimerUpdate;
 
-    public enum State
-    {
-        WaitingToStart,
-        CDToStart,
-        GamePlaying,
-        GameOver
-    }
-
-    private State state;
+    private EGameState state;
     [SerializeField] private float cdToStartTimer = 3f;
     private float gamePlayingTimer;
     [SerializeField] private float gamePlayingTimerMax = 30f;
     private bool isGamePaused = false;
 
-    private void Awake()
-    {
-        Instance = this;
+    private bool isGamePlaying;
+    public bool IsGamePlaying => isGamePlaying;
 
-        state = State.WaitingToStart;
+    protected override void Awake()
+    {
+        base.Awake();
+
+        state = EGameState.WaitingToStart;
     }
 
     private void Start()
@@ -43,28 +47,29 @@ public class KitchenGameManager : MonoBehaviour
     {
         switch (state)
         {
-            case State.WaitingToStart:
+            case EGameState.WaitingToStart:
                 break;
-            case State.CDToStart:
+            case EGameState.CDToStart:
                 cdToStartTimer -= Time.deltaTime;
-
+                OnCDToStartTimerUpdate?.Invoke(cdToStartTimer);
                 if (cdToStartTimer <= 0)
                 {
-                    state = State.GamePlaying;
+                    state = EGameState.GamePlaying;
                     gamePlayingTimer = gamePlayingTimerMax;
-                    OnStateChanged?.Invoke(this, EventArgs.Empty);
+                    OnStateChanged?.Invoke(EGameState.GamePlaying);
                 }
                 break;
-            case State.GamePlaying:
+            case EGameState.GamePlaying:
+                isGamePlaying = true;
                 gamePlayingTimer -= Time.deltaTime;
-                OnGamePlayingTimerUpdate?.Invoke(1-(gamePlayingTimer / gamePlayingTimerMax));
+                OnGamePlayingTimerUpdate?.Invoke(1 - (gamePlayingTimer / gamePlayingTimerMax));
                 if (gamePlayingTimer < 0f)
                 {
-                    state = State.GameOver;
-                    OnStateChanged?.Invoke(this, EventArgs.Empty);
+                    state = EGameState.GameOver;
+                    OnStateChanged?.Invoke(EGameState.GamePlaying);
                 }
                 break;
-            case State.GameOver:
+            case EGameState.GameOver:
                 break;
         }
     }
@@ -76,10 +81,11 @@ public class KitchenGameManager : MonoBehaviour
 
     private void PlayerInput_OnInteractAction(object sender, EventArgs e)
     {
-        if (state == State.WaitingToStart)
+        if (state == EGameState.WaitingToStart)
         {
-            state = State.CDToStart;
-            OnStateChanged?.Invoke(this, EventArgs.Empty);
+            state = EGameState.CDToStart;
+            OnCDToStart?.Invoke();
+            OnStateChanged?.Invoke(EGameState.CDToStart);
         }
     }
 
@@ -98,26 +104,6 @@ public class KitchenGameManager : MonoBehaviour
             OnGameUnpaused?.Invoke(this, EventArgs.Empty);
         }
     }
-
-    public bool IsGamePlaying()
-    {
-        return state == State.GamePlaying;
-    }
-
-    public bool IsCDToStartActive() 
-    {
-        return state == State.CDToStart;
-    }
-
-    public float GetCDToStartTimer()
-    {
-        return cdToStartTimer;
-    }
-
-    public bool IsGameOver()
-    {
-        return state == State.GameOver;
-    }   
 
     public int GetGamePlayingTimerSeconds()
     {

@@ -29,7 +29,7 @@ namespace LiteGameFramework
         var packageName = stateMachine.GetBlackboardData("PackageName") as string;
         if (!string.IsNullOrEmpty(packageName))
         {
-            CoroutineManager.Instance.Start(LoadMainScene(mainScene, packageName));
+            CoroutineManager.Instance.StartCoroutine(LoadMainScene(mainScene, packageName));
         }
         else
         {

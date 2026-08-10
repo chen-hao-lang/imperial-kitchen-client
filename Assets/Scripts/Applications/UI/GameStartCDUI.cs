@@ -21,37 +21,54 @@ public class GameStartCDUI : BasePanel
     public override void OnAddListener()
     {
         base.OnAddListener();
-        KitchenGameManager.Instance.OnStateChanged += KitchenGameManager_OnStateChanged;
+
+        if (NetworkManager.Instance == null && !NetworkManager.Instance.IsConnected)
+        {
+            KitchenGameManager.Instance.OnStateChanged += KitchenGameManager_OnStateChanged;
+            KitchenGameManager.Instance.OnCDToStartTimerUpdate += OnCDToStartTimerUpdate;
+        }
+        else
+        {
+            //TODO:
+            // EventManager.AddListener<>
+        }
     }
 
     public override void OnRemoveListener()
     {
         base.OnRemoveListener();
-        KitchenGameManager.Instance.OnStateChanged -= KitchenGameManager_OnStateChanged;
-    }
 
-    private void Update()
-    {
-        int cdNumber = Mathf.CeilToInt(KitchenGameManager.Instance.GetCDToStartTimer());
-        cdText.text = cdNumber.ToString();
-
-        if (previousCDNumber != cdNumber)
+        if (NetworkManager.Instance == null && !NetworkManager.Instance.IsConnected)
         {
-            previousCDNumber = cdNumber;
-            animator.SetTrigger(NUMBER_POPUP);
-            //TODO: play sound
+            KitchenGameManager.Instance.OnStateChanged -= KitchenGameManager_OnStateChanged;
+            KitchenGameManager.Instance.OnCDToStartTimerUpdate -= OnCDToStartTimerUpdate;
         }
+
     }
 
-    private void KitchenGameManager_OnStateChanged(object sender, EventArgs e)
+    private void KitchenGameManager_OnStateChanged(EGameState _state)
     {
-        if (KitchenGameManager.Instance.IsCDToStartActive())
+        if (_state == EGameState.CDToStart)
         {
             OpenPanel();
         }
         else
         {
             HidePanel();
+        }
+    }
+
+    private void OnCDToStartTimerUpdate(float _timer)
+    {
+        int cdNumber = Mathf.CeilToInt(_timer);
+        cdText.text = cdNumber.ToString();
+
+        if (previousCDNumber != cdNumber)
+        {
+            previousCDNumber = cdNumber;
+            animator.SetTrigger(NUMBER_POPUP);
+
+            //TODO: play sound
         }
     }
 }

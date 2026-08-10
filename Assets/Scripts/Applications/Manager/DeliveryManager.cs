@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
+using LiteGameFramework;
 using UnityEngine;
 
-class DeliveryManager : MonoBehaviour
+class DeliveryManager : SingletonMono<DeliveryManager>
 {
-    public static DeliveryManager Instance { get; private set; }
-
     public event EventHandler OnRecipeSpawned;
     public event EventHandler OnRecipeSuccess;
     public event EventHandler OnRecipeCompleted;
@@ -19,10 +18,8 @@ class DeliveryManager : MonoBehaviour
     private int waitingRecipesMax = 4;
     private int successfulRecipesAmount;
 
-    private void Awake()
+    protected override void Awake()
     {
-        Instance = this;
-
         waitingRecipeSOList = new List<RecipeSO>();
     }
 
@@ -34,7 +31,7 @@ class DeliveryManager : MonoBehaviour
         {
             spawnRecipeTimer = spawnRecipeTimerMax;
 
-            if(KitchenGameManager.Instance.IsGamePlaying() && waitingRecipeSOList.Count < waitingRecipesMax)
+            if(KitchenGameManager.Instance.IsGamePlaying && waitingRecipeSOList.Count < waitingRecipesMax)
             {
                 RecipeSO waitingRecipeSO = recipeListSO.recipeSOList[UnityEngine.Random.Range(0, recipeListSO.recipeSOList.Count)];
                  

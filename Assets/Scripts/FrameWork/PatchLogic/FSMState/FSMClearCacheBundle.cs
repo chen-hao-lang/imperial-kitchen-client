@@ -13,7 +13,7 @@ namespace LiteGameFramework
 
     public void OnEnter()
     {
-        CoroutineManager.Instance.Start(ClearCache());
+        CoroutineManager.Instance.StartCoroutine(ClearCache());
     }
 
     public void OnExit()

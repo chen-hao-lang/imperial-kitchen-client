@@ -1,108 +1,71 @@
 using DG.Tweening;
+using LiteGameFramework;
 using System;
-using Unity.VisualScripting;
 using UnityEngine;
 
-public class NetworkKitchenGameManager : MonoBehaviour
+public class NetworkKitchenGameManager : SingletonMono<NetworkKitchenGameManager>
 {
-    public static NetworkKitchenGameManager Instance { get; private set; }
-
-    public event EventHandler OnStateChanged;
-    public event EventHandler OnGamePaused;
-    public event EventHandler OnGameUnpaused;
-
-    public enum State
-    {
-        WaitingToStart,
-        CDToStart,
-        GamePlaying,
-        GameOver
-    }
-
-    private State state;
-    [SerializeField] private float cdToStartTimer = 3f;
-    private float gamePlayingTimer;
-    [SerializeField] private float gamePlayingTimerMax = 30f;
+    private EGameState state = EGameState.WaitingToStart;
+    private float cdToStartTimer;//开始游戏倒计时
+    private float gamePlayingTimer;//游戏倒计时
     private bool isGamePaused = false;
-
-    private void Awake()
-    {
-        Instance = this;
-
-        state = State.WaitingToStart;
-    }
 
     private void Start()
     {
         if (NetworkManager.Instance != null)
         {
-            NetworkManager.Instance.OnGameStateChange += OnGameStateChange;
-            NetworkManager.Instance.OnGameStartCD += OnServerCDUpdate;
-            NetworkManager.Instance.OnTimerSync += OnServerTimerSync;
+            EventManager.AddListener<OnGameStateChange>(this, OnGameStateChange);
+            EventManager.AddListener<OnGameStartCD>(this, OnServerCDUpdate);
+            EventManager.AddListener<OnGameTimerSync>(this, OnServerTimerSync);
+        }
+    }
+
+    private void OnGameStateChange(OnGameStateChange _arg)
+    {
+        state = _arg.gameState;
+        Debug.Log($"[KitchenGameManager] 服务器通知状态切换: {state}");
+
+        if(state == EGameState.CDToStart)
+        {
+            
         }
 
-    //TODO:
-        // PlayerInput.Instance.OnInteractAction += PlayerInput_OnInteractAction;
-        // PlayerInput.Instance.OnPauseAction += PlayerInput_OnPauseAction;
+        if(state == EGameState.GamePlaying)
+        {
+            
+        }
+
+        if(state == EGameState.GameOver)
+        {
+            
+        }
     }
 
-    private void OnGameStateChange(byte _stateByte)
+    /// <summary>
+    /// 游戏开始倒计时
+    /// </summary>
+    /// <param name="_seconds"></param>
+    private void OnServerCDUpdate(OnGameStartCD _arg)
     {
-        state = (State)_stateByte;
-        Debug.Log($"[KitchenGameManager] 服务器通知状态切换: {state}");
-        OnStateChanged?.Invoke(this, EventArgs.Empty);
+        cdToStartTimer = _arg.cdSeconds;
+        // 启动GameStartCDUI，开始更新UI和触发动画
     }
 
-    private void OnServerCDUpdate(float _seconds)
+    private void OnServerTimerSync(OnGameTimerSync _arg)
     {
-        cdToStartTimer = _seconds;
-        OnStateChanged?.Invoke(this, EventArgs.Empty);
+        gamePlayingTimer = _arg.remainingSeconds;
+        // 启动GamePlayingClockUI，开始更新UI和触发动画
     }
 
-    private void OnServerTimerSync(float _remaingSeconds)
-    {
-        gamePlayingTimer = _remaingSeconds;
-    }
-
+    /// <summary>
+    /// 向服务器发送当前客户端玩家已经准备好了
+    /// </summary>
     public void SendPlayerReady()
     {
         if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
         {
-            NetworkManager.Instance.SendPlayerReady();
+            NetworkManager.Instance.SendPlayerReady(PlayerSpawner.Instance.LocalPlayer.PlayerId);
             Debug.Log("[KitchenGameManager] 已发送玩家就绪");
-        }
-    }
-
-    private void Update()
-    {
-        // switch (state)
-        // {
-        //     case State.WaitingToStart:
-        //         break;
-        //     case State.CDToStart:
-        //         cdToStartTimer -= Time.deltaTime;
-
-        //         if (cdToStartTimer <= 0)
-        //         {
-        //             state = State.GamePlaying;
-        //             gamePlayingTimer = gamePlayingTimerMax;
-        //             OnStateChanged?.Invoke(this, EventArgs.Empty);
-        //         }
-        //         break;
-        //     case State.GamePlaying:
-        //         gamePlayingTimer -= Time.deltaTime;
-        //         if (gamePlayingTimer < 0f)
-        //         {
-        //             state = State.GameOver;
-        //             OnStateChanged?.Invoke(this, EventArgs.Empty);
-        //         }
-        //         break;
-        //     case State.GameOver:
-        //         break;
-        // }
-        if(state == State.GamePlaying)
-        {
-            gamePlayingTimer -= Time.deltaTime;
         }
     }
 
@@ -110,69 +73,9 @@ public class NetworkKitchenGameManager : MonoBehaviour
     {
         if (NetworkManager.Instance != null)
         {
-            NetworkManager.Instance.OnGameStateChange -= OnGameStateChange;
-            NetworkManager.Instance.OnGameStartCD -= OnServerCDUpdate;
-            NetworkManager.Instance.OnTimerSync -= OnServerTimerSync;
+            EventManager.RemoveListener<OnGameStateChange>(this, OnGameStateChange);
+            EventManager.RemoveListener<OnGameStartCD>(this, OnServerCDUpdate);
+            EventManager.RemoveListener<OnGameTimerSync>(this, OnServerTimerSync);
         }
-    }
-
-    private void PlayerInput_OnPauseAction(object sender, EventArgs e)
-    {
-        TogglePauseGame();
-    }
-
-    private void PlayerInput_OnInteractAction(object sender, EventArgs e)
-    {
-        if (state == State.WaitingToStart)
-        {
-            state = State.CDToStart;
-            OnStateChanged?.Invoke(this, EventArgs.Empty);
-        }
-    }
-
-    public void TogglePauseGame()
-    {
-        isGamePaused = !isGamePaused;
-
-        if (isGamePaused)
-        {
-            Time.timeScale = 0f;
-            OnGamePaused?.Invoke(this, EventArgs.Empty);
-        }
-        else
-        {
-            Time.timeScale = 1f;
-            OnGameUnpaused?.Invoke(this, EventArgs.Empty);
-        }
-    }
-
-    public bool IsGamePlaying()
-    {
-        return state == State.GamePlaying;
-    }
-
-    public bool IsCDToStartActive()
-    {
-        return state == State.CDToStart;
-    }
-
-    public float GetCDToStartTimer()
-    {
-        return cdToStartTimer;
-    }
-
-    public bool IsGameOver()
-    {
-        return state == State.GameOver;
-    }
-
-    public float GetGamePlayingTimerNormalized()
-    {
-        return 1 - (gamePlayingTimer / gamePlayingTimerMax);
-    }
-
-    public int GetGamePlayingTimerSeconds()
-    {
-        return Mathf.CeilToInt(gamePlayingTimer);
     }
 }

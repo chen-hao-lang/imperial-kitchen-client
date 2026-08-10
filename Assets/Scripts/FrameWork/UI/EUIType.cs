@@ -4,7 +4,7 @@ public enum EUIType
     MainMenuPanel,
     GameOverPanel,
     OptionPanel,
-    GameStartCDPanel,
+    GameStartCDUI,
     GamePlayingClockUI,
     GamePausePanel,
     SucessPanel,
