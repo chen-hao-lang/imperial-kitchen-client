@@ -71,11 +71,11 @@ public class NetworkKitchenGameManager : SingletonMono<NetworkKitchenGameManager
     /// <summary>
     /// 向服务器发送当前客户端玩家已就绪
     /// </summary>
-    public void SendPlayerReady()
+    public void SendPlayerReadyStatus(bool _isReady)
     {
         if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
         {
-            NetworkManager.Instance.SendPlayerReady(PlayerSpawner.Instance.LocalPlayer.PlayerId);
+            NetworkManager.Instance.SendPlayerReadyStatus(PlayerSpawner.Instance.LocalPlayer.PlayerId,_isReady ? 1:0);
             Debug.Log("[NetworkKitchenGameManager] 已发送玩家就绪");
         }
     }

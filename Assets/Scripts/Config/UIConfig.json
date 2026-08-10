@@ -61,5 +61,12 @@
     "panelName": "ChatPanel",
     "layer": "Normal",
     "isWindow": false
+  },
+  {
+    "type": "PlayerReadyPanel",
+    "packageName": "UI",
+    "panelName": "PlayerReadyPanel",
+    "layer": "Normal",
+    "isWindow": false
   }
 ]

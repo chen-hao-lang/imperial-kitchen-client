@@ -3,9 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using LiteGameFramework;
 
-public class PlayerSpawner : MonoBehaviour
+public class PlayerSpawner : SingletonMono<PlayerSpawner>
 {
-    public static PlayerSpawner Instance { get; private set; }
     [Header("玩家配置")]
     [SerializeField] private GameObject localPlayerPrefab;
     [SerializeField] private GameObject remotePlayerPrefab;
@@ -25,19 +24,8 @@ public class PlayerSpawner : MonoBehaviour
     public event Action<int> OnRemotePlayerDestroyed;
     public event Action OnLocalPlayerSpawned;
 
-    void Awake()
-    {
-        Instance = this;
-    }
-
     void Start()
     {
-        if (NetworkManager.Instance == null)
-        {
-            Debug.LogError("[PlayerSpawner] NetworkManager 未找到!请在场景中先添加NetworkManager");
-            return;
-        }
-
         EventManager.AddListener<OnNetworkConnected>(this, OnConnetced);
         EventManager.AddListener<OnNetworkPlayerJoined>(this, OnPlayerJoined);
         EventManager.AddListener<OnNetworkPlayerLeft>(this, OnPlayerLeft);
@@ -45,8 +33,10 @@ public class PlayerSpawner : MonoBehaviour
         EventManager.AddListener<OnFullSync>(this, OnFullSyncReceived);
     }
 
-    private void OnDestroy()
+    protected override void OnDestroy()
     {
+        base.OnDestroy();
+
         if (NetworkManager.Instance != null)
         {
             EventManager.RemoveListener<OnNetworkConnected>(this, OnConnetced);
@@ -94,8 +84,7 @@ public class PlayerSpawner : MonoBehaviour
                 counter.AddListener(pc);
             }
 
-            // 本地玩家生成完毕后，自动告诉服务器"我准备好了"
-            NetworkKitchenGameManager.Instance.SendPlayerReady();
+            // 玩家准备就绪由 PlayerReadyPanel 手动触发，不再自动发送
         }
         else
         {

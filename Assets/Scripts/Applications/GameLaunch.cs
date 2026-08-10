@@ -24,7 +24,8 @@ public class GameLaunch : MonoBehaviour
             EUIType.OptionPanel,
             EUIType.GameStartCDUI,
             EUIType.GamePlayingClockUI,
-            EUIType.ChatPanel
+            EUIType.ChatPanel,
+            EUIType.PlayerReadyPanel
         };
         yield return UIManager.Instance.PreLoadPanel(loadPanel);
 

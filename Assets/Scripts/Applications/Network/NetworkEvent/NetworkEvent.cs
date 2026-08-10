@@ -73,6 +73,20 @@ public struct OnNetworkPlayerInteract : IEvent
     }
 }
 
+/// <summary>
+/// 远程玩家准备
+/// </summary>
+public struct OnNetworkPlayerReadyStatusUpdate : IEvent
+{
+    public int playerId;
+    public bool isReady;
+    public OnNetworkPlayerReadyStatusUpdate(int _playerId, bool _isReady)
+    {
+        playerId = _playerId;
+        isReady = _isReady;
+    }
+}
+
 #endregion
 
 #region 游戏流程事件

@@ -28,10 +28,7 @@ public class PlayerInput : MonoBehaviour
     public Vector2 MoveInput => moveInput;
 
     public Vector2 mousePos;
-    /// <summary>
-    /// �������Ļ����ת��Ϊ����Ļ����Ϊԭ��Ĺ�һ�����꣬��ΧԼ�� [-1,1]
-    /// ֱ�Ӵ� mousePos ���㣬�ⲿʹ���߿ɶ�ȡ�õ���ǰ������λ��
-    /// </summary>
+
     public Vector2 MouseScreenPositionNormalized => new Vector2(
         (mousePos.x / (float)Screen.width - 0.5f) * 2f,
         (mousePos.y / (float)Screen.height - 0.5f) * 2f

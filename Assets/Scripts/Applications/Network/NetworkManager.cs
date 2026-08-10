@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Threading;
 using LiteGameFramework;
-using Unity.VisualScripting;
 using UnityEngine;
 
 public class NetworkManager : SingletonMono<NetworkManager>
@@ -158,9 +157,9 @@ public class NetworkManager : SingletonMono<NetworkManager>
     }
 
     /// <summary> 上报玩家准备就绪 </summary>
-    public void SendPlayerReady(int _playerId)
+    public void SendPlayerReadyStatus(int _playerId,int _isReady)
     {
-        Send(NetworkMessage.Create_PlayerReady(_playerId));
+        Send(NetworkMessage.Create_PlayerReadyUpdate(_playerId,_isReady));
     }
 
     public void SendPlayerInteract(int playerId, int playerItemIndex)

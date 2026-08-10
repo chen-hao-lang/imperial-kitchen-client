@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
+using System.Runtime;
 using System.Text;
 
 /// <summary>
@@ -97,11 +99,12 @@ public static class NetworkMessage
     /// <summary>
     /// 玩家准备就绪。
     /// </summary>
-    public static byte[] Create_PlayerReady(int _playerId)
+    public static byte[] Create_PlayerReadyUpdate(int _playerId,int _isReady)
     {
         using var ms = new MemoryStream();
         using var writer = new BinaryWriter(ms);
         writer.Write(_playerId);
+        writer.Write(_isReady);
         return Pack(MessageType.C2S_PlayerReady, ms.ToArray());
     }
 
@@ -255,6 +258,15 @@ public static class NetworkMessage
         int id = reader.ReadInt32();
         string name = ReadString(reader);
         return (id, name);
+    }
+
+    public static (int,bool) Parse_PlayerReadyUpdate(byte[] _body)
+    {
+        using var ms = new MemoryStream(_body);
+        using var reader = new BinaryReader(ms);
+        int playerId = reader.ReadInt32();
+        bool isReady = reader.ReadInt32() == 1 ? true : false;
+        return (playerId,isReady);
     }
 
     public static int Parse_PlayerLeft(byte[] body)

@@ -19,6 +19,11 @@ namespace LiteGameFramework
 
         public static void AddListener<T>(object _suber, Action<T> _handler) where T : struct, IEvent
         {
+            if(!Instance.IsInit)
+            {
+                Instance.Initialize();
+            }
+            
             if (_handler == null)
                 throw new ArgumentNullException(nameof(_handler));
             if (_suber == null)
