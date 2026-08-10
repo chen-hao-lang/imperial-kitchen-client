@@ -1,4 +1,3 @@
-using System;
 using LiteGameFramework;
 using TMPro;
 using UnityEngine;
@@ -22,15 +21,15 @@ public class GameStartCDUI : BasePanel
     {
         base.OnAddListener();
 
-        if (NetworkManager.Instance == null && !NetworkManager.Instance.IsConnected)
+        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnected)
         {
             KitchenGameManager.Instance.OnStateChanged += KitchenGameManager_OnStateChanged;
             KitchenGameManager.Instance.OnCDToStartTimerUpdate += OnCDToStartTimerUpdate;
         }
         else
         {
-            //TODO:
-            // EventManager.AddListener<>
+            EventManager.AddListener<OnGameStateChange>(this, OnNetworkGameStateChange);
+            EventManager.AddListener<OnGameStartCD>(this, OnNetworkCDUpdate);
         }
     }
 
@@ -38,12 +37,33 @@ public class GameStartCDUI : BasePanel
     {
         base.OnRemoveListener();
 
-        if (NetworkManager.Instance == null && !NetworkManager.Instance.IsConnected)
+        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnected)
         {
             KitchenGameManager.Instance.OnStateChanged -= KitchenGameManager_OnStateChanged;
             KitchenGameManager.Instance.OnCDToStartTimerUpdate -= OnCDToStartTimerUpdate;
         }
+        else
+        {
+            EventManager.RemoveListener<OnGameStateChange>(this, OnNetworkGameStateChange);
+            EventManager.RemoveListener<OnGameStartCD>(this, OnNetworkCDUpdate);
+        }
+    }
 
+    private void OnNetworkGameStateChange(OnGameStateChange _arg)
+    {
+        if (_arg.gameState == EGameState.CDToStart)
+        {
+            OpenPanel();
+        }
+        else
+        {
+            HidePanel();
+        }
+    }
+
+    private void OnNetworkCDUpdate(OnGameStartCD _arg)
+    {
+        OnCDToStartTimerUpdate(_arg.cdSeconds);
     }
 
     private void KitchenGameManager_OnStateChanged(EGameState _state)

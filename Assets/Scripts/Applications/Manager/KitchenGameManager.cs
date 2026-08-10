@@ -25,6 +25,7 @@ public class KitchenGameManager : SingletonMono<KitchenGameManager>
     [SerializeField] private float cdToStartTimer = 3f;
     private float gamePlayingTimer;
     [SerializeField] private float gamePlayingTimerMax = 30f;
+    public float GamePlayingTimerMax => gamePlayingTimerMax;
     private bool isGamePaused = false;
 
     private bool isGamePlaying;

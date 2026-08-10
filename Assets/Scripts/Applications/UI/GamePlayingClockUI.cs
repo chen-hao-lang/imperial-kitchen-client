@@ -10,13 +10,35 @@ public class GamePlayingClockUI : BasePanel
     {
         base.OnAddListener();
 
-        KitchenGameManager.Instance.OnGamePlayingTimerUpdate += UpdateTimerImage;
+        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnected)
+        {
+            KitchenGameManager.Instance.OnGamePlayingTimerUpdate += UpdateTimerImage;
+        }
+        else
+        {
+            EventManager.AddListener<OnGameTimerSync>(this, OnNetworkTimerSync);
+        }
     }
 
     public override void OnRemoveListener()
     {
         base.OnRemoveListener();
-        KitchenGameManager.Instance.OnGamePlayingTimerUpdate -= UpdateTimerImage;
+
+        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnected)
+        {
+            KitchenGameManager.Instance.OnGamePlayingTimerUpdate -= UpdateTimerImage;
+        }
+        else
+        {
+            EventManager.RemoveListener<OnGameTimerSync>(this, OnNetworkTimerSync);
+        }
+    }
+
+    private void OnNetworkTimerSync(OnGameTimerSync _arg)
+    {
+        float max = KitchenGameManager.Instance.GamePlayingTimerMax;
+        float fillAmount = 1f - (_arg.remainingSeconds / max);
+        timerImage.fillAmount = fillAmount;
     }
 
     private void UpdateTimerImage(float obj)

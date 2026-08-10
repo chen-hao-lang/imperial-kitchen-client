@@ -1,81 +1,97 @@
-using DG.Tweening;
 using LiteGameFramework;
 using System;
 using UnityEngine;
 
 public class NetworkKitchenGameManager : SingletonMono<NetworkKitchenGameManager>
 {
-    private EGameState state = EGameState.WaitingToStart;
-    private float cdToStartTimer;//开始游戏倒计时
-    private float gamePlayingTimer;//游戏倒计时
-    private bool isGamePaused = false;
+    /// <summary> 当前游戏状态 </summary>
+    public EGameState State { get; private set; } = EGameState.WaitingToStart;
+    /// <summary> 游戏是否正在进行中（GamePlaying 阶段） </summary>
+    public bool IsGamePlaying => State == EGameState.GamePlaying;
+    /// <summary> 本地是否已暂停（网络模式下仅控制 UI 层，不暂停 Time.timeScale） </summary>
+    public bool IsGamePaused { get; private set; } = false;
+
+    /// <summary> 本地暂停事件（网络模式下仅暂停 UI，不影响游戏世界） </summary>
+    public event Action OnGamePaused;
+    /// <summary> 本地恢复事件 </summary>
+    public event Action OnGameUnpaused;
 
     private void Start()
     {
-        if (NetworkManager.Instance != null)
+        if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
         {
             EventManager.AddListener<OnGameStateChange>(this, OnGameStateChange);
-            EventManager.AddListener<OnGameStartCD>(this, OnServerCDUpdate);
-            EventManager.AddListener<OnGameTimerSync>(this, OnServerTimerSync);
+            PlayerInput.Instance.OnPauseAction += OnPauseAction;
         }
     }
 
     private void OnGameStateChange(OnGameStateChange _arg)
     {
-        state = _arg.gameState;
-        Debug.Log($"[KitchenGameManager] 服务器通知状态切换: {state}");
+        State = _arg.gameState;
+        Debug.Log($"[NetworkKitchenGameManager] 状态切换: {State}");
 
-        if(state == EGameState.CDToStart)
+        switch (State)
         {
-            
-        }
-
-        if(state == EGameState.GamePlaying)
-        {
-            
-        }
-
-        if(state == EGameState.GameOver)
-        {
-            
+            case EGameState.CDToStart:
+                // 倒计时阶段：可在此处触发准备逻辑（如锁定玩家输入）
+                break;
+            case EGameState.GamePlaying:
+                // 游戏正式开始：锁定光标，启用玩法系统
+                Cursor.lockState = CursorLockMode.Locked;
+                break;
+            case EGameState.GameOver:
+                // 游戏结束：解锁光标，禁用玩法输入
+                Cursor.lockState = CursorLockMode.None;
+                break;
         }
     }
 
+    private void OnPauseAction(object sender, EventArgs e)
+    {
+        TogglePauseGame();
+    }
+
     /// <summary>
-    /// 游戏开始倒计时
+    /// 切换本地暂停状态（网络模式下不修改 Time.timeScale，仅控制 UI 层）
     /// </summary>
-    /// <param name="_seconds"></param>
-    private void OnServerCDUpdate(OnGameStartCD _arg)
+    public void TogglePauseGame()
     {
-        cdToStartTimer = _arg.cdSeconds;
-        // 启动GameStartCDUI，开始更新UI和触发动画
-    }
+        IsGamePaused = !IsGamePaused;
 
-    private void OnServerTimerSync(OnGameTimerSync _arg)
-    {
-        gamePlayingTimer = _arg.remainingSeconds;
-        // 启动GamePlayingClockUI，开始更新UI和触发动画
+        if (IsGamePaused)
+        {
+            OnGamePaused?.Invoke();
+        }
+        else
+        {
+            OnGameUnpaused?.Invoke();
+        }
     }
 
     /// <summary>
-    /// 向服务器发送当前客户端玩家已经准备好了
+    /// 向服务器发送当前客户端玩家已就绪
     /// </summary>
     public void SendPlayerReady()
     {
         if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
         {
             NetworkManager.Instance.SendPlayerReady(PlayerSpawner.Instance.LocalPlayer.PlayerId);
-            Debug.Log("[KitchenGameManager] 已发送玩家就绪");
+            Debug.Log("[NetworkKitchenGameManager] 已发送玩家就绪");
         }
     }
 
-    void OnDestroy()
+    protected override void OnDestroy()
     {
+        base.OnDestroy();
+
         if (NetworkManager.Instance != null)
         {
             EventManager.RemoveListener<OnGameStateChange>(this, OnGameStateChange);
-            EventManager.RemoveListener<OnGameStartCD>(this, OnServerCDUpdate);
-            EventManager.RemoveListener<OnGameTimerSync>(this, OnServerTimerSync);
+        }
+
+        if (PlayerInput.Instance != null)
+        {
+            PlayerInput.Instance.OnPauseAction -= OnPauseAction;
         }
     }
 }
