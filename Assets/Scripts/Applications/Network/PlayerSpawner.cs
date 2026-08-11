@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 using LiteGameFramework;
@@ -19,10 +18,6 @@ public class PlayerSpawner : SingletonMono<PlayerSpawner>
     /// 本地玩家
     /// </summary>
     public PlayerController LocalPlayer { get; private set; }
-
-    public event Action<int, PlayerController> OnRemotePlayerSpawned;
-    public event Action<int> OnRemotePlayerDestroyed;
-    public event Action OnLocalPlayerSpawned;
 
     void Start()
     {
@@ -48,8 +43,7 @@ public class PlayerSpawner : SingletonMono<PlayerSpawner>
     /// <summary>
     /// 本地玩家连接成功（收到服务器分配的玩家ID）
     /// </summary>
-    /// <param name="_myPlayerId"></param>
-    /// <exception cref="NotImplementedException"></exception>
+    /// <param name="_arg">连接成功事件参数（包含服务器分配的玩家ID）</param>
     private void OnConnetced(OnNetworkConnected _arg)
     {
         int _myPlayerId = _arg.playerId;
@@ -63,7 +57,7 @@ public class PlayerSpawner : SingletonMono<PlayerSpawner>
             GameObject playerObj = Instantiate(localPlayerPrefab, spawnPos, Quaternion.identity);
             PlayerController pc = playerObj.GetComponent<PlayerController>();
 
-            OnLocalPlayerSpawned?.Invoke();
+            EventManager.Invoke<OnLocalPlayerSpawned>(new OnLocalPlayerSpawned());
 
             if (pc != null)
             {
@@ -76,15 +70,6 @@ public class PlayerSpawner : SingletonMono<PlayerSpawner>
                 Debug.LogError("[PlayerSpawner] 本地玩家 Prefab 上没有 PlayerController 组件！");
 
             }
-
-            // 注册所有CounterVisual脚本中的事件
-            SelectedCounterVisual[] selectedCounterVisuals = GameObject.FindObjectsByType<SelectedCounterVisual>(FindObjectsSortMode.None);
-            foreach (var counter in selectedCounterVisuals)
-            {
-                counter.AddListener(pc);
-            }
-
-            // 玩家准备就绪由 PlayerReadyPanel 手动触发，不再自动发送
         }
         else
         {
@@ -144,7 +129,7 @@ public class PlayerSpawner : SingletonMono<PlayerSpawner>
             spawnedPlayers.Remove(_arg.playerId);
 
             // 触发事件
-            OnRemotePlayerDestroyed?.Invoke(_arg.playerId);
+            EventManager.Invoke<OnRemotePlayerDestroyed>(new OnRemotePlayerDestroyed(_arg.playerId));
 
             // 销毁玩家
             Destroy(pc.gameObject);
@@ -199,7 +184,7 @@ public class PlayerSpawner : SingletonMono<PlayerSpawner>
         Debug.Log($"[PlayerSpawner] 已生成远程玩家 {_playerId} 位置: {spawnPos}");
 
         // 触发事件
-        OnRemotePlayerSpawned?.Invoke(_playerId, pc);
+        EventManager.Invoke<OnRemotePlayerSpawned>(new OnRemotePlayerSpawned(_playerId, pc));
     }
 
     /// <summary>
@@ -231,3 +216,30 @@ public class PlayerSpawner : SingletonMono<PlayerSpawner>
         return null;
     }
 }
+
+#region 玩家生成事件
+
+/// <summary> 远程玩家生成完成（玩家ID + 对应 PlayerController） </summary>
+public struct OnRemotePlayerSpawned : IEvent
+{
+    public int playerId;
+    public PlayerController player;
+
+    public OnRemotePlayerSpawned(int _playerId, PlayerController _player)
+    {
+        playerId = _playerId;
+        player = _player;
+    }
+}
+
+/// <summary> 远程玩家销毁 </summary>
+public struct OnRemotePlayerDestroyed : IEvent
+{
+    public int playerId;
+    public OnRemotePlayerDestroyed(int _playerId) => playerId = _playerId;
+}
+
+/// <summary> 本地玩家生成完成 </summary>
+public struct OnLocalPlayerSpawned : IEvent { }
+
+#endregion

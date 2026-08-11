@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
+using LiteGameFramework;
 
 public class SelectedCounterVisual : MonoBehaviour
 {
@@ -27,18 +28,27 @@ public class SelectedCounterVisual : MonoBehaviour
                 _originMaterial.Add(_modelMeshRendererList[i].material);
             }
         }
-        // PlayerController.Instance.OnSelectedCounterChanged += Player_OnSelectedCounterChanged;
-        // NetworkPlayerController.Inatance.OnSelectedCounterChanged += Player_OnSelectedCounterChanged;
+        // PlayerController.OnSelectedCounterChanged += Player_OnSelectedCounterChanged;
+
+        EventManager.AddListener<OnLocalPlayerSpawned>(this, (_) =>
+        {
+            EventManager.AddListener<OnSelectedCounterChanged>(this,Player_OnSelectedCounterChanged);
+        });
+    }
+
+    void OnDestroy()
+    {
+        EventManager.RemoveAllListener();
     }
 
     public void AddListener(PlayerController _controller)
     {
-        _controller.OnSelectedCounterChanged += Player_OnSelectedCounterChanged;
+        // _controller.OnSelectedCounterChanged += Player_OnSelectedCounterChanged;
     }
 
-    private void Player_OnSelectedCounterChanged(object sender, PlayerController.OnSelectedCounterChangedEventArgs e)
+    private void Player_OnSelectedCounterChanged(OnSelectedCounterChanged _arg)
     {
-        if (e.SelectedCounter == baseCounter)
+        if (_arg.selectCounter == baseCounter)
         {
             Show();
         }

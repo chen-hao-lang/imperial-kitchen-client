@@ -45,6 +45,10 @@ namespace LiteGameFramework
                         if (_instance == null)
                         {
                             GameObject go = new GameObject(typeof(T).Name);
+                            // 标记为"不保存的临时对象"：退出播放模式时由 Unity 自动清理，
+                            // 避免触发 "Some objects were not cleaned up when closing the scene" 告警；
+                            // 配合 Awake 中的 DontDestroyOnLoad，仍可跨场景存活。
+                            go.hideFlags = HideFlags.HideAndDontSave;
                             _instance = go.AddComponent<T>();
                         }
                     }

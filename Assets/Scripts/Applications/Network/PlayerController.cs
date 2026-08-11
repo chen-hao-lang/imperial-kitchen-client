@@ -3,6 +3,12 @@ using KitchenChaos;
 using LiteGameFramework;
 using UnityEngine;
 
+public struct OnSelectedCounterChanged :IEvent
+{
+    public BaseCounter selectCounter;
+    public OnSelectedCounterChanged(BaseCounter _selectCounter) => selectCounter =_selectCounter;
+}
+
 public class PlayerController : MonoBehaviour, IKitchenObjectParent
 {
     public static PlayerController Inatance;
@@ -41,12 +47,6 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
     private const float NETWORK_SEND_INTERVAL = 0.05f;
     private Vector3 _lastSentPosition;
     private float _lastSentRotY;
-
-    public event EventHandler<OnSelectedCounterChangedEventArgs> OnSelectedCounterChanged;
-    public class OnSelectedCounterChangedEventArgs : EventArgs
-    {
-        public BaseCounter SelectedCounter { get; set; }
-    }
 
     void Awake()
     {
@@ -254,10 +254,11 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
     {
         this._selectedCounter = _selectedCounter;
 
-        OnSelectedCounterChanged?.Invoke(this, new OnSelectedCounterChangedEventArgs
-        {
-            SelectedCounter = _selectedCounter
-        });
+        // OnSelectedCounterChanged?.Invoke(this, new OnSelectedCounterChangedEventArgs
+        // {
+        //     SelectedCounter = _selectedCounter
+        // });
+        EventManager.Invoke<OnSelectedCounterChanged>(new OnSelectedCounterChanged(_selectedCounter));
     }
 
     public void SetKitchenObject(KitchenObject _kitchenObject)

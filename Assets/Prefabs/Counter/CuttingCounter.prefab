@@ -246,7 +246,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4c8d64de0d11d3442a78854b32383a15, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  baseCounter: {fileID: 0}
+  baseCounter: {fileID: 8150313687618298894}
   _modelMeshRendererList:
   - {fileID: 7083903400578527894}
   - {fileID: 6296658174022394473}

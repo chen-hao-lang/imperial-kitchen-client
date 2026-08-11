@@ -38,6 +38,9 @@ public class OptionPanel : BasePanel
 
     private Action onCloseButtonAction;
 
+    /// <summary> 本地玩家生成事件处理器（保持同一委托实例以便退订） </summary>
+    private Action<OnLocalPlayerSpawned> onLocalPlayerSpawnedHandler;
+
     public override void LoadPanel()
     {
         base.LoadPanel();
@@ -80,7 +83,21 @@ public class OptionPanel : BasePanel
         gamepadPauseButton.onClick.AddListener(() => { RebindBinding(PlayerInput.Binding.Gamepad_Pause); });
 
         KitchenGameManager.Instance.OnGameUnpaused += KitchenGameManager_OnGameUnpaused;
-        PlayerSpawner.Instance.OnLocalPlayerSpawned += UpdateVisual;
+
+        // 通过 EventManager 订阅本地玩家生成事件，实现解耦
+        onLocalPlayerSpawnedHandler = _ => UpdateVisual();
+        EventManager.AddListener<OnLocalPlayerSpawned>(this, onLocalPlayerSpawnedHandler);
+    }
+
+    public override void OnRemoveListener()
+    {
+        base.OnRemoveListener();
+
+        if (onLocalPlayerSpawnedHandler != null)
+        {
+            EventManager.RemoveListener<OnLocalPlayerSpawned>(this, onLocalPlayerSpawnedHandler);
+            onLocalPlayerSpawnedHandler = null;
+        }
     }
 
     public override void OpenPanel()
