@@ -23,24 +23,24 @@ class DeliveryManager : SingletonMono<DeliveryManager>
         waitingRecipeSOList = new List<RecipeSO>();
     }
 
-    private void Update()
-    {
-        spawnRecipeTimer -= Time.deltaTime;
+    // private void Update()
+    // {
+    //     spawnRecipeTimer -= Time.deltaTime;
 
-        if (spawnRecipeTimer <= 0)
-        {
-            spawnRecipeTimer = spawnRecipeTimerMax;
+    //     if (spawnRecipeTimer <= 0)
+    //     {
+    //         spawnRecipeTimer = spawnRecipeTimerMax;
 
-            if(KitchenGameManager.Instance.IsGamePlaying && waitingRecipeSOList.Count < waitingRecipesMax)
-            {
-                RecipeSO waitingRecipeSO = recipeListSO.recipeSOList[UnityEngine.Random.Range(0, recipeListSO.recipeSOList.Count)];
+    //         if(KitchenGameManager.Instance.IsGamePlaying && waitingRecipeSOList.Count < waitingRecipesMax)
+    //         {
+    //             RecipeSO waitingRecipeSO = recipeListSO.recipeSOList[UnityEngine.Random.Range(0, recipeListSO.recipeSOList.Count)];
                  
-                waitingRecipeSOList.Add(waitingRecipeSO);
+    //             waitingRecipeSOList.Add(waitingRecipeSO);
 
-                OnRecipeSpawned?.Invoke(this, EventArgs.Empty);
-            }
-        }
-    }
+    //             OnRecipeSpawned?.Invoke(this, EventArgs.Empty);
+    //         }
+    //     }
+    // }
 
     public void DeliveRecipe(PlateKitchenObject plateKitchenObject)
     {

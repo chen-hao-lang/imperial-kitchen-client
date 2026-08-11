@@ -4,11 +4,10 @@
 public enum MessageType : byte
 {
     // ========== 服务端 → 客户端 ==========
-    AssignPlayerId = 0,   // 分配玩家ID（连接成功后）
+    Connect = 0,   // 分配玩家ID（连接成功后）
     PlayerJoined = 1,   // 有新玩家加入
     PlayerLeft = 2,   // 有玩家离开
     PlayerPosition = 3,   // 广播玩家位置
-    // 4 已废弃（原 PlayerHeldKitchenObjUpdate），合并到 InteractionSync
     GameStateChange = 6,   // 游戏状态变化
     TimerSync = 7,   // 同步倒计时
     RecipeSpawned = 8,   // 新订单出现
@@ -31,6 +30,9 @@ public enum MessageType : byte
 
     // 消息
     SendMessage = 23,
+
+    PlayerReady = 24,
+    ClientInit = 25,// 在连接成功后，服务器再下发
 
 
     // ========== 客户端 → 服务端 ==========

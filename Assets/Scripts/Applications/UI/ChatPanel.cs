@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using KitchenChaos;
 using LiteGameFramework;
 using TMPro;
 using UnityEngine;
@@ -42,10 +43,7 @@ public class ChatPanel : BasePanel
         scrollbar.onValueChanged.AddListener(OnScrollbarDrag);
 
         EventManager.AddListener<OnNetworkMessage>(this, OnReciveMessage);
-
-        // PlayerInput 挂在本地玩家预制体上，由 PlayerSpawner 在连接成功后才生成，
-        // 所以这里先订阅 OnLocalPlayerSpawned，等玩家生成后再订阅 PlayerInput 的事件
-        PlayerSpawner.Instance.OnLocalPlayerSpawned += OnLocalPlayerSpawned;
+        EventManager.AddListener<OnOpenChatPanelEvent>(this, OpenOrClosePanel);
     }
 
     public override void OnRemoveListener()
@@ -59,30 +57,12 @@ public class ChatPanel : BasePanel
         {
             EventManager.RemoveListener<OnNetworkMessage>(this, OnReciveMessage);
         }
-        if (PlayerSpawner.Instance != null)
-        {
-            PlayerSpawner.Instance.OnLocalPlayerSpawned -= OnLocalPlayerSpawned;
-        }
-        if (PlayerInput.Instance != null)
-        {
-            PlayerInput.Instance.OnOpenChatPanel -= OpenOrClosePanel;
-        }
+        EventManager.RemoveListener<OnOpenChatPanelEvent>(this, OpenOrClosePanel);
     }
 
-    /// <summary>
-    /// 本地玩家生成后才会存在 PlayerInput，此时再订阅其事件
-    /// </summary>
-    private void OnLocalPlayerSpawned()
+    private void OpenOrClosePanel(OnOpenChatPanelEvent evt)
     {
-        if (PlayerInput.Instance != null)
-        {
-            PlayerInput.Instance.OnOpenChatPanel += OpenOrClosePanel;
-        }
-    }
-
-    private void OpenOrClosePanel(bool obj)
-    {
-        if (obj)
+        if (evt.IsOpen)
         {
             OpenInputLabel();
         }

@@ -6,7 +6,7 @@ using YooAsset;
 
 public class Launch : MonoBehaviour
 {
-    public EPlayMode ePlayMode = EPlayMode.None;
+    public EPlayMode ePlayMode = EPlayMode.OfflinePlayMode;
     // Start is called before the first frame update
     void Start()
     {

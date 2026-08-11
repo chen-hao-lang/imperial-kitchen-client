@@ -195,6 +195,8 @@ namespace LiteGameFramework
                 initOperation = InitializeEditorPackageOperation(_packageName);
                 break;
             case EPlayMode.OfflinePlayMode:
+            case EPlayMode.None:
+                // None 兜底为离线模式（单机运行从 StreamingAssets 加载）
                 initOperation = InitializeOfflinePackageOperation(_packageName);
                 break;
             case EPlayMode.HostPlayMode:

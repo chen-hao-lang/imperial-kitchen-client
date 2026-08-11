@@ -52,17 +52,6 @@ public static class NetworkMessage
 
     #region  客户端 → 服务端：消息创建方法
     /// <summary>
-    /// 连接服务器，附带玩家名字。
-    /// </summary>
-    public static byte[] Create_Connect(string playerName)
-    {
-        using var ms = new MemoryStream();
-        using var writer = new BinaryWriter(ms);
-        WriteString(writer, playerName);
-        return Pack(MessageType.C2S_Connect, ms.ToArray());
-    }
-
-    /// <summary>
     /// 上报玩家移动（位置 + Y轴旋转）。
     /// </summary>
     public static byte[] Create_PlayerMove(float x, float y, float z, float rotY)
@@ -99,7 +88,7 @@ public static class NetworkMessage
     /// <summary>
     /// 玩家准备就绪。
     /// </summary>
-    public static byte[] Create_PlayerReadyUpdate(int _playerId,int _isReady)
+    public static byte[] Create_PlayerReadyUpdate(int _playerId, int _isReady)
     {
         using var ms = new MemoryStream();
         using var writer = new BinaryWriter(ms);
@@ -158,7 +147,7 @@ public static class NetworkMessage
         return Pack(MessageType.C2S_CounterRegister, ms.ToArray());
     }
 
-    public static byte[] Create_RemotePlate(int _counterId,int _plateId)
+    public static byte[] Create_RemotePlate(int _counterId, int _plateId)
     {
         using var ms = new MemoryStream();
         using var writer = new BinaryWriter(ms);
@@ -233,18 +222,21 @@ public static class NetworkMessage
     }
     #endregion
 
-    public static byte[] Create_SendMessage(int _playerId,string _message)
+    public static byte[] Create_SendMessage(int _playerId, string _message)
     {
         using var ms = new MemoryStream();
         using var writer = new BinaryWriter(ms);
         writer.Write(_playerId);
         writer.Write(_message);
-        return Pack(MessageType.C2S_SendMessage,ms.ToArray());
+        return Pack(MessageType.C2S_SendMessage, ms.ToArray());
     }
     #endregion
 
     #region  服务端 → 客户端：消息解析方法
-    public static int Parse_AssignPlayerId(byte[] body)
+    /// <summary>
+    /// 解析连接成功消息：(我的玩家ID, 服务器下发的所有已连接玩家ID列表)
+    /// </summary>
+    public static int  Parse_Connect(byte[] body)
     {
         using var ms = new MemoryStream(body);
         using var reader = new BinaryReader(ms);
@@ -260,13 +252,13 @@ public static class NetworkMessage
         return (id, name);
     }
 
-    public static (int,bool) Parse_PlayerReadyUpdate(byte[] _body)
+    public static (int, bool) Parse_PlayerReadyUpdate(byte[] _body)
     {
         using var ms = new MemoryStream(_body);
         using var reader = new BinaryReader(ms);
         int playerId = reader.ReadInt32();
         bool isReady = reader.ReadInt32() == 1 ? true : false;
-        return (playerId,isReady);
+        return (playerId, isReady);
     }
 
     public static int Parse_PlayerLeft(byte[] body)
@@ -521,7 +513,7 @@ public static class NetworkMessage
     }
     #endregion
 
-    public static (int playerId,string message) Parse_SendMessage(byte[] _body)
+    public static (int playerId, string message) Parse_SendMessage(byte[] _body)
     {
         using var ms = new MemoryStream(_body);
         using var reader = new BinaryReader(ms);

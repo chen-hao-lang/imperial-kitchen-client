@@ -1,12 +1,12 @@
 using System;
+using KitchenChaos;
+using LiteGameFramework;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public class PlayerInput : MonoBehaviour
+public class PlayerInput : SingletonMono<PlayerInput>
 {
     private const string PLAYER_PREFS_BINDINGS = "InputBindings";
-
-    public static PlayerInput Instance { get; private set; }
 
     public enum Binding
     {
@@ -36,33 +36,26 @@ public class PlayerInput : MonoBehaviour
 
     private bool openChatPanel = false;
 
-    public event EventHandler OnInteractAction;
-    public event EventHandler OnInteractAlternate;
-    public event EventHandler OnPauseAction;
-    public event EventHandler OnBindingRebind;
-
-    public event Action<bool> OnOpenChatPanel;
-
-    void Awake()
+    protected override void Awake()
     {
-        Instance = this;
+        base.Awake();
 
         _playerAction = new PlayerAction();
         _playerAction.Player.Enable();
 
         _playerAction.Player.Move.performed += Move;
-        _playerAction.Player.Move.canceled += (ctx) => moveInput = Vector2.zero;
+        _playerAction.Player.Move.canceled += ctx => moveInput = Vector2.zero;
 
-        _playerAction.Player.Interact.performed += ctx => OnInteractAction?.Invoke(this, EventArgs.Empty);
-
-        _playerAction.Player.InteractAlternate.performed += ctx => OnInteractAlternate?.Invoke(this, EventArgs.Empty);
+        _playerAction.Player.Interact.performed += ctx => EventManager.Invoke(new OnInteractActionEvent());
+        _playerAction.Player.InteractAlternate.performed += ctx => EventManager.Invoke(new OnInteractAlternateEvent());
+        _playerAction.Player.Pause.performed += ctx => EventManager.Invoke(new OnPauseActionEvent());
 
         _playerAction.Player.Mouse.performed += ctx => mousePos = ctx.ReadValue<Vector2>();
 
         _playerAction.Player.OpenChatPanel.performed += ctx =>
         {
             openChatPanel = !openChatPanel;
-            OnOpenChatPanel?.Invoke(openChatPanel);
+            EventManager.Invoke(new OnOpenChatPanelEvent { IsOpen = openChatPanel });
         };
     }
 
@@ -159,10 +152,10 @@ public class PlayerInput : MonoBehaviour
                 _playerAction.Player.Enable();
                 onActionRebound();
 
-                PlayerPrefs.SetString(PLAYER_PREFS_BINDINGS, _playerAction.SaveBindingOverridesAsJson());
-                PlayerPrefs.Save();
+                PlayerPrefsManager.SetString(PLAYER_PREFS_BINDINGS, _playerAction.SaveBindingOverridesAsJson());
+                PlayerPrefsManager.Save();
 
-                OnBindingRebind?.Invoke(this, EventArgs.Empty);
+                EventManager.Invoke<OnBindingRebindEvent>(new OnBindingRebindEvent());
             })
             .Start();
     }

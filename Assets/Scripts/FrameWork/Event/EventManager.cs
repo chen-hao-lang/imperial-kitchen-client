@@ -78,29 +78,6 @@ namespace LiteGameFramework
             }
         }
 
-        public static void Invoke<T>() where T : struct, IEvent
-        {
-            Type eventType = typeof(T);
-            if (!Instance.listener.TryGetValue(eventType, out var handlerList))
-                return;
-
-            // 遍历快照，防止回调中修改链表导致迭代异常
-            var snapshot = new Delegate[handlerList.Count];
-            handlerList.CopyTo(snapshot, 0);
-
-            foreach (var handler in snapshot)
-            {
-                try
-                {
-                    ((Action)handler)();
-                }
-                catch (Exception e)
-                {
-                    UnityEngine.Debug.LogError($"[EventManager] Invoke<{eventType.Name}> error: {e}");
-                }
-            }
-        }
-
         /// <summary>
         /// 移除指定订阅者身上指定的订阅的事件
         /// </summary>

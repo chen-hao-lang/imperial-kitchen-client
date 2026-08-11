@@ -17,21 +17,21 @@
     "type": "GameOverPanel",
     "packageName": "UI",
     "panelName": "GameOverPanel",
-    "layer": "Top",
+    "layer": "Normal",
     "isWindow": false
   },
   {
     "type": "OptionPanel",
     "packageName": "UI",
     "panelName": "OptionPanel",
-    "layer": "SceneLayer",
+    "layer": "Normal",
     "isWindow": false
   },
   {
     "type": "GameStartCDUI",
     "packageName": "UI",
     "panelName": "GameStartCDUI",
-    "layer": "Top",
+    "layer": "Popup",
     "isWindow": false
   },
   {

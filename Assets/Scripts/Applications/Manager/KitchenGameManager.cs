@@ -1,4 +1,5 @@
 using DG.Tweening;
+using KitchenChaos;
 using LiteGameFramework;
 using System;
 using UnityEngine;
@@ -40,8 +41,15 @@ public class KitchenGameManager : SingletonMono<KitchenGameManager>
 
     private void Start()
     {
-        PlayerInput.Instance.OnInteractAction += PlayerInput_OnInteractAction;
-        PlayerInput.Instance.OnPauseAction += PlayerInput_OnPauseAction;
+        EventManager.AddListener<OnInteractActionEvent>(this, OnInteractActionEvent);
+        EventManager.AddListener<OnPauseActionEvent>(this, OnPauseActionEvent);
+    }
+
+    protected override void OnDestroy()
+    {
+        base.OnDestroy();
+        EventManager.RemoveListener<OnInteractActionEvent>(this, OnInteractActionEvent);
+        EventManager.RemoveListener<OnPauseActionEvent>(this, OnPauseActionEvent);
     }
 
     private void Update()
@@ -75,12 +83,12 @@ public class KitchenGameManager : SingletonMono<KitchenGameManager>
         }
     }
 
-    private void PlayerInput_OnPauseAction(object sender, EventArgs e)
+    private void OnPauseActionEvent(OnPauseActionEvent _)
     {
         TogglePauseGame();
     }
 
-    private void PlayerInput_OnInteractAction(object sender, EventArgs e)
+    private void OnInteractActionEvent(OnInteractActionEvent _)
     {
         if (state == EGameState.WaitingToStart)
         {

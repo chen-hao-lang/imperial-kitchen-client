@@ -14,6 +14,7 @@ public class GameStartCDUI : BasePanel
     public override void LoadPanel()
     {
         base.LoadPanel();
+
         animator = GetComponent<Animator>();
     }
 

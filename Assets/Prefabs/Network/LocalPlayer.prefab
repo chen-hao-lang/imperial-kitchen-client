@@ -177,9 +177,7 @@ GameObject:
   - component: {fileID: 4972963082175356473}
   - component: {fileID: 5382863620326932444}
   - component: {fileID: 3653464018337998355}
-  - component: {fileID: 2341283814047787445}
   - component: {fileID: 5268439361464394529}
-  - component: {fileID: -3086090773749129123}
   m_Layer: 0
   m_Name: LocalPlayer
   m_TagString: Untagged
@@ -253,19 +251,6 @@ CharacterController:
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
   m_Center: {x: 0, y: 1.04, z: 0}
---- !u!114 &2341283814047787445
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2667433757371301119}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3a41c98015374a343b6de2bd0992319a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  mousePos: {x: 0, y: 0}
 --- !u!114 &5268439361464394529
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -279,25 +264,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _isLocalPlayer: 1
-  _playerInput: {fileID: 2341283814047787445}
+  _playerInput: {fileID: 0}
   _Speed: 5
   _slerpRotateSpeed: 0.5
   _gravity: -9.81
-  kitchenObjectHoldPoint: {fileID: 3590341711876526154}
---- !u!114 &-3086090773749129123
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2667433757371301119}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 62f4d3a9c829d364a8d920783e5cb21a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  positionLerpSpeed: 15
-  rotationLerpSpeed: 20
   kitchenObjectHoldPoint: {fileID: 3590341711876526154}
 --- !u!1 &5947055013795399911
 GameObject:

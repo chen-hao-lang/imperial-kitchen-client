@@ -8,13 +8,15 @@ using UnityEngine;
 
 public class NetworkManager : SingletonMono<NetworkManager>
 {
-    // 服务器配置
-    [SerializeField] private string serverIP = "127.0.0.1";
-    [SerializeField] private int serverPort = 7777;
-
     public int PlayerID { get; private set; } = -1;
 
     public bool IsConnected { get; private set; }
+
+    /// <summary> 服务器下发的其他已连接玩家 ID 列表（不含自己），供错过 OnNetworkConnected 事件的面板补齐初始化 </summary>
+    public List<int> ConnectedPlayers { get; private set; } = new List<int>();
+
+    /// <summary> 最近一次全量同步下发的其他玩家数据（不含自己），供错过 OnFullSync 事件的面板补齐初始化 </summary>
+    public (int id, string name, float x, float y, float z, float rotY)[] FullSyncPlayers { get; private set; } = new (int, string, float, float, float, float)[0];
 
     // 网络对象
     private TcpClient tcpClient;
@@ -73,8 +75,6 @@ public class NetworkManager : SingletonMono<NetworkManager>
 
             Debug.Log($"[NetworkManager] 已连接到{_ip}:{_port}");
 
-            Send(NetworkMessage.Create_Connect(_playerName));
-
             receiveThread = new Thread(ReceiveLoop)
             {
                 IsBackground = true,
@@ -112,6 +112,7 @@ public class NetworkManager : SingletonMono<NetworkManager>
 
         bufferedBytes = 0;
         PlayerID = -1;
+        ConnectedPlayers.Clear();
 
         Debug.Log("[NetworkManager] 已断开连接");
     }
@@ -139,7 +140,7 @@ public class NetworkManager : SingletonMono<NetworkManager>
         catch (Exception ex)
         {
             Debug.LogError($"[NetworkManager] 发送失败: {ex.Message}");
-            EnqueueOnMainThread(() => EventManager.Invoke<OnNetworkDisconnected>());
+            EnqueueOnMainThread(() => EventManager.Invoke<OnNetworkDisconnected>(new OnNetworkDisconnected()));
             Disconnect();
         }
     }
@@ -157,9 +158,9 @@ public class NetworkManager : SingletonMono<NetworkManager>
     }
 
     /// <summary> 上报玩家准备就绪 </summary>
-    public void SendPlayerReadyStatus(int _playerId,int _isReady)
+    public void SendPlayerReadyStatus(int _playerId, int _isReady)
     {
-        Send(NetworkMessage.Create_PlayerReadyUpdate(_playerId,_isReady));
+        Send(NetworkMessage.Create_PlayerReadyUpdate(_playerId, _isReady));
     }
 
     public void SendPlayerInteract(int playerId, int playerItemIndex)
@@ -319,7 +320,7 @@ public class NetworkManager : SingletonMono<NetworkManager>
         {
             IsConnected = false;
             PlayerID = -1;
-            EventManager.Invoke<OnNetworkDisconnected>();
+            EventManager.Invoke<OnNetworkDisconnected>(new OnNetworkDisconnected());
             Debug.Log("[NetworkManager] 与服务器的连接已断开");
         });
     }
@@ -331,6 +332,14 @@ public class NetworkManager : SingletonMono<NetworkManager>
     /// <param name="_body">消息体</param>
     private void HandleMessage(MessageType _type, byte[] _body)
     {
+        if (_type == MessageType.Connect)
+        {
+            var playerId = NetworkMessage.Parse_Connect(_body);
+            PlayerID = playerId;
+            EventManager.Invoke<OnNetworkConnected>(new OnNetworkConnected(playerId));
+            return;
+        }
+
         if (_type == MessageType.RemotePlate)
         {
             var (counterId, plateId) = NetworkMessage.Parse_RemotePlate(_body);
@@ -348,18 +357,19 @@ public class NetworkManager : SingletonMono<NetworkManager>
         if (_type == MessageType.PlayerPosition)
         {
             var (playerId, x, y, z, rotY) = NetworkMessage.Parse_PlayerPosition(_body);
-            EventManager.Invoke<OnPlayerPosition>(new OnPlayerPosition(playerId,x,y,z,rotY));
+            EventManager.Invoke<OnPlayerPosition>(new OnPlayerPosition(playerId, x, y, z, rotY));
+            return;
+        }
+
+        if (_type == MessageType.PlayerReady)
+        {
+            var (playerId, isReady) = NetworkMessage.Parse_PlayerReadyUpdate(_body);
+            EventManager.Invoke<OnNetworkPlayerReadyStatusUpdate>(new OnNetworkPlayerReadyStatusUpdate(playerId, isReady));
             return;
         }
 
         switch (_type)
         {
-            case MessageType.AssignPlayerId:
-                PlayerID = NetworkMessage.Parse_AssignPlayerId(_body);
-                Debug.Log($"[NetworkManager] 我的玩家ID: {PlayerID}");
-                EventManager.Invoke<OnNetworkConnected>(new OnNetworkConnected(PlayerID));
-                break;
-
             case MessageType.PlayerJoined:
                 var (pjId, pjName) = NetworkMessage.Parse_PlayerJoined(_body);
                 Debug.Log($"[NetworkManager] 玩家加入: {pjId} ({pjName})");
@@ -378,7 +388,6 @@ public class NetworkManager : SingletonMono<NetworkManager>
 
             case MessageType.GameStateChange:
                 byte state = NetworkMessage.Parse_GameStateChange(_body);
-                // OnGameStateChange?.Invoke(state);
                 EventManager.Invoke<OnGameStateChange>(new OnGameStateChange(state));
                 break;
 
@@ -398,7 +407,7 @@ public class NetworkManager : SingletonMono<NetworkManager>
                 break;
 
             case MessageType.RecipeFailed:
-                EventManager.Invoke<OnRecipeFailed>();
+                EventManager.Invoke<OnRecipeFailed>(new OnRecipeFailed());
                 break;
 
             case MessageType.ScoreUpdate:
@@ -413,6 +422,7 @@ public class NetworkManager : SingletonMono<NetworkManager>
 
             case MessageType.FullSync:
                 NetworkMessage.Parse_FullSync(_body, out var players, out var counters, out var plates);
+                FullSyncPlayers = players;
                 EventManager.Invoke<OnFullSync>(new OnFullSync(players, counters));
                 PlateManager.Instance?.RestorePlatesFromFullSync(plates);
                 break;

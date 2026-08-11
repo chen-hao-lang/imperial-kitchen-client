@@ -1,4 +1,6 @@
 using System;
+using KitchenChaos;
+using LiteGameFramework;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour, IKitchenObjectParent
@@ -18,7 +20,6 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
     /// </summary>
     public int PlayerId { get; private set; } = -1;
 
-    [SerializeField] private PlayerInput _playerInput;
     [SerializeField] private float _Speed = 5f;
     [SerializeField] private float _slerpRotateSpeed = 0.5f;
     [SerializeField] private float _gravity = -9.81f;
@@ -60,11 +61,8 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
 
         if (_isLocalPlayer)//只有本地玩家才能绑定输入
         {
-            if (_playerInput != null)
-            {
-                _playerInput.OnInteractAction += GameInput_OnInteractAction;
-                _playerInput.OnInteractAlternate += GameInput_OnInteractAlternate;
-            }
+            EventManager.AddListener<OnInteractActionEvent>(this, OnInteractActionEvent);
+            EventManager.AddListener<OnInteractAlternateEvent>(this, OnInteractAlternateEvent);
         }
         else// 远程玩家
         {
@@ -77,6 +75,15 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
         }
     }
 
+    private void OnDestroy()
+    {
+        if (_isLocalPlayer)
+        {
+            EventManager.RemoveListener<OnInteractActionEvent>(this, OnInteractActionEvent);
+            EventManager.RemoveListener<OnInteractAlternateEvent>(this, OnInteractAlternateEvent);
+        }
+    }
+
     public void SetPlayerIdentity(int _playerId, bool _isLocal)
     {
         PlayerId = _playerId;
@@ -86,9 +93,7 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
     /// <summary>
     /// 处理玩家的空格交互输入
     /// </summary>
-    /// <param name="sender"></param>
-    /// <param name="e"></param>
-    private void GameInput_OnInteractAlternate(object sender, EventArgs e)
+    private void OnInteractAlternateEvent(OnInteractAlternateEvent _)
     {
         if (_selectedCounter != null && _isLocalPlayer)
         {
@@ -99,9 +104,7 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
     /// <summary>
     /// 处理玩家的E键交互输入
     /// </summary>
-    /// <param name="sender"></param>
-    /// <param name="e"></param>
-    private void GameInput_OnInteractAction(object sender, EventArgs e)
+    private void OnInteractActionEvent(OnInteractActionEvent _)
     {
         if (_selectedCounter != null && _isLocalPlayer)
         {
@@ -185,7 +188,7 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
     {
         if (!_isLocalPlayer) return;
 
-        Vector3 moveDir = new Vector3(_playerInput.MoveInput.x, 0, _playerInput.MoveInput.y);
+        Vector3 moveDir = new Vector3(PlayerInput.Instance.MoveInput.x, 0, PlayerInput.Instance.MoveInput.y);
 
         if (moveDir != Vector3.zero)
         {
@@ -217,9 +220,9 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
     /// </summary>
     private void HandleMovement()
     {
-        if (_playerInput == null) return;
+        if (PlayerInput.Instance == null) return;
 
-        _dir = new Vector3(_playerInput.MoveInput.x, 0, _playerInput.MoveInput.y);
+        _dir = new Vector3(PlayerInput.Instance.MoveInput.x, 0, PlayerInput.Instance.MoveInput.y);
 
         if (_dir != Vector3.zero)
         {

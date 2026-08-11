@@ -6,7 +6,9 @@ using YooAsset;
 
 public class GameLaunch : MonoBehaviour
 {
-    public EPlayMode ePlayMode = EPlayMode.None;
+    public EPlayMode ePlayMode = EPlayMode.OfflinePlayMode;
+    public string playerName;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -15,9 +17,12 @@ public class GameLaunch : MonoBehaviour
 
     IEnumerator Init()
     {
+        // 连接服务器
+        NetworkManager.Instance.Connect("127.0.0.1", 7777, playerName);
+
         // 先初始化 YooAsset 资源包并加载 UIConfig（panelControllers 在此填充）
         yield return UIManager.Instance.InitUIConfig(ePlayMode);
-        List<EUIType> loadPanel = new List<EUIType>()
+        List<EUIType> loadPanels = new List<EUIType>()
         {
             EUIType.DeliveryManagerUI,
             EUIType.GameOverPanel,
@@ -27,9 +32,9 @@ public class GameLaunch : MonoBehaviour
             EUIType.ChatPanel,
             EUIType.PlayerReadyPanel
         };
-        yield return UIManager.Instance.PreLoadPanel(loadPanel);
+        yield return UIManager.Instance.PreLoadPanel(loadPanels);
 
         UIManager.Instance.OpenPanel<DeliveryResultUI>(EUIType.DeliveryManagerUI);
-        // UIManager.Instance.OpenPanel<GamePlayingClockUI>(EUIType.GamePlayingClockUI);
+        UIManager.Instance.OpenPanel<PlayerReadyPanel>(EUIType.PlayerReadyPanel);
     }
 }

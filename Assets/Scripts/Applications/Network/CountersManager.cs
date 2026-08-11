@@ -54,7 +54,7 @@ public class CountersManager : MonoBehaviour
         {
             OnConnectedToServer(new OnNetworkConnected(NetworkManager.Instance.PlayerID));
         }
-    }
+    } 
 
     private void OnDestroy()
     {

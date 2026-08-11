@@ -1,3 +1,4 @@
+using KitchenChaos;
 using LiteGameFramework;
 using System;
 using UnityEngine;
@@ -21,7 +22,7 @@ public class NetworkKitchenGameManager : SingletonMono<NetworkKitchenGameManager
         if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
         {
             EventManager.AddListener<OnGameStateChange>(this, OnGameStateChange);
-            PlayerInput.Instance.OnPauseAction += OnPauseAction;
+            EventManager.AddListener<OnPauseActionEvent>(this, OnPauseActionEvent);
         }
     }
 
@@ -46,7 +47,7 @@ public class NetworkKitchenGameManager : SingletonMono<NetworkKitchenGameManager
         }
     }
 
-    private void OnPauseAction(object sender, EventArgs e)
+    private void OnPauseActionEvent(OnPauseActionEvent _)
     {
         TogglePauseGame();
     }
@@ -89,9 +90,6 @@ public class NetworkKitchenGameManager : SingletonMono<NetworkKitchenGameManager
             EventManager.RemoveListener<OnGameStateChange>(this, OnGameStateChange);
         }
 
-        if (PlayerInput.Instance != null)
-        {
-            PlayerInput.Instance.OnPauseAction -= OnPauseAction;
-        }
+        EventManager.RemoveListener<OnPauseActionEvent>(this, OnPauseActionEvent);
     }
 }

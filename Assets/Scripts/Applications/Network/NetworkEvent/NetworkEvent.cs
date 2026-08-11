@@ -32,7 +32,11 @@ public struct OnPlayerPosition : IEvent
 public struct OnNetworkConnected : IEvent
 {
     public int playerId;
-    public OnNetworkConnected(int _playerId) => playerId = _playerId;
+
+    public OnNetworkConnected(int _playerId)
+    {
+        playerId = _playerId;
+    }
 }
 
 /// <summary> 与服务器断开连接 </summary>

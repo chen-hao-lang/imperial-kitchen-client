@@ -50,3 +50,5 @@ crashlytics-build.properties
 *.meta
 
 /.[Gg]ithub
+/[Ss]treamingAssets
+/[Bb]undles
