@@ -172,7 +172,7 @@ public static class NetworkMessage
         {
             writer.Write(temp);
         }
-        return Pack(MessageType.C2S_PlateOnwerSync, ms.ToArray());
+        return Pack(MessageType.C2S_PlateOwnerSync, ms.ToArray());
     }
 
     /// <summary>
@@ -198,6 +198,41 @@ public static class NetworkMessage
         using var writer = new BinaryWriter(ms);
         writer.Write(_plateId);
         return Pack(MessageType.C2S_PlateDestroy, ms.ToArray());
+    }
+
+    /// <summary>
+    /// 提交交付请求（plateId）。
+    /// 服务器以自己维护的盘子配料数据做权威校验，客户端不本地校验订单。
+    /// </summary>
+    /// <param name="_plateId">要交付的盘子网络ID</param>
+    public static byte[] Create_DeliveryRequest(int _plateId)
+    {
+        using var ms = new MemoryStream();
+        using var writer = new BinaryWriter(ms);
+        writer.Write(_plateId);
+        return Pack(MessageType.C2S_DeliveryRequest, ms.ToArray());
+    }
+
+    /// <summary>
+    /// 上报配方表（连接后注册）。
+    /// 格式：recipeCount(int) + [ingredientCount(int) + [ingredientIndex(int)]*N] * recipeCount
+    /// 每个配方 = 配料索引列表（KitchenObjectRegistry 索引空间，顺序与本地 RecipeListSO 一致）。
+    /// </summary>
+    /// <param name="_recipes">配方表：每个元素 = 一个配方的配料索引数组</param>
+    public static byte[] Create_RegisterRecipes(int[][] _recipes)
+    {
+        using var ms = new MemoryStream();
+        using var writer = new BinaryWriter(ms);
+        writer.Write(_recipes.Length);
+        foreach (int[] ingredients in _recipes)
+        {
+            writer.Write(ingredients.Length);
+            foreach (int index in ingredients)
+            {
+                writer.Write(index);
+            }
+        }
+        return Pack(MessageType.C2S_RegisterRecipes, ms.ToArray());
     }
 
     public static byte[] Create_RegisterPlate(int _plateId, int _soIndex)
@@ -336,13 +371,14 @@ public static class NetworkMessage
     }
 
     /// <summary>
-    /// 解析全量同步消息（统一盘子格式）。
+    /// 解析全量同步消息（统一盘子格式 + 等待中的订单）。
     /// </summary>
     public static void Parse_FullSync(
         byte[] body,
         out (int id, string name, float x, float y, float z, float rotY)[] players,
         out (int counterId, int itemIndex)[] counters,
-        out (int plateId, byte ownerType, int ownerId, int soIndex, int[] ingredients)[] plates)
+        out (int plateId, byte ownerType, int ownerId, int soIndex, int[] ingredients)[] plates,
+        out int[] recipes)
     {
         using var ms = new MemoryStream(body);
         using var reader = new BinaryReader(ms);
@@ -398,6 +434,18 @@ public static class NetworkMessage
         else
         {
             plates = new (int plateId, byte ownerType, int ownerId, int soIndex, int[] ingredients)[0];
+        }
+
+        // 等待中的订单（服务器权威，中途加入恢复订单状态用；旧版消息可能没有这段）
+        recipes = new int[0];
+        if (ms.Position < ms.Length)
+        {
+            int recipeCount = reader.ReadInt32();
+            recipes = new int[recipeCount];
+            for (int i = 0; i < recipeCount; i++)
+            {
+                recipes[i] = reader.ReadInt32();
+            }
         }
     }
 

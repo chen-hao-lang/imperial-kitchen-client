@@ -3,6 +3,14 @@ using System.Collections.Generic;
 using LiteGameFramework;
 using UnityEngine;
 
+/// <summary>
+/// 订单管理器（服务器权威模式）。
+/// - 连接成功后上报本地配方表（C2S_RegisterRecipes），由服务器校验注册（内容由客户端提供）
+/// - 订单由服务器生成并广播（RecipeSpawned），本地不再自行刷单
+/// - 交付时只把 plateId 上报服务器，由服务器用自己维护的盘子配料数据校验
+/// - 校验结果通过 RecipeCompleted / RecipeFailed / ScoreUpdate 广播驱动本地状态
+/// - 中途加入时通过 OnRecipeFullSync 恢复当前等待订单
+/// </summary>
 class DeliveryManager : SingletonMono<DeliveryManager>
 {
     public event EventHandler OnRecipeSpawned;
@@ -10,91 +18,221 @@ class DeliveryManager : SingletonMono<DeliveryManager>
     public event EventHandler OnRecipeCompleted;
     public event EventHandler OnRecipeFailed;
 
+    /// <summary> 配方表：场景中未配置时自动从 Resources/RecipeListSO 加载 </summary>
     [SerializeField] private RecipeListSO recipeListSO;
 
-    private List<RecipeSO> waitingRecipeSOList;
-    private float spawnRecipeTimer;
-    private float spawnRecipeTimerMax = 4f;
-    private int waitingRecipesMax = 4;
+    private readonly List<RecipeSO> waitingRecipeSOList = new List<RecipeSO>();
     private int successfulRecipesAmount;
 
     protected override void Awake()
     {
-        waitingRecipeSOList = new List<RecipeSO>();
-    }
+        base.Awake();
 
-    // private void Update()
-    // {
-    //     spawnRecipeTimer -= Time.deltaTime;
-
-    //     if (spawnRecipeTimer <= 0)
-    //     {
-    //         spawnRecipeTimer = spawnRecipeTimerMax;
-
-    //         if(KitchenGameManager.Instance.IsGamePlaying && waitingRecipeSOList.Count < waitingRecipesMax)
-    //         {
-    //             RecipeSO waitingRecipeSO = recipeListSO.recipeSOList[UnityEngine.Random.Range(0, recipeListSO.recipeSOList.Count)];
-                 
-    //             waitingRecipeSOList.Add(waitingRecipeSO);
-
-    //             OnRecipeSpawned?.Invoke(this, EventArgs.Empty);
-    //         }
-    //     }
-    // }
-
-    public void DeliveRecipe(PlateKitchenObject plateKitchenObject)
-    {
-        Debug.Log($"DeliveRecipe called. waitingCount={waitingRecipeSOList.Count}");
-        for (int i = 0; i < waitingRecipeSOList.Count; i++)
+        if (recipeListSO == null)
         {
-            RecipeSO waitingRecipeSO = waitingRecipeSOList[i];
-
-            if (waitingRecipeSO.kitchenObjectSOList.Count == plateKitchenObject.GetKitchenObjectSOList().Count)
-            {
-                bool plateContentsMatchRecipe = true;
-                foreach (KitchenObjectSO recipeKitchenObjectSO in waitingRecipeSO.kitchenObjectSOList)
-                {
-                    bool ingredientFound = false;
-                    foreach (KitchenObjectSO plateKitchenObjectSO in plateKitchenObject.GetKitchenObjectSOList())
-                    {
-                        if (plateKitchenObjectSO == recipeKitchenObjectSO)
-                        {
-                            ingredientFound = true;
-                            break;
-                        }
-                    }
-
-                    if (!ingredientFound)
-                    {
-                        plateContentsMatchRecipe = false;
-                    }
-                }
-
-                if (plateContentsMatchRecipe)
-                {
-                    successfulRecipesAmount++;
-
-                    waitingRecipeSOList.RemoveAt(i);
-
-                    Debug.Log($"DeliveRecipe: success. successfulRecipesAmount={successfulRecipesAmount}. remainingWaiting={waitingRecipeSOList.Count}");
-                    OnRecipeSuccess?.Invoke(this,EventArgs.Empty);
-                    OnRecipeCompleted?.Invoke(this, EventArgs.Empty);
-                    return;
-                }
-            }
+            recipeListSO = Resources.Load<RecipeListSO>("RecipeListSO");
         }
 
-        Debug.Log("DeliveRecipe: failed");
+        if (recipeListSO == null)
+        {
+            Debug.LogError("[DeliveryManager] 未找到 RecipeListSO！请在场景中配置，或将其放入 Resources 文件夹。");
+        }
+    }
+
+    private void OnEnable()
+    {
+        EventManager.AddListener<OnRecipeSpawned>(this, OnNetworkRecipeSpawned);
+        EventManager.AddListener<OnRecipeCompleted>(this, OnNetworkRecipeCompleted);
+        EventManager.AddListener<OnRecipeFailed>(this, OnNetworkRecipeFailed);
+        EventManager.AddListener<OnScoreUpdate>(this, OnNetworkScoreUpdate);
+        EventManager.AddListener<OnRecipeFullSync>(this, OnNetworkRecipeFullSync);
+        EventManager.AddListener<OnNetworkConnected>(this, OnConnectedToServer);
+
+        // 防错过：如果已经处于连接状态（如切换场景后重连、面板晚加载），立即补齐
+        if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
+        {
+            // 上报配方表（若尚未上报）
+            SendRegisterRecipes();
+
+            // FullSync 订单缓存补齐
+            if (NetworkManager.Instance.FullSyncRecipes.Length > 0)
+            {
+                RestoreWaitingRecipes(NetworkManager.Instance.FullSyncRecipes);
+            }
+        }
+    }
+
+    private void OnDisable()
+    {
+        EventManager.RemoveListener<OnRecipeSpawned>(this, OnNetworkRecipeSpawned);
+        EventManager.RemoveListener<OnRecipeCompleted>(this, OnNetworkRecipeCompleted);
+        EventManager.RemoveListener<OnRecipeFailed>(this, OnNetworkRecipeFailed);
+        EventManager.RemoveListener<OnScoreUpdate>(this, OnNetworkScoreUpdate);
+        EventManager.RemoveListener<OnRecipeFullSync>(this, OnNetworkRecipeFullSync);
+        EventManager.RemoveListener<OnNetworkConnected>(this, OnConnectedToServer);
+    }
+
+    /// <summary>
+    /// 连接服务器成功后：上报本地配方表，供服务器注册（内容由客户端提供，裁决由服务端执行）。
+    /// 支持多场景：切换场景后重新上报当前场景的配方表即可（服务器以第一个上报者为准）。
+    /// </summary>
+    private void OnConnectedToServer(OnNetworkConnected _arg)
+    {
+        SendRegisterRecipes();
+    }
+
+    /// <summary>
+    /// 把本地 RecipeListSO 转为配料索引数组并上报服务器注册。
+    /// 配方顺序即 RecipeListSO 顺序（recipeIndex 空间一致）；配料用 KitchenObjectRegistry 索引，
+    /// 引用注册表外原料的配方会得到 -1（服务器允许注册但不可匹配）。
+    /// </summary>
+    private void SendRegisterRecipes()
+    {
+        if (recipeListSO == null || recipeListSO.recipeSOList == null || recipeListSO.recipeSOList.Count == 0)
+        {
+            Debug.LogError("[DeliveryManager] 配方表为空，无法上报服务器");
+            return;
+        }
+
+        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnected)
+        {
+            return;
+        }
+
+        int[][] recipes = new int[recipeListSO.recipeSOList.Count][];
+        for (int i = 0; i < recipeListSO.recipeSOList.Count; i++)
+        {
+            RecipeSO recipeSO = recipeListSO.recipeSOList[i];
+            int[] ingredients = new int[recipeSO.kitchenObjectSOList.Count];
+            for (int j = 0; j < recipeSO.kitchenObjectSOList.Count; j++)
+            {
+                KitchenObjectSO so = recipeSO.kitchenObjectSOList[j];
+                ingredients[j] = KitchenObjectRegistry.Instance != null
+                    ? KitchenObjectRegistry.Instance.GetIndexBySO(so)
+                    : -1;
+            }
+            recipes[i] = ingredients;
+        }
+
+        NetworkManager.Instance.SendRegisterRecipes(recipes);
+        Debug.Log($"[DeliveryManager] 已上报 {recipes.Length} 条配方供服务器注册");
+    }
+
+    #region 网络事件处理
+
+    /// <summary> 服务器生成新订单 → 加入等待列表并通知 UI </summary>
+    private void OnNetworkRecipeSpawned(OnRecipeSpawned _arg)
+    {
+        RecipeSO recipeSO = GetRecipeByIndex(_arg.recipeIndex);
+        if (recipeSO == null) return;
+
+        waitingRecipeSOList.Add(recipeSO);
+        Debug.Log($"[DeliveryManager] 新订单: {recipeSO.recipeName}，当前等待={waitingRecipeSOList.Count}");
+
+        OnRecipeSpawned?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary> 服务器确认订单完成 → 移除对应订单并通知 UI（同时视为交付成功） </summary>
+    private void OnNetworkRecipeCompleted(OnRecipeCompleted _arg)
+    {
+        RecipeSO recipeSO = GetRecipeByIndex(_arg.recipeIndex);
+        if (recipeSO != null)
+        {
+            waitingRecipeSOList.Remove(recipeSO);
+        }
+
+        Debug.Log($"[DeliveryManager] 订单完成: {_arg.recipeIndex}，剩余等待={waitingRecipeSOList.Count}");
+
+        OnRecipeSuccess?.Invoke(this, EventArgs.Empty);
+        OnRecipeCompleted?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary> 服务器确认交付失败 </summary>
+    private void OnNetworkRecipeFailed(OnRecipeFailed _arg)
+    {
+        Debug.Log("[DeliveryManager] 交付失败");
+
         OnRecipeFailed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary> 服务器下发分数（成功交付累计数） </summary>
+    private void OnNetworkScoreUpdate(OnScoreUpdate _arg)
+    {
+        successfulRecipesAmount = _arg.score;
+    }
+
+    /// <summary> 中途加入：服务器全量下发当前等待订单 </summary>
+    private void OnNetworkRecipeFullSync(OnRecipeFullSync _arg)
+    {
+        RestoreWaitingRecipes(_arg.recipeIndexes);
+    }
+
+    /// <summary> 用服务器下发的订单索引重建等待列表 </summary>
+    private void RestoreWaitingRecipes(int[] _recipeIndexes)
+    {
+        waitingRecipeSOList.Clear();
+
+        if (_recipeIndexes == null) return;
+
+        foreach (int recipeIndex in _recipeIndexes)
+        {
+            RecipeSO recipeSO = GetRecipeByIndex(recipeIndex);
+            if (recipeSO != null)
+            {
+                waitingRecipeSOList.Add(recipeSO);
+            }
+        }
+
+        Debug.Log($"[DeliveryManager] 订单全量同步完成，当前等待={waitingRecipeSOList.Count}");
+        OnRecipeSpawned?.Invoke(this, EventArgs.Empty);
+    }
+
+    #endregion
+
+    /// <summary>
+    /// 提交交付请求（服务器权威）。
+    /// 客户端不做订单校验，只上报 plateId，等待服务器广播结果。
+    /// </summary>
+    /// <param name="_plateKitchenObject">要交付的盘子</param>
+    public void DeliveRecipe(PlateKitchenObject _plateKitchenObject)
+    {
+        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnected)
+        {
+            Debug.LogWarning("[DeliveryManager] 未连接服务器，无法交付");
+            return;
+        }
+
+        if (_plateKitchenObject.NetworkPlateId < 0)
+        {
+            Debug.LogWarning("[DeliveryManager] 盘子未注册网络ID，无法交付");
+            return;
+        }
+
+        Debug.Log($"[DeliveryManager] 提交交付请求: 盘子 {_plateKitchenObject.NetworkPlateId}");
+        NetworkManager.Instance.SendDeliveryRequest(_plateKitchenObject.NetworkPlateId);
+    }
+
+    /// <summary> 当前等待交付的订单列表（供 UI 展示） </summary>
     public List<RecipeSO> GetWaitingRecipeSOList()
     {
         return waitingRecipeSOList;
     }
 
+    /// <summary> 累计成功交付数量（服务器下发，用于结算界面） </summary>
     public int GetSuccessfulRecipesAmount()
     {
         return successfulRecipesAmount;
+    }
+
+    /// <summary> 按 RecipeListSO 索引解析 RecipeSO，越界返回 null </summary>
+    private RecipeSO GetRecipeByIndex(int _index)
+    {
+        if (recipeListSO == null) return null;
+        if (_index < 0 || _index >= recipeListSO.recipeSOList.Count)
+        {
+            Debug.LogWarning($"[DeliveryManager] 非法订单索引: {_index}");
+            return null;
+        }
+        return recipeListSO.recipeSOList[_index];
     }
 }

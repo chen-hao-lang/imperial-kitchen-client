@@ -18,6 +18,9 @@ public class NetworkManager : SingletonMono<NetworkManager>
     /// <summary> 最近一次全量同步下发的其他玩家数据（不含自己），供错过 OnFullSync 事件的面板补齐初始化 </summary>
     public (int id, string name, float x, float y, float z, float rotY)[] FullSyncPlayers { get; private set; } = new (int, string, float, float, float, float)[0];
 
+    /// <summary> 最近一次全量同步下发的等待中订单（recipeIndex 列表），供错过 OnRecipeFullSync 事件的系统补齐 </summary>
+    public int[] FullSyncRecipes { get; private set; } = new int[0];
+
     // 网络对象
     private TcpClient tcpClient;
     private NetworkStream stream;
@@ -244,6 +247,25 @@ public class NetworkManager : SingletonMono<NetworkManager>
     }
     #endregion
 
+    /// <summary>
+    /// 提交交付请求（plateId）。服务器权威校验订单，客户端不本地校验。
+    /// </summary>
+    /// <param name="_plateId">要交付的盘子网络ID</param>
+    public void SendDeliveryRequest(int _plateId)
+    {
+        Send(NetworkMessage.Create_DeliveryRequest(_plateId));
+    }
+
+    /// <summary>
+    /// 上报配方表（连接后注册）。内容由客户端提供，订单裁决仍由服务器执行。
+    /// </summary>
+    /// <param name="_recipes">配方表：每个元素 = 一个配方的配料索引数组（KitchenObjectRegistry 索引空间）</param>
+    public void SendRegisterRecipes(int[][] _recipes)
+    {
+        if (_recipes == null || _recipes.Length == 0) return;
+        Send(NetworkMessage.Create_RegisterRecipes(_recipes));
+    }
+
     public void SendMessage(int _playerId, string _message)
     {
         Send(NetworkMessage.Create_SendMessage(_playerId, _message));
@@ -421,9 +443,11 @@ public class NetworkManager : SingletonMono<NetworkManager>
                 break;
 
             case MessageType.FullSync:
-                NetworkMessage.Parse_FullSync(_body, out var players, out var counters, out var plates);
+                NetworkMessage.Parse_FullSync(_body, out var players, out var counters, out var plates, out var recipes);
                 FullSyncPlayers = players;
+                FullSyncRecipes = recipes;
                 EventManager.Invoke<OnFullSync>(new OnFullSync(players, counters));
+                EventManager.Invoke<OnRecipeFullSync>(new OnRecipeFullSync(recipes));
                 PlateManager.Instance?.RestorePlatesFromFullSync(plates);
                 break;
             case MessageType.CounterProgressSync:
@@ -446,7 +470,7 @@ public class NetworkManager : SingletonMono<NetworkManager>
                 var (counterId, pd) = NetworkMessage.Parse_PlateSpawned(_body);
                 EventManager.Invoke<OnPlateSpawned>(new OnPlateSpawned(counterId, pd));
                 break;
-            case MessageType.PlateOnwerSync:
+            case MessageType.PlateOwnerSync:
                 var (pId1, ownerType, ownerId, ingredients) = NetworkMessage.Parse_PlateOwnerSync(_body);
                 EventManager.Invoke<OnPlateOwnerSync>(new OnPlateOwnerSync(pId1, ownerType, ownerId, ingredients));
                 break;

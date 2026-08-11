@@ -137,6 +137,20 @@ public struct OnScoreUpdate : IEvent
     public OnScoreUpdate(int _score) => score = _score;
 }
 
+/// <summary>
+/// 订单全量同步：中途加入时服务器下发的当前等待订单（recipeIndex 列表）。
+/// </summary>
+public struct OnRecipeFullSync : IEvent
+{
+    /// <summary> 当前等待中的订单（RecipeListSO 索引，顺序即服务器订单顺序） </summary>
+    public int[] recipeIndexes;
+
+    public OnRecipeFullSync(int[] _recipeIndexes)
+    {
+        recipeIndexes = _recipeIndexes;
+    }
+}
+
 #endregion
 
 #region 全量同步事件

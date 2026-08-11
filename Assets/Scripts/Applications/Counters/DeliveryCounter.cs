@@ -17,13 +17,8 @@ public class DeliveryCounter : BaseCounter
         {
             if (_player.GetKitchenObject().TryGetPlate(out PlateKitchenObject plateKitchenObject))
             {
+                // 提交交付请求：服务器权威校验订单，成功后由服务器广播并销毁盘子
                 DeliveryManager.Instance.DeliveRecipe(plateKitchenObject);
-
-                // 通知服务器销毁该盘子（生命周期管理）
-                if (plateKitchenObject.NetworkPlateId >= 0 && NetworkManager.Instance != null)
-                {
-                    NetworkManager.Instance.SendPlateDestroy(plateKitchenObject.NetworkPlateId);
-                }
 
                 _player.GetKitchenObject().DestroySlef();
             }
