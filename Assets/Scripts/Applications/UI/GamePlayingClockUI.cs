@@ -17,6 +17,7 @@ public class GamePlayingClockUI : BasePanel
         else
         {
             EventManager.AddListener<OnGameTimerSync>(this, OnNetworkTimerSync);
+            EventManager.AddListener<OnGameStateChange>(this,OnGameStateChange);
         }
     }
 
@@ -30,7 +31,15 @@ public class GamePlayingClockUI : BasePanel
         }
         else
         {
-            EventManager.RemoveListener<OnGameTimerSync>(this, OnNetworkTimerSync);
+            EventManager.RemoveAllListener();
+        }
+    }
+
+    private void OnGameStateChange(OnGameStateChange _arg)
+    {
+        if(_arg.gameState == EGameState.GamePlaying)
+        {
+            OpenPanel();
         }
     }
 
