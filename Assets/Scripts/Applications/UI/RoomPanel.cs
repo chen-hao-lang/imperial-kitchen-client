@@ -6,6 +6,8 @@ using UnityEngine.UI;
 
 public class RoomPanel : BasePanel
 {
+    [SerializeField] private Button backButton;
+
     [Header("加入房间")]
     [SerializeField] private TMP_InputField roomIdInputField;
     [SerializeField] private Button findButton;
@@ -23,6 +25,7 @@ public class RoomPanel : BasePanel
         base.OnAddListener();
 
         //UI
+        backButton.onClick.AddListener(OnBackButtonClick);
         findButton.onClick.AddListener(OnFindButtonClick);
         createRoomButton.onClick.AddListener(OnCreateRoomButtonClick);
     }
@@ -33,6 +36,13 @@ public class RoomPanel : BasePanel
 
         findButton.onClick.RemoveAllListeners();
         createRoomButton.onClick.RemoveAllListeners();
+    }
+
+    private void OnBackButtonClick()
+    {
+        UIManager.Instance.HidePanel(EUIType.RoomPanel);
+
+        //TODO:没有解决MainMenuPanel的Resume问题
     }
 
     private void OnFindButtonClick()

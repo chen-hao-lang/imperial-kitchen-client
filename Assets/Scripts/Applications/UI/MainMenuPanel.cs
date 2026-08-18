@@ -11,11 +11,7 @@ public class MainMenuPanel : BasePanel
     {
         base.OnAddListener();
 
-        playBtn.onClick.AddListener(() =>
-                {
-                    //TODO:切换场景
-                    // SceneManager.Load(SceneManager.Scene.GameScene);
-                });
+        playBtn.onClick.AddListener(OnPlayBtnOnClick);
 
         quitBtn.onClick.AddListener(() =>
             {
@@ -23,5 +19,12 @@ public class MainMenuPanel : BasePanel
             });
 
         Time.timeScale = 1f;
+    }
+
+    private void OnPlayBtnOnClick()
+    {
+        UIManager.Instance.OpenPanel<RoomPanel>(EUIType.RoomPanel);
+
+        PausePanel();
     }
 }

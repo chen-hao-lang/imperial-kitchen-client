@@ -12,17 +12,13 @@ public class Launch : MonoBehaviour
         StartCoroutine(Init());
     }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
-
     IEnumerator Init()
     {
         yield return UIManager.Instance.InitUIConfig(ePlayMode);
 
         yield return UIManager.Instance.PreLoadPanel(EUIType.MainMenuPanel);
+        yield return UIManager.Instance.PreLoadPanel(EUIType.RoomPanel);
+
         UIManager.Instance.OpenPanel<MainMenuPanel>(EUIType.MainMenuPanel);
     }
 }
