@@ -270,6 +270,38 @@ public class NetworkManager : SingletonMono<NetworkManager>
     {
         Send(NetworkMessage.Create_SendMessage(_playerId, _message));
     }
+
+    #region Room
+    public void SendRoomCreate(int _maxPlayer, string _roomName)
+    {
+        Send(NetworkMessage.Create_RoomCreated(_maxPlayer, _roomName));
+    }
+
+    public void SendJoinRoom(int _roomId)
+    {
+        Send(NetworkMessage.Create_RoomJoined(_roomId));
+    }
+
+    public void SendLevelRoom(int _playerId,int _roomId)
+    {
+        Send(NetworkMessage.Create_LeaveRoom(_playerId,_roomId));
+    }
+
+    public void SendDestroyRoom(int _roomId)
+    {
+        Send(NetworkMessage.Create_RoomDestroyed(_roomId));
+    }
+
+    public void SendRequestRoomList(int _playerId)
+    {
+        Send(NetworkMessage.Create_RequestRoomList(_playerId));
+    }
+
+    public void SendRequestRoomPlayerList(int _playerId)
+    {
+        Send(NetworkMessage.Create_RequestRoomPlayerList(_playerId));
+    }
+    #endregion
     #endregion
 
     #region 接受消息

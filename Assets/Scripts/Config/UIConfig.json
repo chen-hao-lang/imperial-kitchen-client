@@ -68,5 +68,12 @@
     "panelName": "PlayerReadyPanel",
     "layer": "Normal",
     "isWindow": false
+  },
+  {
+    "type": "RoomPanel",
+    "packageName": "UI",
+    "panelName": "RoomPanel",
+    "layer": "Normal",
+    "isWindow": false
   }
 ]

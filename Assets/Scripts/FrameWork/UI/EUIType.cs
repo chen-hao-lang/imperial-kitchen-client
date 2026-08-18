@@ -10,5 +10,6 @@ public enum EUIType
     SucessPanel,
     ChatPanel,
     PlayerReadyPanel,
+    RoomPanel,
     Max
 }

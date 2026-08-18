@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime;
 using System.Text;
+using TMPro;
 
 /// <summary>
 /// 客户端网络消息工具类。
@@ -271,7 +272,7 @@ public static class NetworkMessage
     /// <summary>
     /// 解析连接成功消息：(我的玩家ID, 服务器下发的所有已连接玩家ID列表)
     /// </summary>
-    public static int  Parse_Connect(byte[] body)
+    public static int Parse_Connect(byte[] body)
     {
         using var ms = new MemoryStream(body);
         using var reader = new BinaryReader(ms);
@@ -569,5 +570,151 @@ public static class NetworkMessage
         string message = reader.ReadString();
         return (playerId, message);
     }
+    #endregion
+
+    #region Room
+    public static byte[] Create_RoomCreated(int _maxPlayer, string _nams)
+    {
+        var ms = new MemoryStream();
+        var writer = new BinaryWriter(ms);
+        writer.Write(_maxPlayer);
+        WriteString(writer, _nams);
+        return Pack(MessageType.C2S_CreateRoom, ms.ToArray());
+    }
+
+    public static byte[] Create_RoomJoined(int _roomId)
+    {
+        var ms = new MemoryStream();
+        var writer = new BinaryWriter(ms);
+
+        writer.Write(_roomId);
+
+        return Pack(MessageType.C2S_JoinRoom, ms.ToArray());
+    }
+
+    public static byte[] Create_LeaveRoom(int _playerId, int _roomId)
+    {
+        var ms = new MemoryStream();
+        var writer = new BinaryWriter(ms);
+        writer.Write(_playerId);
+        writer.Write(_roomId);
+        return Pack(MessageType.C2S_LeaveRoom, ms.ToArray());
+    }
+
+    public static byte[] Create_RequestRoomPlayerList(int _playerId)
+    {
+        var ms = new MemoryStream();
+        var writer = new BinaryWriter(ms);
+        writer.Write(_playerId);
+        return Pack(MessageType.C2s_RequeseRoomPlayerList, ms.ToArray());
+    }
+
+    public static byte[] Create_RoomDestroyed(int _roomId)
+    {
+        var ms = new MemoryStream();
+        var writer = new BinaryWriter(ms);
+        writer.Write(_roomId);
+        return Pack(MessageType.C2S_DestroyRoom, ms.ToArray());
+    }
+
+    /// <summary>
+    /// 返回当前的服务器拥有的房间列表
+    /// </summary>
+    /// <param name="_roomList"></param>
+    /// <returns></returns>
+    public static byte[] Create_RequestRoomList(int _playerId)
+    {
+        var ms = new MemoryStream();
+        var writer = new BinaryWriter(ms);
+        writer.Write(_playerId);
+        return Pack(MessageType.C2S_RequestRoomList, ms.ToArray());
+    }
+
+    #region 解析
+    /// <summary>
+    /// 解析来自创建房间消息，客户端接受来自服务器分配的房间id
+    /// </summary>
+    /// <param name="_data"></param>
+    /// <returns>房间id</returns>
+    public static int Parse_CreateRoom(byte[] _data)
+    {
+        var ms = new MemoryStream(_data);
+        var reader = new BinaryReader(ms);
+        return reader.ReadInt32();
+    }
+
+    /// <summary>
+    /// 解析加入房间消息
+    /// </summary>
+    /// <param name="_data"></param>
+    /// <returns>客户端加入的房间id，以及服务器分配的座位号</returns>
+    public static (int, int) Parse_JoinRoom(byte[] _data)
+    {
+        var ms = new MemoryStream(_data);
+        var reader = new BinaryReader(ms);
+        int roomId = reader.ReadInt32();
+        int seadId = reader.ReadInt32();
+        return (roomId, seadId);
+    }
+
+    /// <summary>
+    /// 解析加入房间失败的消息
+    /// </summary>
+    /// <param name="_data"></param>
+    /// <returns>失败原因</returns>
+    public static ERoomJoinFailReason Parse_JoinRoomFailed(byte[] _data)
+    {
+        var ms = new MemoryStream(_data);
+        var reader = new BinaryReader(ms);
+        return (ERoomJoinFailReason)reader.ReadByte();
+    }
+
+    public static (List<int>, List<string>) Parse_RoomPlayerList(byte[] _date)
+    {
+        using var ms = new MemoryStream(_date);
+        using var reader = new BinaryReader(ms);
+        int playerCount = reader.ReadInt32();
+        List<int> players = new List<int>();
+        for (int i = 0; i < playerCount; i++)
+        {
+            players.Add(reader.ReadInt32());
+        }
+
+        int playerNameCount = reader.ReadInt32();
+        List<string> playerNames = new List<string>();
+        for (int i = 0; i < playerNameCount; i++)
+        {
+            playerNames.Add(reader.ReadString());
+        }
+
+        return (players, playerNames);
+    }
+
+    public static List<RoomInfo> Parse_RoomList(byte[] _data)
+    {
+        using var ms = new MemoryStream(_data);
+        using var reader = new BinaryReader(ms);
+        int count = reader.ReadInt32();
+        List<RoomInfo> roomInfos = new List<RoomInfo>();
+        for (int i = 0; i < count; i++)
+        {
+            roomInfos.Add(new RoomInfo(
+                reader.ReadInt32(),
+                reader.ReadString(),
+                reader.ReadInt32(),
+                reader.ReadInt32()));
+        }
+
+        return roomInfos;
+    }
+
+    public static int Parse_DestroyRoom(byte[] _date)
+    {
+        var ms = new MemoryStream(_date);
+        var reader = new BinaryReader(ms);
+        int roomId = reader.ReadInt32();
+        return roomId;
+    }
+    #endregion
     #endregion
 }

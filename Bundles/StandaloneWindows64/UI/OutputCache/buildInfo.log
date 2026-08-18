@@ -1,35 +1,35 @@
-﻿2026-08-12 01:58:09.398 [INFO] Building package 'UI' with pipeline 'ScriptableBuildPipeline'.
-2026-08-12 01:58:09.399 [INFO] --------------------------------------------->TaskPrepare<--------------------------------------------
-2026-08-12 01:58:09.462 [INFO] Delete package root directory: 'F:/UnityStudyProject/KitchenChaos-Study/Bundles/StandaloneWindows64/UI'.
-2026-08-12 01:58:09.463 [INFO] Create pipeline output directory: 'F:/UnityStudyProject/KitchenChaos-Study/Bundles/StandaloneWindows64/UI/OutputCache'.
-2026-08-12 01:58:09.463 [INFO] TaskPrepare completed in 0 seconds.
-2026-08-12 01:58:09.464 [INFO] --------------------------------------------->TaskGetBuildMap<--------------------------------------------
-2026-08-12 01:58:10.962 [INFO] TaskGetBuildMap completed in 1 seconds.
-2026-08-12 01:58:10.964 [INFO] --------------------------------------------->TaskBuilding<--------------------------------------------
-2026-08-12 01:58:21.961 [INFO] UnityEngine build succeeded.
-2026-08-12 01:58:21.961 [INFO] TaskBuilding completed in 10 seconds.
-2026-08-12 01:58:21.961 [INFO] --------------------------------------------->TaskVerifyBuildResult<--------------------------------------------
-2026-08-12 01:58:21.964 [INFO] Build results verified successfully.
-2026-08-12 01:58:21.964 [INFO] TaskVerifyBuildResult completed in 0 seconds.
-2026-08-12 01:58:21.964 [INFO] --------------------------------------------->TaskEncryption<--------------------------------------------
-2026-08-12 01:58:21.964 [INFO] TaskEncryption completed in 0 seconds.
-2026-08-12 01:58:21.964 [INFO] --------------------------------------------->TaskUpdateBundleInfo<--------------------------------------------
-2026-08-12 01:58:22.097 [INFO] TaskUpdateBundleInfo completed in 0 seconds.
-2026-08-12 01:58:22.097 [INFO] --------------------------------------------->TaskCreateManifest<--------------------------------------------
-2026-08-12 01:58:22.122 [INFO] Create package manifest file: 'F:/UnityStudyProject/KitchenChaos-Study/Bundles/StandaloneWindows64/UI/2026-08-12-118/UI_2026-08-12-118.bytes'.
-2026-08-12 01:58:22.122 [INFO] Create package manifest hash file: 'F:/UnityStudyProject/KitchenChaos-Study/Bundles/StandaloneWindows64/UI/2026-08-12-118/UI_2026-08-12-118.hash'.
-2026-08-12 01:58:22.130 [INFO] Create package manifest version file: 'F:/UnityStudyProject/KitchenChaos-Study/Bundles/StandaloneWindows64/UI/2026-08-12-118/UI.version'.
-2026-08-12 01:58:22.131 [INFO] TaskCreateManifest completed in 0 seconds.
-2026-08-12 01:58:22.131 [INFO] --------------------------------------------->TaskCreateReport<--------------------------------------------
-2026-08-12 01:58:22.136 [INFO] Create build report file: 'F:/UnityStudyProject/KitchenChaos-Study/Bundles/StandaloneWindows64/UI/2026-08-12-118/UI_2026-08-12-118.report'.
-2026-08-12 01:58:22.137 [INFO] TaskCreateReport completed in 0 seconds.
-2026-08-12 01:58:22.137 [INFO] --------------------------------------------->TaskCreatePackage<--------------------------------------------
-2026-08-12 01:58:22.137 [INFO] Start making patch package: 'F:/UnityStudyProject/KitchenChaos-Study/Bundles/StandaloneWindows64/UI/2026-08-12-118'.
-2026-08-12 01:58:22.151 [INFO] TaskCreatePackage completed in 0 seconds.
-2026-08-12 01:58:22.151 [INFO] --------------------------------------------->TaskCopyBundledFiles<--------------------------------------------
-2026-08-12 01:58:22.404 [INFO] Bundled files copy complete: 'F:/UnityStudyProject/KitchenChaos-Study/Assets/StreamingAssets/yoo/UI'.
-2026-08-12 01:58:22.404 [INFO] TaskCopyBundledFiles completed in 0 seconds.
-2026-08-12 01:58:22.404 [INFO] --------------------------------------------->TaskCreateCatalog<--------------------------------------------
-2026-08-12 01:58:22.530 [INFO] TaskCreateCatalog completed in 0 seconds.
-2026-08-12 01:58:22.530 [INFO] Total build process time: 11 seconds.
-2026-08-12 01:58:22.530 [INFO] Resource pipeline build succeeded.
+﻿2026-08-15 21:06:26.483 [INFO] Building package 'UI' with pipeline 'ScriptableBuildPipeline'.
+2026-08-15 21:06:26.483 [INFO] --------------------------------------------->TaskPrepare<--------------------------------------------
+2026-08-15 21:06:26.573 [INFO] Delete package root directory: 'F:/UnityStudyProject/KitchenChaos-Study/Bundles/StandaloneWindows64/UI'.
+2026-08-15 21:06:26.575 [INFO] Create pipeline output directory: 'F:/UnityStudyProject/KitchenChaos-Study/Bundles/StandaloneWindows64/UI/OutputCache'.
+2026-08-15 21:06:26.575 [INFO] TaskPrepare completed in 0 seconds.
+2026-08-15 21:06:26.575 [INFO] --------------------------------------------->TaskGetBuildMap<--------------------------------------------
+2026-08-15 21:06:42.906 [INFO] TaskGetBuildMap completed in 16 seconds.
+2026-08-15 21:06:42.907 [INFO] --------------------------------------------->TaskBuilding<--------------------------------------------
+2026-08-15 21:06:56.305 [INFO] UnityEngine build succeeded.
+2026-08-15 21:06:56.305 [INFO] TaskBuilding completed in 13 seconds.
+2026-08-15 21:06:56.305 [INFO] --------------------------------------------->TaskVerifyBuildResult<--------------------------------------------
+2026-08-15 21:06:56.308 [INFO] Build results verified successfully.
+2026-08-15 21:06:56.309 [INFO] TaskVerifyBuildResult completed in 0 seconds.
+2026-08-15 21:06:56.309 [INFO] --------------------------------------------->TaskEncryption<--------------------------------------------
+2026-08-15 21:06:56.310 [INFO] TaskEncryption completed in 0 seconds.
+2026-08-15 21:06:56.310 [INFO] --------------------------------------------->TaskUpdateBundleInfo<--------------------------------------------
+2026-08-15 21:06:56.442 [INFO] TaskUpdateBundleInfo completed in 0 seconds.
+2026-08-15 21:06:56.443 [INFO] --------------------------------------------->TaskCreateManifest<--------------------------------------------
+2026-08-15 21:06:56.475 [INFO] Create package manifest file: 'F:/UnityStudyProject/KitchenChaos-Study/Bundles/StandaloneWindows64/UI/2026-08-15-1266/UI_2026-08-15-1266.bytes'.
+2026-08-15 21:06:56.483 [INFO] Create package manifest hash file: 'F:/UnityStudyProject/KitchenChaos-Study/Bundles/StandaloneWindows64/UI/2026-08-15-1266/UI_2026-08-15-1266.hash'.
+2026-08-15 21:06:56.484 [INFO] Create package manifest version file: 'F:/UnityStudyProject/KitchenChaos-Study/Bundles/StandaloneWindows64/UI/2026-08-15-1266/UI.version'.
+2026-08-15 21:06:56.485 [INFO] TaskCreateManifest completed in 0 seconds.
+2026-08-15 21:06:56.485 [INFO] --------------------------------------------->TaskCreateReport<--------------------------------------------
+2026-08-15 21:06:56.492 [INFO] Create build report file: 'F:/UnityStudyProject/KitchenChaos-Study/Bundles/StandaloneWindows64/UI/2026-08-15-1266/UI_2026-08-15-1266.report'.
+2026-08-15 21:06:56.492 [INFO] TaskCreateReport completed in 0 seconds.
+2026-08-15 21:06:56.492 [INFO] --------------------------------------------->TaskCreatePackage<--------------------------------------------
+2026-08-15 21:06:56.492 [INFO] Start making patch package: 'F:/UnityStudyProject/KitchenChaos-Study/Bundles/StandaloneWindows64/UI/2026-08-15-1266'.
+2026-08-15 21:06:56.506 [INFO] TaskCreatePackage completed in 0 seconds.
+2026-08-15 21:06:56.506 [INFO] --------------------------------------------->TaskCopyBundledFiles<--------------------------------------------
+2026-08-15 21:06:56.982 [INFO] Bundled files copy complete: 'F:/UnityStudyProject/KitchenChaos-Study/Assets/StreamingAssets/yoo/UI'.
+2026-08-15 21:06:56.982 [INFO] TaskCopyBundledFiles completed in 0 seconds.
+2026-08-15 21:06:56.982 [INFO] --------------------------------------------->TaskCreateCatalog<--------------------------------------------
+2026-08-15 21:06:57.132 [INFO] TaskCreateCatalog completed in 0 seconds.
+2026-08-15 21:06:57.132 [INFO] Total build process time: 29 seconds.
+2026-08-15 21:06:57.132 [INFO] Resource pipeline build succeeded.
