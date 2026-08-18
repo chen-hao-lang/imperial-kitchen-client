@@ -293,5 +293,96 @@ public struct OnNetworkMessage : IEvent
 
 #endregion
 
-#region 房间事件
+#region 房间事件（OnReceive 命名统一，与 NetworkMessage 解析方法一一对应）
+
+/// <summary>
+/// 收到创建房间成功消息（RoomCreated → Parse_CreateRoom）。
+/// </summary>
+public struct OnReceiveRoomCreated : IEvent
+{
+    /// <summary> 服务器分配的房间ID </summary>
+    public int roomId;
+
+    public OnReceiveRoomCreated(int _roomId)
+    {
+        roomId = _roomId;
+    }
+}
+
+/// <summary>
+/// 收到加入房间成功消息（RoomJoined → Parse_JoinRoom）。
+/// </summary>
+public struct OnReceiveRoomJoined : IEvent
+{
+    /// <summary> 加入的房间ID </summary>
+    public int roomId;
+    /// <summary> 服务器分配的座位号 </summary>
+    public int seatId;
+
+    public OnReceiveRoomJoined(int _roomId, int _seatId)
+    {
+        roomId = _roomId;
+        seatId = _seatId;
+    }
+}
+
+/// <summary>
+/// 收到加入房间失败消息（RoomJoinFailed → Parse_JoinRoomFailed）。
+/// </summary>
+public struct OnReceiveRoomJoinFailed : IEvent
+{
+    /// <summary> 失败原因 </summary>
+    public ERoomJoinFailReason reason;
+
+    public OnReceiveRoomJoinFailed(ERoomJoinFailReason _reason)
+    {
+        reason = _reason;
+    }
+}
+
+/// <summary>
+/// 收到房间玩家列表同步消息（RoomPlayerListSync → Parse_RoomPlayerList）。
+/// </summary>
+public struct OnReceiveRoomPlayerList : IEvent
+{
+    /// <summary> 房间内玩家ID列表 </summary>
+    public List<int> players;
+    /// <summary> 房间内玩家名字列表（与 players 一一对应） </summary>
+    public List<string> playerNames;
+
+    public OnReceiveRoomPlayerList(List<int> _players, List<string> _playerNames)
+    {
+        players = _players;
+        playerNames = _playerNames;
+    }
+}
+
+/// <summary>
+/// 收到服务器房间列表消息（RequestRoomList → Parse_RoomList）。
+/// </summary>
+public struct OnReceiveRoomList : IEvent
+{
+    /// <summary> 当前服务器拥有的房间列表 </summary>
+    public List<RoomInfo> rooms;
+
+    public OnReceiveRoomList(List<RoomInfo> _rooms)
+    {
+        rooms = _rooms;
+    }
+}
+
+/// <summary>
+/// 收到房间解散消息（RoomDestroyed → Parse_DestroyRoom）。
+/// </summary>
+public struct OnReceiveRoomDestroyed : IEvent
+{
+    /// <summary> 被解散的房间ID </summary>
+    public int roomId;
+
+    public OnReceiveRoomDestroyed(int _roomId)
+    {
+        roomId = _roomId;
+    }
+}
+
 #endregion

@@ -386,6 +386,7 @@ public class NetworkManager : SingletonMono<NetworkManager>
     /// <param name="_body">消息体</param>
     private void HandleMessage(MessageType _type, byte[] _body)
     {
+        #region 连接与玩家生命周期
         if (_type == MessageType.Connect)
         {
             var playerId = NetworkMessage.Parse_Connect(_body);
@@ -394,24 +395,19 @@ public class NetworkManager : SingletonMono<NetworkManager>
             return;
         }
 
-        if (_type == MessageType.RemotePlate)
+        if (_type == MessageType.PlayerJoined)
         {
-            var (counterId, plateId) = NetworkMessage.Parse_RemotePlate(_body);
-            EventManager.Invoke<OnRemotePlateRemoved>(new OnRemotePlateRemoved(counterId, plateId));
+            var (pjId, pjName) = NetworkMessage.Parse_PlayerJoined(_body);
+            Debug.Log($"[NetworkManager] 玩家加入: {pjId} ({pjName})");
+            EventManager.Invoke<OnNetworkPlayerJoined>(new OnNetworkPlayerJoined(pjId, pjName));
             return;
         }
 
-        if (_type == MessageType.SendMessage)
+        if (_type == MessageType.PlayerLeft)
         {
-            var (playerId, message) = NetworkMessage.Parse_SendMessage(_body);
-            EventManager.Invoke<OnNetworkMessage>(new OnNetworkMessage(playerId, message));
-            return;
-        }
-
-        if (_type == MessageType.PlayerPosition)
-        {
-            var (playerId, x, y, z, rotY) = NetworkMessage.Parse_PlayerPosition(_body);
-            EventManager.Invoke<OnPlayerPosition>(new OnPlayerPosition(playerId, x, y, z, rotY));
+            int plId = NetworkMessage.Parse_PlayerLeft(_body);
+            Debug.Log($"[NetworkManager] 玩家离开: {plId}");
+            EventManager.Invoke<OnNetworkPlayerLeft>(new OnNetworkPlayerLeft(plId));
             return;
         }
 
@@ -422,98 +418,202 @@ public class NetworkManager : SingletonMono<NetworkManager>
             return;
         }
 
-        switch (_type)
+        if (_type == MessageType.PlayerPosition)
         {
-            case MessageType.PlayerJoined:
-                var (pjId, pjName) = NetworkMessage.Parse_PlayerJoined(_body);
-                Debug.Log($"[NetworkManager] 玩家加入: {pjId} ({pjName})");
-                EventManager.Invoke<OnNetworkPlayerJoined>(new OnNetworkPlayerJoined(pjId, pjName));
-                break;
-
-            case MessageType.PlayerLeft:
-                int plId = NetworkMessage.Parse_PlayerLeft(_body);
-                Debug.Log($"[NetworkManager] 玩家离开: {plId}");
-                EventManager.Invoke<OnNetworkPlayerLeft>(new OnNetworkPlayerLeft(plId));
-                break;
-            case MessageType.PlayerInteract:
-                var (playerId, playerItem) = NetworkMessage.Parse_PlayerIneract(_body);
-                EventManager.Invoke<OnNetworkPlayerInteract>(new OnNetworkPlayerInteract(playerId, playerItem));
-                break;
-
-            case MessageType.GameStateChange:
-                byte state = NetworkMessage.Parse_GameStateChange(_body);
-                EventManager.Invoke<OnGameStateChange>(new OnGameStateChange(state));
-                break;
-
-            case MessageType.TimerSync:
-                float time = NetworkMessage.Parse_TimerSync(_body);
-                EventManager.Invoke<OnGameTimerSync>(new OnGameTimerSync(time));
-                break;
-
-            case MessageType.RecipeSpawned:
-                int rsIndex = NetworkMessage.Parse_RecipeSpawned(_body);
-                EventManager.Invoke<OnRecipeSpawned>(new OnRecipeSpawned(rsIndex));
-                break;
-
-            case MessageType.RecipeCompleted:
-                int rcIndex = NetworkMessage.Parse_RecipeCompleted(_body);
-                EventManager.Invoke<OnRecipeCompleted>(new OnRecipeCompleted(rcIndex));
-                break;
-
-            case MessageType.RecipeFailed:
-                EventManager.Invoke<OnRecipeFailed>(new OnRecipeFailed());
-                break;
-
-            case MessageType.ScoreUpdate:
-                int score = NetworkMessage.Parse_ScoreUpdate(_body);
-                EventManager.Invoke<OnScoreUpdate>(new OnScoreUpdate(score));
-                break;
-
-            case MessageType.GameStartCD:
-                float cd = NetworkMessage.Parse_GameStartCD(_body);
-                EventManager.Invoke<OnGameStartCD>(new OnGameStartCD(cd));
-                break;
-
-            case MessageType.FullSync:
-                NetworkMessage.Parse_FullSync(_body, out var players, out var counters, out var plates, out var recipes);
-                FullSyncPlayers = players;
-                FullSyncRecipes = recipes;
-                EventManager.Invoke<OnFullSync>(new OnFullSync(players, counters));
-                EventManager.Invoke<OnRecipeFullSync>(new OnRecipeFullSync(recipes));
-                PlateManager.Instance?.RestorePlatesFromFullSync(plates);
-                break;
-            case MessageType.CounterProgressSync:
-                var (ctId, progress) = NetworkMessage.Parse_CounterProgressSync(_body);
-                EventManager.Invoke<OnCounterProgressSync>(new OnCounterProgressSync(ctId, progress));
-                break;
-            case MessageType.CounterAddIngredient:
-                var (caId, ingredientIndex) = NetworkMessage.Parse_CounterAddIngredient(_body);
-                EventManager.Invoke<OnCounterExtraSync>(new OnCounterExtraSync(caId, (byte)ingredientIndex));
-                break;
-            case MessageType.PlateAddIngredient:
-                var (plateId, ingIdx) = NetworkMessage.Parse_PlateIngredientSync(_body);
-                EventManager.Invoke<OnPlateIngredientSync>(new OnPlateIngredientSync(plateId, ingIdx));
-                break;
-            case MessageType.PlateRemoveIngredient:
-                var (rmPlateId, rmIngIdx) = NetworkMessage.Parse_PlateRemoveIngredient(_body);
-                EventManager.Invoke<OnPlateIngredientRemoved>(new OnPlateIngredientRemoved(rmPlateId, rmIngIdx));
-                break;
-            case MessageType.PlateSpawned:
-                var (counterId, pd) = NetworkMessage.Parse_PlateSpawned(_body);
-                EventManager.Invoke<OnPlateSpawned>(new OnPlateSpawned(counterId, pd));
-                break;
-            case MessageType.PlateOwnerSync:
-                var (pId1, ownerType, ownerId, ingredients) = NetworkMessage.Parse_PlateOwnerSync(_body);
-                EventManager.Invoke<OnPlateOwnerSync>(new OnPlateOwnerSync(pId1, ownerType, ownerId, ingredients));
-                break;
-            case MessageType.PlateDestroy:
-                int destroyId = NetworkMessage.Parse_PlateDestroy(_body);
-                EventManager.Invoke<OnPlateDestroy>(new OnPlateDestroy(destroyId));
-                break;
-            default:
-                Debug.LogWarning($"[NetworkManager] 未处理的消息类型: {_type}");
-                break;
+            var (playerId, x, y, z, rotY) = NetworkMessage.Parse_PlayerPosition(_body);
+            EventManager.Invoke<OnPlayerPosition>(new OnPlayerPosition(playerId, x, y, z, rotY));
+            return;
         }
+        #endregion
+
+        #region 玩家交互
+        if (_type == MessageType.PlayerInteract)
+        {
+            var (playerId, playerItem) = NetworkMessage.Parse_PlayerIneract(_body);
+            EventManager.Invoke<OnNetworkPlayerInteract>(new OnNetworkPlayerInteract(playerId, playerItem));
+            return;
+        }
+        #endregion
+
+        #region 游戏流程（状态/计时/订单/分数）
+        if (_type == MessageType.GameStateChange)
+        {
+            byte state = NetworkMessage.Parse_GameStateChange(_body);
+            EventManager.Invoke<OnGameStateChange>(new OnGameStateChange(state));
+            return;
+        }
+
+        if (_type == MessageType.TimerSync)
+        {
+            float time = NetworkMessage.Parse_TimerSync(_body);
+            EventManager.Invoke<OnGameTimerSync>(new OnGameTimerSync(time));
+            return;
+        }
+
+        if (_type == MessageType.GameStartCD)
+        {
+            float cd = NetworkMessage.Parse_GameStartCD(_body);
+            EventManager.Invoke<OnGameStartCD>(new OnGameStartCD(cd));
+            return;
+        }
+
+        if (_type == MessageType.RecipeSpawned)
+        {
+            int rsIndex = NetworkMessage.Parse_RecipeSpawned(_body);
+            EventManager.Invoke<OnRecipeSpawned>(new OnRecipeSpawned(rsIndex));
+            return;
+        }
+
+        if (_type == MessageType.RecipeCompleted)
+        {
+            int rcIndex = NetworkMessage.Parse_RecipeCompleted(_body);
+            EventManager.Invoke<OnRecipeCompleted>(new OnRecipeCompleted(rcIndex));
+            return;
+        }
+
+        if (_type == MessageType.RecipeFailed)
+        {
+            EventManager.Invoke<OnRecipeFailed>(new OnRecipeFailed());
+            return;
+        }
+
+        if (_type == MessageType.ScoreUpdate)
+        {
+            int score = NetworkMessage.Parse_ScoreUpdate(_body);
+            EventManager.Invoke<OnScoreUpdate>(new OnScoreUpdate(score));
+            return;
+        }
+
+        if (_type == MessageType.FullSync)
+        {
+            NetworkMessage.Parse_FullSync(_body, out var players, out var counters, out var plates, out var recipes);
+            FullSyncPlayers = players;
+            FullSyncRecipes = recipes;
+            EventManager.Invoke<OnFullSync>(new OnFullSync(players, counters));
+            EventManager.Invoke<OnRecipeFullSync>(new OnRecipeFullSync(recipes));
+            PlateManager.Instance?.RestorePlatesFromFullSync(plates);
+            return;
+        }
+        #endregion
+
+        #region 操作台
+        if (_type == MessageType.RemotePlate)
+        {
+            var (counterId, plateId) = NetworkMessage.Parse_RemotePlate(_body);
+            EventManager.Invoke<OnRemotePlateRemoved>(new OnRemotePlateRemoved(counterId, plateId));
+            return;
+        }
+
+        if (_type == MessageType.CounterProgressSync)
+        {
+            var (ctId, progress) = NetworkMessage.Parse_CounterProgressSync(_body);
+            EventManager.Invoke<OnCounterProgressSync>(new OnCounterProgressSync(ctId, progress));
+            return;
+        }
+
+        if (_type == MessageType.CounterAddIngredient)
+        {
+            var (caId, ingredientIndex) = NetworkMessage.Parse_CounterAddIngredient(_body);
+            EventManager.Invoke<OnCounterExtraSync>(new OnCounterExtraSync(caId, (byte)ingredientIndex));
+            return;
+        }
+        #endregion
+
+        #region 盘子
+        if (_type == MessageType.PlateAddIngredient)
+        {
+            var (plateId, ingIdx) = NetworkMessage.Parse_PlateIngredientSync(_body);
+            EventManager.Invoke<OnPlateIngredientSync>(new OnPlateIngredientSync(plateId, ingIdx));
+            return;
+        }
+
+        if (_type == MessageType.PlateRemoveIngredient)
+        {
+            var (rmPlateId, rmIngIdx) = NetworkMessage.Parse_PlateRemoveIngredient(_body);
+            EventManager.Invoke<OnPlateIngredientRemoved>(new OnPlateIngredientRemoved(rmPlateId, rmIngIdx));
+            return;
+        }
+
+        if (_type == MessageType.PlateSpawned)
+        {
+            var (counterId, pd) = NetworkMessage.Parse_PlateSpawned(_body);
+            EventManager.Invoke<OnPlateSpawned>(new OnPlateSpawned(counterId, pd));
+            return;
+        }
+
+        if (_type == MessageType.PlateOwnerSync)
+        {
+            var (pId1, ownerType, ownerId, ingredients) = NetworkMessage.Parse_PlateOwnerSync(_body);
+            EventManager.Invoke<OnPlateOwnerSync>(new OnPlateOwnerSync(pId1, ownerType, ownerId, ingredients));
+            return;
+        }
+
+        if (_type == MessageType.PlateDestroy)
+        {
+            int destroyId = NetworkMessage.Parse_PlateDestroy(_body);
+            EventManager.Invoke<OnPlateDestroy>(new OnPlateDestroy(destroyId));
+            return;
+        }
+        #endregion
+
+        #region 聊天
+        if (_type == MessageType.SendMessage)
+        {
+            var (playerId, message) = NetworkMessage.Parse_SendMessage(_body);
+            EventManager.Invoke<OnNetworkMessage>(new OnNetworkMessage(playerId, message));
+            return;
+        }
+        #endregion
+
+        #region 房间
+        if (_type == MessageType.RoomCreated)
+        {
+            int roomId = NetworkMessage.Parse_CreateRoom(_body);
+            Debug.Log($"[NetworkManager] 房间创建成功: {roomId}");
+            EventManager.Invoke<OnReceiveRoomCreated>(new OnReceiveRoomCreated(roomId));
+            return;
+        }
+
+        if (_type == MessageType.RoomJoined)
+        {
+            var (roomId, seatId) = NetworkMessage.Parse_JoinRoom(_body);
+            Debug.Log($"[NetworkManager] 加入房间成功: {roomId}, 座位号: {seatId}");
+            EventManager.Invoke<OnReceiveRoomJoined>(new OnReceiveRoomJoined(roomId, seatId));
+            return;
+        }
+
+        if (_type == MessageType.RoomJoinFailed)
+        {
+            ERoomJoinFailReason reason = NetworkMessage.Parse_JoinRoomFailed(_body);
+            Debug.LogWarning($"[NetworkManager] 加入房间失败: {reason}");
+            EventManager.Invoke<OnReceiveRoomJoinFailed>(new OnReceiveRoomJoinFailed(reason));
+            return;
+        }
+
+        if (_type == MessageType.RoomPlayerListSync)
+        {
+            var (players, playerNames) = NetworkMessage.Parse_RoomPlayerList(_body);
+            EventManager.Invoke<OnReceiveRoomPlayerList>(new OnReceiveRoomPlayerList(players, playerNames));
+            return;
+        }
+
+        if (_type == MessageType.RequestRoomList)
+        {
+            List<RoomInfo> roomList = NetworkMessage.Parse_RoomList(_body);
+            EventManager.Invoke<OnReceiveRoomList>(new OnReceiveRoomList(roomList));
+            return;
+        }
+
+        if (_type == MessageType.RoomDestroyed)
+        {
+            int destroyRoomId = NetworkMessage.Parse_DestroyRoom(_body);
+            Debug.Log($"[NetworkManager] 房间解散: {destroyRoomId}");
+            EventManager.Invoke<OnReceiveRoomDestroyed>(new OnReceiveRoomDestroyed(destroyRoomId));
+            return;
+        }
+        #endregion
+
+        Debug.LogWarning($"[NetworkManager] 未处理的消息类型: {_type}");
     }
     #endregion
 

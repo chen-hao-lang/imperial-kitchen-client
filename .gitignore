@@ -49,6 +49,6 @@ crashlytics-build.properties
 *.prefab
 *.meta
 
-/.[Gg]ithub
+/[Gg]ithub
 /[Ss]treamingAssets
 /[Bb]undles
