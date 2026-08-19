@@ -9,7 +9,7 @@ namespace LiteGameFramework
         public EUIType uiType;
         public string packageName;
         public string panelName;
-        public Transform layer;
+        public UILayerController layer;
         public bool isWindow;
         public GameObject panelGo;
 
@@ -23,9 +23,10 @@ namespace LiteGameFramework
         public bool IsPause => isPause;
         public bool IsLoading => isLoading;
 
-        private IPanel panel;
+        public Canvas canvas;
+        public IPanel panel;
 
-        public UIPanelController(EUIType _type, string _packageName, string _panelName, Transform _layer, bool _isWindow)
+        public UIPanelController(EUIType _type, string _packageName, string _panelName, UILayerController _layer, bool _isWindow)
         {
             uiType = _type;
             packageName = _packageName;
@@ -46,14 +47,9 @@ namespace LiteGameFramework
                 yield break;
             }
 
-            if(isLoading)
-            {
-                yield break;
-            }
-
             bool isComplete = false;
 
-            YooAsset.InstantiateOptions options = new YooAsset.InstantiateOptions(false, layer, false);
+            YooAsset.InstantiateOptions options = new YooAsset.InstantiateOptions(false, layer.transform, false);
             YooAssetsLoad.Instance.LoadPrefab(panelName, options, (go) =>
             {
                 panelGo = go;
@@ -82,6 +78,8 @@ namespace LiteGameFramework
                 }
                 panel.LoadPanel();
 
+                canvas = go.GetComponent<Canvas>();
+
                 isComplete = true;
             }, packageName);
 
@@ -100,6 +98,8 @@ namespace LiteGameFramework
             isOpen = true;
             panel.OpenPanel();
 
+            layer.OpenPanel(this);
+
             _callBack?.Invoke();
         }
 
@@ -108,7 +108,25 @@ namespace LiteGameFramework
             isOpen = false;
             panel.HidePanel();
 
+            layer.HidePanel(this);
+
             _callBack?.Invoke();
+        }
+
+        public void PausePanel()
+        {
+            isOpen = true;
+            isPause = true;
+
+            panel.PausePanel();
+        }
+
+        public void ResumePanel()
+        {
+            isOpen = true;
+            isPause = false;    
+
+            panel.ResumePanel();
         }
 
         public void ClosePanel()

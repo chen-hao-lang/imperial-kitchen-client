@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Analytics;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
@@ -13,7 +12,7 @@ namespace LiteGameFramework
     /// <summary>
     /// 各个层级物体的游戏对象
     /// </summary>
-    private Dictionary<EUILayer,Transform> layerTransforms;
+    private Dictionary<EUILayer,UILayerController> layerTransforms;
     private EventSystem eventSystem;
     private EventSystem CurrentEvenetSystem => eventSystem;
 
@@ -24,7 +23,7 @@ namespace LiteGameFramework
 
     private void Initialize()
     {
-        layerTransforms = new Dictionary<EUILayer, Transform>();
+        layerTransforms = new Dictionary<EUILayer, UILayerController>();
 
         // 创建UICamera
         var camera = GameObject.Find("UICamera");
@@ -78,6 +77,9 @@ namespace LiteGameFramework
             layerGO.transform.localPosition = Vector3.zero;
             layerGO.transform.localScale = Vector3.one;
 
+            UILayerController uILayerController = layerGO.AddComponent<UILayerController>();
+            uILayerController.Init(layer);
+
             Canvas canvas = layerGO.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = (int)layer;
@@ -92,7 +94,7 @@ namespace LiteGameFramework
 
             if(!layerTransforms.ContainsKey(layer))
             {
-                layerTransforms.Add(layer,layerGO.transform);
+                layerTransforms.Add(layer,uILayerController);
             }
         }
 
@@ -104,7 +106,7 @@ namespace LiteGameFramework
     /// </summary>
     /// <param name="_layer"></param>
     /// <returns></returns>
-    public Transform GetLayersTransform(EUILayer _layer)
+    public UILayerController GetLayersTransform(EUILayer _layer)
     {
         if(layerTransforms.ContainsKey(_layer))
         {

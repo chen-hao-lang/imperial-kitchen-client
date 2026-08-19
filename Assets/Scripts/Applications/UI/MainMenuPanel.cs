@@ -25,6 +25,6 @@ public class MainMenuPanel : BasePanel
     {
         UIManager.Instance.OpenPanel<RoomPanel>(EUIType.RoomPanel);
 
-        PausePanel();
+        // PausePanel();
     }
 }

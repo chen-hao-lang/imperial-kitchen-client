@@ -1,7 +1,7 @@
 {
     "FileVersion": 1,
     "PackageName": "UI",
-    "PackageVersion": "2026-08-15-1266",
+    "PackageVersion": "2026-08-19-1021",
     "Entries": [
         {
             "BundleGuid": "0373684cf4d61ecc45a060f5d7511962",
@@ -16,12 +16,12 @@
             "FileName": "1a803ac4455c3561bafae473cc5b4b4b.bundle"
         },
         {
-            "BundleGuid": "417a267f83870aed7a8a777d9e03c0e7",
-            "FileName": "417a267f83870aed7a8a777d9e03c0e7.bundle"
+            "BundleGuid": "38fef027b9f8d5127c30b7b1261e7670",
+            "FileName": "38fef027b9f8d5127c30b7b1261e7670.bundle"
         },
         {
-            "BundleGuid": "49be85766634ac9740ae2b20cd85a6d9",
-            "FileName": "49be85766634ac9740ae2b20cd85a6d9.bundle"
+            "BundleGuid": "417a267f83870aed7a8a777d9e03c0e7",
+            "FileName": "417a267f83870aed7a8a777d9e03c0e7.bundle"
         },
         {
             "BundleGuid": "547735a900b036d6f8d4c5ce44fdb51d",
