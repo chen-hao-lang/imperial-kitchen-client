@@ -63,16 +63,16 @@
     "isWindow": false
   },
   {
-    "type": "PlayerReadyPanel",
-    "packageName": "UI",
-    "panelName": "PlayerReadyPanel",
-    "layer": "Normal",
-    "isWindow": false
-  },
-  {
     "type": "RoomPanel",
     "packageName": "UI",
     "panelName": "RoomPanel",
+    "layer": "Normal",
+    "isWindow": true
+  },
+  {
+    "type": "PlayerReadyPanel",
+    "packageName": "UI",
+    "panelName": "PlayerReadyPanel",
     "layer": "Normal",
     "isWindow": false
   }

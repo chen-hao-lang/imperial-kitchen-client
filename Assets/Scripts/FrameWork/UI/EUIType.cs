@@ -9,7 +9,7 @@ public enum EUIType
     GamePausePanel,
     SucessPanel,
     ChatPanel,
-    PlayerReadyPanel,
     RoomPanel,
+    PlayerReadyPanel,
     Max
 }

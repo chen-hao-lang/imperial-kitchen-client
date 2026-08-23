@@ -1,54 +1,20 @@
-# ============ Unity 自动生成目录 ============
-/[Ll]ibrary/
-/[Tt]emp/
-/[Oo]bj/
-/[Bb]uild/
-/[Bb]uilds/
-/[Ll]ogs/
-/[Uu]ser[Ss]ettings/
-/[Mm]emoryCaptures/
-/[Rr]ecordings/
+# ==============================================
+# KitchenChaos-Study —— 仅提交 Assets/Scripts 文件夹
+# 其余内容一律忽略
+# ==============================================
 
-# 保留 Assets 下的 meta 文件（Unity 必需）
-!/[Aa]ssets/**/*.meta
+# 1. 忽略仓库根目录下的所有内容
+/*
 
-# ============ IDE / 编辑器缓存 ============
-.vs/
-.vscode/
-.idea/
-*.user
-*.userprefs
-*.pidb
-*.booproj
-*.svd
-*.tmp
-*.suo
+# 2. 保留 .gitignore 自身（否则规则无法生效）
+!.gitignore
 
-# Unity 自动生成的 IDE 工程文件（打开编辑器时重新生成）
-*.csproj
-*.sln
-*.unityproj
-*.opendb
+# 3. 放行 Assets 目录本身，以便进入其中
+!/Assets/
 
-# ============ 构建产物 ============
-*.apk
-*.aab
-*.unitypackage
-*.app
-*.exe
-*.dll
+# 4. 忽略 Assets 下的所有其他内容（场景、Prefab、材质、贴图等）
+/Assets/*
 
-# ============ 其他 ============
-sysinfo.txt
-crashlytics-build.properties
-
-# 打包的 Addressables 数据
-/[Aa]ssets/[Aa]ddressable[Aa]ssets[Dd]ata/*/*.bin*
-
-*.unity
-*.prefab
-*.meta
-
-/[Gg]ithub
-/[Ss]treamingAssets
-/[Bb]undles
+# 5. 放行 Scripts 文件夹及其全部内容（含 .meta，Unity 必需）
+!/Assets/Scripts/
+!/Assets/Scripts/**

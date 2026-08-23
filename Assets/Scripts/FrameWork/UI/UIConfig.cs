@@ -21,13 +21,14 @@ namespace LiteGameFramework
         {
             if(!Enum.TryParse<EUIType>(cfg.type,out EUIType uiType))
             {
-                Debug.LogError($"UIConfig.json 中的 {cfg.type} UIType解析异常");
+                Debug.LogError($"UIConfig.json 中的 {cfg.type} UIType解析异常，已跳过该配置");
+                continue;
             }
-            Type panelType = GetType(uiType.ToString());
 
             if(!Enum.TryParse<EUILayer>(cfg.layer,out EUILayer layer))
             {
-                Debug.LogError($"UIConfig.json 中的 {cfg.layer} UILayer解析异常");
+                Debug.LogError($"UIConfig.json 中的 {cfg.layer} UILayer解析异常，已跳过该配置");
+                continue;
             }
 
             list.Add(new UIConfig
@@ -41,25 +42,6 @@ namespace LiteGameFramework
         }
 
         return list;
-    }
-
-    /// <summary>
-    /// 将string类型装换为EUIType里面的类
-    /// </summary>
-    /// <returns></returns>
-    private static Type GetType(string _typeName)
-    {
-        if (string.IsNullOrEmpty(_typeName))
-            return null;
-
-        var assemblies = AppDomain.CurrentDomain.GetAssemblies();
-        foreach (var assembly in assemblies)
-        {
-            var type = assembly.GetType(_typeName);
-            if (type != null)
-                return type;
-        }
-        return null;
     }
 }
 }

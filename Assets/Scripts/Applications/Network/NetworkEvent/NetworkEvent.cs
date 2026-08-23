@@ -45,19 +45,6 @@ public struct OnNetworkDisconnected : IEvent { }
 #endregion
 
 #region 玩家生命周期事件
-
-/// <summary> 有新玩家加入 </summary>
-public struct OnNetworkPlayerJoined : IEvent
-{
-    public int playerId;
-    public string playerName;
-    public OnNetworkPlayerJoined(int _playerId, string _playerName)
-    {
-        playerId = _playerId;
-        playerName = _playerName;
-    }
-}
-
 /// <summary> 有玩家离开 </summary>
 public struct OnNetworkPlayerLeft : IEvent
 {
@@ -80,11 +67,11 @@ public struct OnNetworkPlayerInteract : IEvent
 /// <summary>
 /// 远程玩家准备
 /// </summary>
-public struct OnNetworkPlayerReadyStatusUpdate : IEvent
+public struct OnReceivePlayerReadyStatusUpdate : IEvent
 {
     public int playerId;
     public bool isReady;
-    public OnNetworkPlayerReadyStatusUpdate(int _playerId, bool _isReady)
+    public OnReceivePlayerReadyStatusUpdate(int _playerId, bool _isReady)
     {
         playerId = _playerId;
         isReady = _isReady;
@@ -318,11 +305,18 @@ public struct OnReceiveRoomJoined : IEvent
     public int roomId;
     /// <summary> 服务器分配的座位号 </summary>
     public int seatId;
+    public int playerId;
+    /// <summary>
+    /// 加入房间的玩家的名字
+    /// </summary>
+    public string playerName;
 
-    public OnReceiveRoomJoined(int _roomId, int _seatId)
+    public OnReceiveRoomJoined(int _roomId, int _seatId,int _playerId,string _playerName)
     {
         roomId = _roomId;
         seatId = _seatId;
+        playerId = _playerId;
+        playerName = _playerName;
     }
 }
 
@@ -346,14 +340,11 @@ public struct OnReceiveRoomJoinFailed : IEvent
 public struct OnReceiveRoomPlayerList : IEvent
 {
     /// <summary> 房间内玩家ID列表 </summary>
-    public List<int> players;
-    /// <summary> 房间内玩家名字列表（与 players 一一对应） </summary>
-    public List<string> playerNames;
+    public List<PlayeInfo> infos;
 
-    public OnReceiveRoomPlayerList(List<int> _players, List<string> _playerNames)
+    public OnReceiveRoomPlayerList(List<PlayeInfo> _infos)
     {
-        players = _players;
-        playerNames = _playerNames;
+        infos = _infos;
     }
 }
 
@@ -380,6 +371,15 @@ public struct OnReceiveRoomDestroyed : IEvent
     public int roomId;
 
     public OnReceiveRoomDestroyed(int _roomId)
+    {
+        roomId = _roomId;
+    }
+}
+
+public struct OnReceiveStartGame : IEvent
+{
+    public int roomId;
+    public OnReceiveStartGame(int _roomId)
     {
         roomId = _roomId;
     }

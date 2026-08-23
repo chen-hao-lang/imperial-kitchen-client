@@ -24,7 +24,5 @@ public class MainMenuPanel : BasePanel
     private void OnPlayBtnOnClick()
     {
         UIManager.Instance.OpenPanel<RoomPanel>(EUIType.RoomPanel);
-
-        // PausePanel();
     }
 }

@@ -8,12 +8,18 @@ using UnityEngine;
 
 public class NetworkManager : SingletonMono<NetworkManager>
 {
-    public int PlayerID { get; private set; } = -1;
-
     public bool IsConnected { get; private set; }
 
-    /// <summary> 服务器下发的其他已连接玩家 ID 列表（不含自己），供错过 OnNetworkConnected 事件的面板补齐初始化 </summary>
-    public List<int> ConnectedPlayers { get; private set; } = new List<int>();
+    public int PlayerID { get; private set; } = -1;
+    public string PlayerName { get; private set; }
+    public int RoomId { get; private set; } = -1;
+    public bool isRoomOwner { get; private set; } = false;
+    public int RoomMaxPlayer { get; private set; } = -1;
+
+    /// <summary> 我在当前房间中的座位号（-1=未加入房间），供后加载的场景/面板补齐初始化 </summary>
+    public int MySeatId { get; private set; } = -1;
+
+    public List<PlayeInfo> RoomPlayers {get;private set;} = new List<PlayeInfo>();
 
     /// <summary> 最近一次全量同步下发的其他玩家数据（不含自己），供错过 OnFullSync 事件的面板补齐初始化 </summary>
     public (int id, string name, float x, float y, float z, float rotY)[] FullSyncPlayers { get; private set; } = new (int, string, float, float, float, float)[0];
@@ -84,6 +90,8 @@ public class NetworkManager : SingletonMono<NetworkManager>
                 Name = "NetworkReceive"
             };
             receiveThread.Start();
+
+            PlayerName = _playerName;
         }
         catch (Exception ex)
         {
@@ -115,7 +123,7 @@ public class NetworkManager : SingletonMono<NetworkManager>
 
         bufferedBytes = 0;
         PlayerID = -1;
-        ConnectedPlayers.Clear();
+        MySeatId = -1;
 
         Debug.Log("[NetworkManager] 已断开连接");
     }
@@ -158,12 +166,6 @@ public class NetworkManager : SingletonMono<NetworkManager>
     public void SendInteractAlternate(int counterId)
     {
         Send(NetworkMessage.Create_InteractAlternate(counterId));
-    }
-
-    /// <summary> 上报玩家准备就绪 </summary>
-    public void SendPlayerReadyStatus(int _playerId, int _isReady)
-    {
-        Send(NetworkMessage.Create_PlayerReadyUpdate(_playerId, _isReady));
     }
 
     public void SendPlayerInteract(int playerId, int playerItemIndex)
@@ -274,6 +276,9 @@ public class NetworkManager : SingletonMono<NetworkManager>
     #region Room
     public void SendRoomCreate(int _maxPlayer, string _roomName)
     {
+        isRoomOwner = true;
+        RoomMaxPlayer = _maxPlayer;
+
         Send(NetworkMessage.Create_RoomCreated(_maxPlayer, _roomName));
     }
 
@@ -282,14 +287,14 @@ public class NetworkManager : SingletonMono<NetworkManager>
         Send(NetworkMessage.Create_RoomJoined(_roomId));
     }
 
-    public void SendLevelRoom(int _playerId,int _roomId)
+    public void SendLevelRoom()
     {
-        Send(NetworkMessage.Create_LeaveRoom(_playerId,_roomId));
+        Send(NetworkMessage.Create_LeaveRoom());
     }
 
-    public void SendDestroyRoom(int _roomId)
+    public void SendDestroyRoom()
     {
-        Send(NetworkMessage.Create_RoomDestroyed(_roomId));
+        Send(NetworkMessage.Create_RoomDestroyed(RoomId));
     }
 
     public void SendRequestRoomList(int _playerId)
@@ -300,6 +305,20 @@ public class NetworkManager : SingletonMono<NetworkManager>
     public void SendRequestRoomPlayerList(int _playerId)
     {
         Send(NetworkMessage.Create_RequestRoomPlayerList(_playerId));
+    }
+
+    /// <summary> 上报玩家准备就绪 </summary>
+    public void SendPlayerReadyStatus(bool _isReady)
+    {
+        Send(NetworkMessage.Create_PlayerReadyUpdate(PlayerID, _isReady ? 1 : 0));
+    }
+
+    /// <summary>
+    /// 上报开始游戏
+    /// </summary>
+    public void SendStartGame()
+    {
+        Send(NetworkMessage.Create_StartGame(RoomId));
     }
     #endregion
     #endregion
@@ -395,26 +414,11 @@ public class NetworkManager : SingletonMono<NetworkManager>
             return;
         }
 
-        if (_type == MessageType.PlayerJoined)
-        {
-            var (pjId, pjName) = NetworkMessage.Parse_PlayerJoined(_body);
-            Debug.Log($"[NetworkManager] 玩家加入: {pjId} ({pjName})");
-            EventManager.Invoke<OnNetworkPlayerJoined>(new OnNetworkPlayerJoined(pjId, pjName));
-            return;
-        }
-
         if (_type == MessageType.PlayerLeft)
         {
             int plId = NetworkMessage.Parse_PlayerLeft(_body);
             Debug.Log($"[NetworkManager] 玩家离开: {plId}");
             EventManager.Invoke<OnNetworkPlayerLeft>(new OnNetworkPlayerLeft(plId));
-            return;
-        }
-
-        if (_type == MessageType.PlayerReady)
-        {
-            var (playerId, isReady) = NetworkMessage.Parse_PlayerReadyUpdate(_body);
-            EventManager.Invoke<OnNetworkPlayerReadyStatusUpdate>(new OnNetworkPlayerReadyStatusUpdate(playerId, isReady));
             return;
         }
 
@@ -569,16 +573,29 @@ public class NetworkManager : SingletonMono<NetworkManager>
         if (_type == MessageType.RoomCreated)
         {
             int roomId = NetworkMessage.Parse_CreateRoom(_body);
+            RoomId = roomId;
             Debug.Log($"[NetworkManager] 房间创建成功: {roomId}");
+            YooAssetsLoad.Instance.LoadSceneAsync("GameRoom", "GameRoomScene");
             EventManager.Invoke<OnReceiveRoomCreated>(new OnReceiveRoomCreated(roomId));
             return;
         }
 
         if (_type == MessageType.RoomJoined)
         {
-            var (roomId, seatId) = NetworkMessage.Parse_JoinRoom(_body);
-            Debug.Log($"[NetworkManager] 加入房间成功: {roomId}, 座位号: {seatId}");
-            EventManager.Invoke<OnReceiveRoomJoined>(new OnReceiveRoomJoined(roomId, seatId));
+            var (roomId, seatId, playerId,name) = NetworkMessage.Parse_JoinRoom(_body);
+
+            if(playerId == PlayerID)
+            {
+                MySeatId = seatId;
+            }
+
+            if (RoomId == -1)// 非房主的客户端
+            {
+                RoomId = roomId;
+                YooAssetsLoad.Instance.LoadSceneAsync("GameRoom", "GameRoomScene");
+            }
+
+            EventManager.Invoke<OnReceiveRoomJoined>(new OnReceiveRoomJoined(roomId, seatId,playerId, name));
             return;
         }
 
@@ -592,8 +609,9 @@ public class NetworkManager : SingletonMono<NetworkManager>
 
         if (_type == MessageType.RoomPlayerListSync)
         {
-            var (players, playerNames) = NetworkMessage.Parse_RoomPlayerList(_body);
-            EventManager.Invoke<OnReceiveRoomPlayerList>(new OnReceiveRoomPlayerList(players, playerNames));
+            var info = NetworkMessage.Parse_RoomPlayerList(_body);
+            RoomPlayers = info;
+            EventManager.Invoke<OnReceiveRoomPlayerList>(new OnReceiveRoomPlayerList(info));
             return;
         }
 
@@ -607,8 +625,28 @@ public class NetworkManager : SingletonMono<NetworkManager>
         if (_type == MessageType.RoomDestroyed)
         {
             int destroyRoomId = NetworkMessage.Parse_DestroyRoom(_body);
+            MySeatId = -1;
             Debug.Log($"[NetworkManager] 房间解散: {destroyRoomId}");
             EventManager.Invoke<OnReceiveRoomDestroyed>(new OnReceiveRoomDestroyed(destroyRoomId));
+            return;
+        }
+
+        if (_type == MessageType.PlayerReady)
+        {
+            var (playerId, isReady) = NetworkMessage.Parse_PlayerReadyUpdate(_body);
+            EventManager.Invoke<OnReceivePlayerReadyStatusUpdate>(new OnReceivePlayerReadyStatusUpdate(playerId, isReady));
+            return;
+        }
+
+        if (_type == MessageType.StartGame)
+        {
+            var roomId = NetworkMessage.Parse_StartGame(_body);
+
+            // 切换房间到游戏场景
+            YooAssetsLoad.Instance.LoadSceneAsync("GameScene", "GameScene");
+
+            // 发送事件
+            EventManager.Invoke<OnReceiveStartGame>(new OnReceiveStartGame(roomId));
             return;
         }
         #endregion

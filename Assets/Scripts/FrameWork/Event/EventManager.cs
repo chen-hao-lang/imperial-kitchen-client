@@ -57,6 +57,11 @@ namespace LiteGameFramework
         /// <summary>触发事件 T，传递参数给所有订阅者</summary>
         public static void Invoke<T>(T _args) where T : struct, IEvent
         {
+            if (!Instance.IsInit)
+            {
+                Instance.Initialize();
+            }
+
             Type eventType = typeof(T);
             if (!Instance.listener.TryGetValue(eventType, out var handlerList))
                 return;
@@ -88,6 +93,11 @@ namespace LiteGameFramework
         {
             if (_suber == null || _handler == null) return;
 
+            if (!Instance.IsInit)
+            {
+                Instance.Initialize();
+            }
+
             Type eventType = typeof(T);
 
             // 从 listener 中移除
@@ -117,6 +127,11 @@ namespace LiteGameFramework
         {
             if (_suber == null) return;
 
+            if (!Instance.IsInit)
+            {
+                Instance.Initialize();
+            }
+
             if (!Instance.objectEventMap.TryGetValue(_suber, out var subEventMap))
                 return;
 
@@ -142,6 +157,11 @@ namespace LiteGameFramework
         /// <summary>清空所有订阅</summary>
         public static void RemoveAllListener()
         {
+            if (!Instance.IsInit)
+            {
+                Instance.Initialize();
+            }
+
             Instance.listener.Clear();
             Instance.objectEventMap.Clear();
         }
@@ -149,6 +169,11 @@ namespace LiteGameFramework
         /// <summary>打印当前订阅状态到 Console</summary>
         public static void DebugListener()
         {
+            if (!Instance.IsInit)
+            {
+                Instance.Initialize();
+            }
+
             var sb = new System.Text.StringBuilder();
             sb.AppendLine("========== EventManager Debug ==========");
 

@@ -18,6 +18,11 @@ namespace LiteGameFramework
         /// </summary>
         private HashSet<EUIType> openedPanels;
 
+        /// <summary>
+        /// UIConfig 是否已初始化（防止场景切换后重复初始化导致 UIType 冲突）
+        /// </summary>
+        private bool _uiConfigInitialized;
+
         public EventSystem EventSystem { get; private set; }
 
         protected override void Awake()
@@ -56,6 +61,14 @@ namespace LiteGameFramework
         /// <returns></returns>
         public IEnumerator InitUIConfig(EPlayMode _playMode)
         {
+            // UIManager 为常驻单例，场景切换后再次调用会重复添加面板配置，此处做幂等保护
+            if (_uiConfigInitialized)
+            {
+                Debug.LogWarning("[UIManager] UIConfig 已初始化，跳过重复加载");
+                yield break;
+            }
+            _uiConfigInitialized = true;
+
             yield return YooAssetsLoad.Instance.InitializePackageCoroutine("UI", _playMode);
             string packageVersion = null;
             yield return YooAssetsLoad.Instance.RequestPackageVersionCoroutine("UI", (version) =>

@@ -279,15 +279,6 @@ public static class NetworkMessage
         return reader.ReadInt32();
     }
 
-    public static (int playerId, string playerName) Parse_PlayerJoined(byte[] body)
-    {
-        using var ms = new MemoryStream(body);
-        using var reader = new BinaryReader(ms);
-        int id = reader.ReadInt32();
-        string name = ReadString(reader);
-        return (id, name);
-    }
-
     public static (int, bool) Parse_PlayerReadyUpdate(byte[] _body)
     {
         using var ms = new MemoryStream(_body);
@@ -567,7 +558,7 @@ public static class NetworkMessage
         using var ms = new MemoryStream(_body);
         using var reader = new BinaryReader(ms);
         int playerId = reader.ReadInt32();
-        string message = reader.ReadString();
+        string message = ReadString(reader);
         return (playerId, message);
     }
     #endregion
@@ -592,12 +583,10 @@ public static class NetworkMessage
         return Pack(MessageType.C2S_JoinRoom, ms.ToArray());
     }
 
-    public static byte[] Create_LeaveRoom(int _playerId, int _roomId)
+    public static byte[] Create_LeaveRoom()
     {
         var ms = new MemoryStream();
         var writer = new BinaryWriter(ms);
-        writer.Write(_playerId);
-        writer.Write(_roomId);
         return Pack(MessageType.C2S_LeaveRoom, ms.ToArray());
     }
 
@@ -606,7 +595,7 @@ public static class NetworkMessage
         var ms = new MemoryStream();
         var writer = new BinaryWriter(ms);
         writer.Write(_playerId);
-        return Pack(MessageType.C2s_RequeseRoomPlayerList, ms.ToArray());
+        return Pack(MessageType.C2S_RequestRoomList, ms.ToArray());
     }
 
     public static byte[] Create_RoomDestroyed(int _roomId)
@@ -630,6 +619,14 @@ public static class NetworkMessage
         return Pack(MessageType.C2S_RequestRoomList, ms.ToArray());
     }
 
+    public static byte[] Create_StartGame(int _roomId)
+    {
+        var ms = new MemoryStream();
+        var writer = new BinaryWriter(ms);
+        writer.Write(_roomId);
+        return Pack(MessageType.C2S_StartGame,ms.ToArray());
+    }
+
     #region 解析
     /// <summary>
     /// 解析来自创建房间消息，客户端接受来自服务器分配的房间id
@@ -648,13 +645,15 @@ public static class NetworkMessage
     /// </summary>
     /// <param name="_data"></param>
     /// <returns>客户端加入的房间id，以及服务器分配的座位号</returns>
-    public static (int, int) Parse_JoinRoom(byte[] _data)
+    public static (int, int,int,string) Parse_JoinRoom(byte[] _data)
     {
         var ms = new MemoryStream(_data);
         var reader = new BinaryReader(ms);
         int roomId = reader.ReadInt32();
         int seadId = reader.ReadInt32();
-        return (roomId, seadId);
+        int playerId = reader.ReadInt32();
+        string name =ReadString(reader);
+        return (roomId, seadId,playerId,name);
     }
 
     /// <summary>
@@ -669,25 +668,28 @@ public static class NetworkMessage
         return (ERoomJoinFailReason)reader.ReadByte();
     }
 
-    public static (List<int>, List<string>) Parse_RoomPlayerList(byte[] _date)
+    public static List<PlayeInfo> Parse_RoomPlayerList(byte[] _date)
     {
         using var ms = new MemoryStream(_date);
         using var reader = new BinaryReader(ms);
-        int playerCount = reader.ReadInt32();
-        List<int> players = new List<int>();
-        for (int i = 0; i < playerCount; i++)
-        {
-            players.Add(reader.ReadInt32());
-        }
 
-        int playerNameCount = reader.ReadInt32();
-        List<string> playerNames = new List<string>();
-        for (int i = 0; i < playerNameCount; i++)
-        {
-            playerNames.Add(reader.ReadString());
-        }
+        int count = reader.ReadInt32();
+        List<PlayeInfo> playeInfos = new List<PlayeInfo>();
 
-        return (players, playerNames);
+        for(int i = 0;i<count;i++)
+        {
+            // 服务端序列化顺序为 SeatId, PlayerId, Name（见服务器 Create_RoomPlayerListSync），
+            // 必须先读座位号再读玩家ID，否则 playerId 与 seadId 会互换，导致座位/玩家映射错乱。
+            int seatId = reader.ReadInt32();
+            int playerId = reader.ReadInt32();
+            string name = ReadString(reader);
+
+            PlayeInfo info = new PlayeInfo(playerId, seatId, name);
+
+            playeInfos.Add(info);
+        }
+    
+        return playeInfos;
     }
 
     public static List<RoomInfo> Parse_RoomList(byte[] _data)
@@ -700,7 +702,7 @@ public static class NetworkMessage
         {
             roomInfos.Add(new RoomInfo(
                 reader.ReadInt32(),
-                reader.ReadString(),
+                ReadString(reader),
                 reader.ReadInt32(),
                 reader.ReadInt32()));
         }
@@ -712,6 +714,14 @@ public static class NetworkMessage
     {
         var ms = new MemoryStream(_date);
         var reader = new BinaryReader(ms);
+        int roomId = reader.ReadInt32();
+        return roomId;
+    }
+
+    public static int Parse_StartGame(byte[] _data)
+    {
+        using var ms = new MemoryStream(_data);
+        using var reader = new BinaryReader(ms);
         int roomId = reader.ReadInt32();
         return roomId;
     }

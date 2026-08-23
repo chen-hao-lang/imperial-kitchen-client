@@ -255,7 +255,7 @@ public class PlateManager : MonoBehaviour
 
         if (_ownerType == 0) // 玩家
         {
-            NetworkPlayer np = PlayerSpawner.Instance?.GetNetworkPlayer(_ownerId);
+            NetworkPlayer np = GameScenePlayerManager.Instance?.GetNetworkPlayer(_ownerId);
             if (np != null)
             {
                 np.AttachHeldPlate(_plate);
@@ -409,7 +409,7 @@ public class PlateManager : MonoBehaviour
 
     private void RestorePlateOnPlayer((int plateId, byte ownerType, int ownerId, int soIndex, int[] ingredients) _data)
     {
-        NetworkPlayer np = PlayerSpawner.Instance?.GetNetworkPlayer(_data.ownerId);
+        NetworkPlayer np = GameScenePlayerManager.Instance?.GetNetworkPlayer(_data.ownerId);
         if (np == null)
         {
             Debug.LogWarning($"[PlateManager] FullSync 恢复失败：找不到远程玩家 {_data.ownerId}");

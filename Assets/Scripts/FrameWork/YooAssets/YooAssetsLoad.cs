@@ -59,8 +59,8 @@ namespace LiteGameFramework
         if (_packageCache.TryGetValue(packageName, out var package))
             return package;
 
-        package = YooAssets.GetPackage(packageName);
-        if (package != null)
+        // 使用 TryGetPackage 避免包未注册时抛出异常，改为返回 null 由调用方统一处理
+        if (YooAssets.TryGetPackage(packageName, out package))
             _packageCache[packageName] = package;
 
         return package;
