@@ -28,25 +28,25 @@ public class NetworkPlayer : MonoBehaviour
         animator = GetComponent<Animator>();
     }
 
+    void OnEnable()
+    {
+        EventManager.AddListener<OnNetworkPlayerInteract>(this, OnInteractionSyncReceived);
+        EventManager.AddListener<OnPlayerPosition>(this, OnPlayerPositionReceived);
+    }
+
     public void Initialize(int _playerId)
     {
         playerId = _playerId;
         targetPosition = transform.position;
         targetRotation = transform.rotation;
         lastReceivedPosition = transform.position;
-
-        EventManager.AddListener<OnNetworkPlayerInteract>(this, OnInteractionSyncReceived);
-
-        EventManager.AddListener<OnPlayerPosition>(this, OnPlayerPositionReceived);
     }
 
-    private void OnDestroy()
+    void OnDisable()
     {
         if (NetworkManager.Instance != null)
         {
-            EventManager.RemoveListener<OnNetworkPlayerInteract>(this, OnInteractionSyncReceived);
-
-            EventManager.RemoveListener<OnPlayerPosition>(this, OnPlayerPositionReceived);
+            EventManager.RemoveAllListener(this);
         }
     }
 
@@ -148,8 +148,6 @@ public class NetworkPlayer : MonoBehaviour
 
     private void ApplyHeldItem(int _soIndex)
     {
-        // ★ 盘子不归这里管——由 PlateManager 移动唯一实体（不销毁、不生成）
-        //    必须先判断，否则会把刚由 PlateOwnerSync 挂上的盘子销毁掉
         if (_soIndex >= 0)
         {
             KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetByIndex(_soIndex);

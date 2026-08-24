@@ -13,6 +13,7 @@ public class GameScenePlayerManager : SingletonMono<GameScenePlayerManager>
     /// 存储所有已生成的玩家
     /// </summary>
     private Dictionary<int, PlayerController> spawnedPlayers = new Dictionary<int, PlayerController>();
+    private Dictionary<int,NetworkPlayer> remotePlayers = new Dictionary<int, NetworkPlayer>();
 
     /// <summary>
     /// 本地玩家
@@ -155,28 +156,16 @@ public class GameScenePlayerManager : SingletonMono<GameScenePlayerManager>
                 return;
             }
 
-            PlayerController pc = go.GetComponent<PlayerController>();
-            if (pc != null)
-            {
-                // 远端玩家：第二个参数必须传 false，否则会被当成本地玩家（绑定输入、响应本地移动）
-                pc.SetPlayerIdentity(_playerId, false);
-            }
-            else
-            {
-                Debug.LogError("[GameScenePlayerManager] 远端玩家 Prefab 上没有 PlayerController 组件！");
-
-            }
-
             NetworkPlayer networkPlayer = go.GetComponent<NetworkPlayer>();
             if (networkPlayer != null)
             {
                 networkPlayer.Initialize(_playerId);
             }
 
-            spawnedPlayers[_playerId] = pc;
+            remotePlayers[_playerId] = networkPlayer;
 
             // 触发事件
-            EventManager.Invoke<OnRemotePlayerSpawned>(new OnRemotePlayerSpawned(_playerId, pc));
+            // EventManager.Invoke<OnRemotePlayerSpawned>(new OnRemotePlayerSpawned(_playerId, networkPlayer));
 
         }, "PlayerPrefab");
     }
@@ -198,19 +187,6 @@ public class GameScenePlayerManager : SingletonMono<GameScenePlayerManager>
 }
 
 #region 玩家生成事件
-
-/// <summary> 远程玩家生成完成（玩家ID + 对应 PlayerController） </summary>
-public struct OnRemotePlayerSpawned : IEvent
-{
-    public int playerId;
-    public PlayerController player;
-
-    public OnRemotePlayerSpawned(int _playerId, PlayerController _player)
-    {
-        playerId = _playerId;
-        player = _player;
-    }
-}
 
 /// <summary> 远程玩家销毁 </summary>
 public struct OnRemotePlayerDestroyed : IEvent

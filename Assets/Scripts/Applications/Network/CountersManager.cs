@@ -71,9 +71,6 @@ public class CountersManager : SingletonMono<CountersManager>
     /// <summary>
     /// 将操作台同步到目标状态（去重检查，避免重复创建/销毁）
     /// </summary>
-    /// <summary>
-    /// 将操作台同步到目标状态（去重检查，避免重复创建/销毁）
-    /// </summary>
     private void ApplyCounterState(OnCounterExtraSync _arg)
     {
         int _counterId = _arg.counterId;
