@@ -46,7 +46,6 @@ class DeliveryManager : SingletonMono<DeliveryManager>
         EventManager.AddListener<OnRecipeFailed>(this, OnNetworkRecipeFailed);
         EventManager.AddListener<OnScoreUpdate>(this, OnNetworkScoreUpdate);
         EventManager.AddListener<OnRecipeFullSync>(this, OnNetworkRecipeFullSync);
-        EventManager.AddListener<OnNetworkConnected>(this, OnConnectedToServer);
 
         // 防错过：如果已经处于连接状态（如切换场景后重连、面板晚加载），立即补齐
         if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
@@ -64,21 +63,7 @@ class DeliveryManager : SingletonMono<DeliveryManager>
 
     private void OnDisable()
     {
-        EventManager.RemoveListener<OnRecipeSpawned>(this, OnNetworkRecipeSpawned);
-        EventManager.RemoveListener<OnRecipeCompleted>(this, OnNetworkRecipeCompleted);
-        EventManager.RemoveListener<OnRecipeFailed>(this, OnNetworkRecipeFailed);
-        EventManager.RemoveListener<OnScoreUpdate>(this, OnNetworkScoreUpdate);
-        EventManager.RemoveListener<OnRecipeFullSync>(this, OnNetworkRecipeFullSync);
-        EventManager.RemoveListener<OnNetworkConnected>(this, OnConnectedToServer);
-    }
-
-    /// <summary>
-    /// 连接服务器成功后：上报本地配方表，供服务器注册（内容由客户端提供，裁决由服务端执行）。
-    /// 支持多场景：切换场景后重新上报当前场景的配方表即可（服务器以第一个上报者为准）。
-    /// </summary>
-    private void OnConnectedToServer(OnNetworkConnected _arg)
-    {
-        SendRegisterRecipes();
+        EventManager.RemoveAllListener(this);
     }
 
     /// <summary>

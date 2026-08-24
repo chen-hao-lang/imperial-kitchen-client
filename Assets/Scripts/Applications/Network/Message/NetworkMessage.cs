@@ -279,7 +279,7 @@ public static class NetworkMessage
         return reader.ReadInt32();
     }
 
-    public static (int, bool) Parse_PlayerReadyUpdate(byte[] _body)
+    public static (int, bool) Parse_PlayerReady(byte[] _body)
     {
         using var ms = new MemoryStream(_body);
         using var reader = new BinaryReader(ms);
@@ -624,7 +624,7 @@ public static class NetworkMessage
         var ms = new MemoryStream();
         var writer = new BinaryWriter(ms);
         writer.Write(_roomId);
-        return Pack(MessageType.C2S_StartGame,ms.ToArray());
+        return Pack(MessageType.C2S_StartGame, ms.ToArray());
     }
 
     #region 解析
@@ -645,15 +645,15 @@ public static class NetworkMessage
     /// </summary>
     /// <param name="_data"></param>
     /// <returns>客户端加入的房间id，以及服务器分配的座位号</returns>
-    public static (int, int,int,string) Parse_JoinRoom(byte[] _data)
+    public static (int, int, int, string) Parse_JoinRoom(byte[] _data)
     {
         var ms = new MemoryStream(_data);
         var reader = new BinaryReader(ms);
         int roomId = reader.ReadInt32();
         int seadId = reader.ReadInt32();
         int playerId = reader.ReadInt32();
-        string name =ReadString(reader);
-        return (roomId, seadId,playerId,name);
+        string name = ReadString(reader);
+        return (roomId, seadId, playerId, name);
     }
 
     /// <summary>
@@ -676,19 +676,20 @@ public static class NetworkMessage
         int count = reader.ReadInt32();
         List<PlayeInfo> playeInfos = new List<PlayeInfo>();
 
-        for(int i = 0;i<count;i++)
+        for (int i = 0; i < count; i++)
         {
             // 服务端序列化顺序为 SeatId, PlayerId, Name（见服务器 Create_RoomPlayerListSync），
             // 必须先读座位号再读玩家ID，否则 playerId 与 seadId 会互换，导致座位/玩家映射错乱。
             int seatId = reader.ReadInt32();
             int playerId = reader.ReadInt32();
             string name = ReadString(reader);
+            bool isRead = reader.ReadInt32() == 1 ? true : false;
 
-            PlayeInfo info = new PlayeInfo(playerId, seatId, name);
+            PlayeInfo info = new PlayeInfo(playerId, seatId, name, isRead);
 
             playeInfos.Add(info);
         }
-    
+
         return playeInfos;
     }
 

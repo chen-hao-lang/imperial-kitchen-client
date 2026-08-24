@@ -3,9 +3,8 @@ using UnityEngine;
 using System;
 using LiteGameFramework;
 
-public class CountersManager : MonoBehaviour
+public class CountersManager : SingletonMono<CountersManager>
 {
-    public static CountersManager Instance { get; private set; }
 
     /// <summary>
     /// 存储当前场景中所有的操作台，key为操作台的网络ID，value为操作台对象
@@ -19,11 +18,6 @@ public class CountersManager : MonoBehaviour
 
     void Awake()
     {
-        if (Instance != null)
-        {
-            Debug.LogError("There is more than one CountersManager instance!");
-        }
-        Instance = this;
         BaseCounter[] allCounters = GameObject.FindObjectsByType<BaseCounter>(FindObjectsSortMode.None);
         Array.Sort(allCounters, (a, b) =>
             string.Compare(a.name, b.name, StringComparison.Ordinal)
@@ -47,12 +41,11 @@ public class CountersManager : MonoBehaviour
         // NetworkManager.Instance.OnPlayerInteract += OnPlayerInteract;
         EventManager.AddListener<OnCounterProgressSync>(this, OnCounterProgressSync);
         EventManager.AddListener<OnCounterExtraSync>(this, ApplyCounterState);
-        EventManager.AddListener<OnNetworkConnected>(this, OnConnectedToServer);
 
         // 如果已经处于连接状态（如切换场景后重连），立即发送
         if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
         {
-            OnConnectedToServer(new OnNetworkConnected(NetworkManager.Instance.PlayerID));
+            OnConnectedToServer();
         }
     } 
 
@@ -60,16 +53,14 @@ public class CountersManager : MonoBehaviour
     {
         if (NetworkManager.Instance != null)
         {
-            EventManager.RemoveListener<OnCounterProgressSync>(this, OnCounterProgressSync);
-            EventManager.RemoveListener<OnCounterExtraSync>(this, ApplyCounterState);
-            EventManager.RemoveListener<OnNetworkConnected>(this, OnConnectedToServer);
+            EventManager.RemoveAllListener(this);
         }
     }
 
     /// <summary>
     /// 连接服务器成功后，上报所有操作台的类型映射。
     /// </summary>
-    private void OnConnectedToServer(OnNetworkConnected _arg)
+    private void OnConnectedToServer()
     {
         if (counterTypeMapping == null || counterTypeMapping.Length == 0) return;
 

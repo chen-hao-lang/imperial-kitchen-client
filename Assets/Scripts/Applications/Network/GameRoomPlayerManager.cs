@@ -63,7 +63,7 @@ public class GameRoomPlayerManager : MonoBehaviour
 
         playerSeatMap[_arg.playerId] = _arg.seatId;
 
-        SpawnOrUpdatePlayer(_arg.playerId, _arg.seatId, _arg.playerName);
+        SpawnOrUpdatePlayer(_arg.playerId, _arg.seatId, _arg.playerName,false);
     }
 
     /// <summary>
@@ -72,7 +72,7 @@ public class GameRoomPlayerManager : MonoBehaviour
     /// <param name="_playerId">玩家ID</param>
     /// <param name="_seatId">座位号</param>
     /// <param name="_playerName">玩家名字</param>
-    private void SpawnOrUpdatePlayer(int _playerId, int _seatId, string _playerName)
+    private void SpawnOrUpdatePlayer(int _playerId, int _seatId, string _playerName,bool _isReady)
     {
         // 登记座位（加入房间 / 房间列表对账时均会调用，幂等）
         playerSeatMap[_playerId] = _seatId;
@@ -88,7 +88,7 @@ public class GameRoomPlayerManager : MonoBehaviour
         }
 
         spawningPlayers.Add(_playerId);
-        SpawnPlayerVisual(_playerId, _seatId, _playerName);
+        SpawnPlayerVisual(_playerId, _seatId, _playerName,_isReady);
     }
 
     /// <summary>
@@ -97,7 +97,7 @@ public class GameRoomPlayerManager : MonoBehaviour
     /// <param name="_playerId">玩家ID</param>
     /// <param name="_seatId">座位号</param>
     /// <param name="_playerName">玩家名字</param>
-    private void SpawnPlayerVisual(int _playerId, int _seatId, string _playerName)
+    private void SpawnPlayerVisual(int _playerId, int _seatId, string _playerName,bool _isReady)
     {
         Transform spawnPoint = GetSpawnPos(_seatId);
         if (spawnPoint == null)
@@ -140,7 +140,7 @@ public class GameRoomPlayerManager : MonoBehaviour
             go.name = $"Player_{_playerId}({_playerName})";
             playerVisuals[_playerId] = go;
 
-            LoadReadyStateUI(_playerId, _seatId, _playerName, go.transform);
+            LoadReadyStateUI(_playerId, _seatId, _playerName, go.transform,_isReady);
         }, "PlayerPrefab");
     }
 
@@ -151,7 +151,7 @@ public class GameRoomPlayerManager : MonoBehaviour
     /// <param name="_seatId">座位号</param>
     /// <param name="_playerName">玩家名字</param>
     /// <param name="_parent">UI 父节点（玩家模型）</param>
-    private void LoadReadyStateUI(int _playerId, int _seatId, string _playerName, Transform _parent)
+    private void LoadReadyStateUI(int _playerId, int _seatId, string _playerName, Transform _parent,bool _isReady)
     {
         InstantiateOptions uiOptions = new InstantiateOptions(true, _parent, new Vector3(0, readyStateYOffset, 0), Quaternion.identity);
         YooAssetsLoad.Instance.LoadPrefab(playerReadyStateLocation, uiOptions, (ui) =>
@@ -186,7 +186,7 @@ public class GameRoomPlayerManager : MonoBehaviour
                 return;
             }
 
-            state.Init(_seatId, _playerName);
+            state.Init(_seatId, _playerName,_isReady);
             playerReadyStates[_playerId] = state;
         }, "UI");
     }
@@ -230,7 +230,7 @@ public class GameRoomPlayerManager : MonoBehaviour
         // 新增 / 更新在场玩家
         foreach (var player in _infos)
         {
-            SpawnOrUpdatePlayer(player.playerId, player.seadId, player.name);
+            SpawnOrUpdatePlayer(player.playerId, player.seadId, player.name,player.isReady);
         }
     }
 
@@ -338,7 +338,7 @@ public class GameRoomPlayerManager : MonoBehaviour
         if (myPlayerId < 0 || cachedSeat < 0) return; // 尚未收到 RoomJoined
 
         playerSeatMap[myPlayerId] = cachedSeat;
-        SpawnOrUpdatePlayer(myPlayerId, cachedSeat, NetworkManager.Instance.PlayerName);
+        SpawnOrUpdatePlayer(myPlayerId, cachedSeat, NetworkManager.Instance.PlayerName,false);
     }
 
     /// <summary>

@@ -18,7 +18,7 @@ public class PlayerReadyPanel : BasePanel
     [SerializeField] private TMP_Text readyText;
     [SerializeField] private Button startGameButton;
 
-    
+
     private bool isReady = false;
 
     public override void OnAddListener()
@@ -28,11 +28,14 @@ public class PlayerReadyPanel : BasePanel
         // UI
         backButton.onClick.AddListener(OnBackButtonClick);
         readyButton.onClick.AddListener(OnReadyButtonClick);
+
+        if(!NetworkManager.Instance.isRoomOwner)// 非房主用户不显示开始游戏按钮
+            startGameButton.gameObject.SetActive(false);
         startGameButton.onClick.AddListener(OnStartGameBtnOnClick);
 
         roomIdText.text = $"RoomId:{NetworkManager.Instance.RoomId}";
         EventManager.AddListener<OnReceiveRoomCreated>(this, OnReceiveRoomCreated);
-        EventManager.AddListener<OnReceiveRoomPlayerList>(this,OnReceiveRoomPlayerList);
+        EventManager.AddListener<OnReceiveRoomPlayerList>(this, OnReceiveRoomPlayerList);
     }
 
     public override void OnRemoveListener()
@@ -55,12 +58,13 @@ public class PlayerReadyPanel : BasePanel
 
     private void OnReceiveRoomPlayerList(OnReceiveRoomPlayerList _arg)
     {
-        if(roomPlayerNums != null)
+        if (roomPlayerNums != null)
         {
             roomPlayerNums.text = $"CurrentPlayeNums:{_arg.infos.Count} / {NetworkManager.Instance.RoomMaxPlayer}";
         }
     }
 
+    // 退出房间
     private void OnBackButtonClick()
     {
         if (NetworkManager.Instance.isRoomOwner)// 如果是房主
@@ -95,15 +99,12 @@ public class PlayerReadyPanel : BasePanel
         NetworkManager.Instance.SendPlayerReadyStatus(isReady);
     }
 
+    /// <summary>
+    /// 开始游戏
+    /// </summary>
     private void OnStartGameBtnOnClick()
     {
-        if(NetworkManager.Instance.RoomPlayers.Count == NetworkManager.Instance.RoomMaxPlayer)
-        {
-            NetworkManager.Instance.SendStartGame();
-        }
-        else
-        {
-            //TODO:出现错误提示框提醒当然人数不够
-        }
+        // 上报请求开始游戏
+        NetworkManager.Instance.SendStartGame();
     }
 }

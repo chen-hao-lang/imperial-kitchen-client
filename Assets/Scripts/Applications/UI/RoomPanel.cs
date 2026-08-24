@@ -89,6 +89,7 @@ public class RoomPanel : BasePanel
         // 向服务器发送是哪个客户端（playerId）创建了房间
         string maxPlayerText = playerSelect.options[playerSelect.value].text;
         int maxPlayerNum = int.Parse(maxPlayerText);
+        
         // NetworkManager.Instance.RoomMaxPlayer = maxPlayerNum;
         NetworkManager.Instance.SendRoomCreate(maxPlayerNum,roomName.text);
     }

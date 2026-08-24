@@ -17,11 +17,11 @@ public class PlayerReadyState : MonoBehaviour
     /// </summary>
     /// <param name="_seatId">座位号</param>
     /// <param name="_playerName">玩家名字</param>
-    public void Init(int _seatId, string _playerName)
+    public void Init(int _seatId, string _playerName,bool _isReady)
     {
         seatId = _seatId;
         SetPlayerName(_playerName);
-        SetReady(false);
+        SetReady(_isReady);
     }
 
     /// <summary>
@@ -31,7 +31,7 @@ public class PlayerReadyState : MonoBehaviour
     public void SetPlayerName(string _playerName)
     {
         if (playerNameText == null) return;
-        playerNameText.text = $"P{seatId}_{_playerName}";
+        playerNameText.text = $"P{seatId + 1}_{_playerName}";
     }
 
     /// <summary>

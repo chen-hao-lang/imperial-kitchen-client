@@ -181,7 +181,7 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
             ? KitchenObjectRegistry.Instance.GetIndexBySO(kitchenObj.GetKitchenObjectSO())
             : -1;
 
-        NetworkManager.Instance.SendPlayerInteract(PlayerId, playerItemIndex);
+        NetworkManager.Instance.SendPlayerInteract(playerItemIndex);
     }
 
     private void HandleIneraction()

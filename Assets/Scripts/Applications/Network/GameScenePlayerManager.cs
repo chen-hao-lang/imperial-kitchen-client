@@ -53,6 +53,16 @@ public class GameScenePlayerManager : SingletonMono<GameScenePlayerManager>
     {
         List<PlayeInfo> info = NetworkManager.Instance.RoomPlayers;
 
+        // 兜底：RoomPlayers 为空（例如房主从未收到过 RoomPlayerListSync）时，
+        // 至少用 MySeatId 生成本地玩家，避免进入游戏场景后没有玩家可操控。
+        if (info == null || info.Count == 0)
+        {
+            Debug.LogWarning("[GameScenePlayerManager] RoomPlayers 为空，使用 MySeatId 兜底生成本地玩家");
+            int seatId = NetworkManager.Instance.MySeatId >= 0 ? NetworkManager.Instance.MySeatId : 0;
+            SpawnLocalPlayer(seatId);
+            return;
+        }
+
         for (int i = 0; i < info.Count; i++)
         {
             if (info[i].playerId == NetworkManager.Instance.PlayerID)// 本地玩家
@@ -105,8 +115,8 @@ public class GameScenePlayerManager : SingletonMono<GameScenePlayerManager>
 
     private void SpawnLocalPlayer(int _seadId)
     {
-        // 生成本地玩家
-        YooAsset.InstantiateOptions options1 = new YooAsset.InstantiateOptions(true, GetSpawnPosition(_seadId), Vector3.zero, Quaternion.identity);
+        // 生成本地玩家（位置与出生点一致，但不作为出生点子物体）
+        YooAsset.InstantiateOptions options1 = new YooAsset.InstantiateOptions(true, GetSpawnPosition(_seadId), Quaternion.identity);
         YooAssetsLoad.Instance.LoadPrefab(localPlayerPrefabName, options1, (go) =>
         {
             if (go == null)
@@ -135,7 +145,8 @@ public class GameScenePlayerManager : SingletonMono<GameScenePlayerManager>
 
     private void SpawnRemotePlayer(int _seadId, int _playerId)
     {
-        YooAsset.InstantiateOptions options1 = new YooAsset.InstantiateOptions(true, GetSpawnPosition(_seadId), Vector3.zero, Quaternion.identity);
+        // 生成本地玩家（位置与出生点一致，但不作为出生点子物体）
+        YooAsset.InstantiateOptions options1 = new YooAsset.InstantiateOptions(true, GetSpawnPosition(_seadId), Quaternion.identity);
         YooAssetsLoad.Instance.LoadPrefab(networkPlayerPrefabName, options1, (go) =>
         {
             if (go == null)
@@ -147,11 +158,12 @@ public class GameScenePlayerManager : SingletonMono<GameScenePlayerManager>
             PlayerController pc = go.GetComponent<PlayerController>();
             if (pc != null)
             {
-                pc.SetPlayerIdentity(_playerId, true);
+                // 远端玩家：第二个参数必须传 false，否则会被当成本地玩家（绑定输入、响应本地移动）
+                pc.SetPlayerIdentity(_playerId, false);
             }
             else
             {
-                Debug.LogError("[GameScenePlayerManager] 本地玩家 Prefab 上没有 PlayerController 组件！");
+                Debug.LogError("[GameScenePlayerManager] 远端玩家 Prefab 上没有 PlayerController 组件！");
 
             }
 
@@ -170,18 +182,18 @@ public class GameScenePlayerManager : SingletonMono<GameScenePlayerManager>
     }
 
     /// <summary>
-    /// 获取出生点的位置
+    /// 获取出生点的世界坐标位置
     /// </summary>
-    /// <param name="_seadId"></param>
-    /// <returns></returns>
-    private Transform GetSpawnPosition(int _seadId)
+    /// <param name="_seadId">出生点索引</param>
+    /// <returns>出生点的世界坐标位置</returns>
+    private Vector3 GetSpawnPosition(int _seadId)
     {
         if (spawnPoints != null && _seadId >= 0 && _seadId < spawnPoints.Length)
         {
-            return spawnPoints[_seadId];
+            return spawnPoints[_seadId].position;
         }
 
-        return transform;
+        return transform.position;
     }
 }
 
