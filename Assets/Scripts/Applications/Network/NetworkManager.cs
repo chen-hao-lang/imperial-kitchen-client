@@ -309,6 +309,11 @@ public class NetworkManager : SingletonMono<NetworkManager>
         // ResetRoomState();
     }
 
+    public void SendSucessEnterGameScene()
+    {
+        Send(NetworkMessage.Create_SucessEnterGameScene());
+    }
+
     /// <summary>
     /// 重置房间相关状态（离开/解散/断线时调用），避免 RoomId 残留导致再次加入时无法跳转场景。
     /// </summary>
@@ -466,24 +471,23 @@ public class NetworkManager : SingletonMono<NetworkManager>
         #endregion
 
         #region 游戏流程（状态/计时/订单/分数）
-        if (_type == MessageType.GameStateChange)
-        {
-            byte state = NetworkMessage.Parse_GameStateChange(_body);
-            EventManager.Invoke<OnGameStateChange>(new OnGameStateChange(state));
-            return;
-        }
-
-        if (_type == MessageType.TimerSync)
-        {
-            float time = NetworkMessage.Parse_TimerSync(_body);
-            EventManager.Invoke<OnGameTimerSync>(new OnGameTimerSync(time));
-            return;
-        }
-
         if (_type == MessageType.GameStartCD)
         {
             float cd = NetworkMessage.Parse_GameStartCD(_body);
             EventManager.Invoke<OnGameStartCD>(new OnGameStartCD(cd));
+            return;
+        }
+
+        if (_type == MessageType.GameingTimerSync)
+        {
+            float time = NetworkMessage.Parse_TimerSync(_body);
+            EventManager.Invoke<GameingTimerSync>(new GameingTimerSync(time));
+            return;
+        }
+
+        if(_type == MessageType.GameOver)
+        {
+            EventManager.Invoke<GameOver>(new GameOver());
             return;
         }
 

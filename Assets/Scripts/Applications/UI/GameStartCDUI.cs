@@ -4,8 +4,6 @@ using UnityEngine;
 
 public class GameStartCDUI : BasePanel
 {
-    private const string NUMBER_POPUP = "NumberPopup";
-
     [SerializeField] private TextMeshProUGUI cdText;
 
     private Animator animator;
@@ -29,7 +27,6 @@ public class GameStartCDUI : BasePanel
         }
         else
         {
-            EventManager.AddListener<OnGameStateChange>(this, OnNetworkGameStateChange);
             EventManager.AddListener<OnGameStartCD>(this, OnNetworkCDUpdate);
         }
     }
@@ -45,20 +42,7 @@ public class GameStartCDUI : BasePanel
         }
         else
         {
-            EventManager.RemoveListener<OnGameStateChange>(this, OnNetworkGameStateChange);
             EventManager.RemoveListener<OnGameStartCD>(this, OnNetworkCDUpdate);
-        }
-    }
-
-    private void OnNetworkGameStateChange(OnGameStateChange _arg)
-    {
-        if (_arg.gameState == EGameState.CDToStart)
-        {
-            OpenPanel();
-        }
-        else
-        {
-            HidePanel();
         }
     }
 
@@ -87,8 +71,8 @@ public class GameStartCDUI : BasePanel
         if (previousCDNumber != cdNumber)
         {
             previousCDNumber = cdNumber;
-            animator.SetTrigger(NUMBER_POPUP);
-
+            animator.SetTrigger("Play");
+    
             //TODO: play sound
         }
     }

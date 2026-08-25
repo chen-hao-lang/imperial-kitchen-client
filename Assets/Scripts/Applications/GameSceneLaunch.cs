@@ -13,6 +13,11 @@ public class GameSceneLaunch : MonoBehaviour
 
     IEnumerator Init()
     {
+        if(NetworkManager.Instance.isRoomOwner)
+        {
+            NetworkManager.Instance.SendSucessEnterGameScene();
+        }
+        
         UIManager.Instance.HideAll();
 
         List<EUIType> loadPanels = new List<EUIType>()
@@ -23,10 +28,11 @@ public class GameSceneLaunch : MonoBehaviour
             EUIType.GameStartCDUI,
             EUIType.GamePlayingClockUI,
             EUIType.ChatPanel,
-            EUIType.PlayerReadyPanel
         };
         yield return UIManager.Instance.PreLoadPanel(loadPanels);
 
         UIManager.Instance.OpenPanel<DeliveryResultUI>(EUIType.DeliveryManagerUI);
+        UIManager.Instance.OpenPanel<GameStartCDUI>(EUIType.GameStartCDUI);
+        UIManager.Instance.OpenPanel<GamePlayingClockUI>(EUIType.GamePlayingClockUI);
     }
 }

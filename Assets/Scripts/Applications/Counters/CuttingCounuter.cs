@@ -145,7 +145,7 @@ public class CuttingCounuter : BaseCounter, IHasPrograss
     {
         foreach (var value in _cuttingRecipeSOArray)
         {
-            if (value.input == _kitchenObjectSO)
+            if (value.input.name == _kitchenObjectSO.name)
             {
                 return value;
             }

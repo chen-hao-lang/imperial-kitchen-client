@@ -2,16 +2,6 @@ using LiteGameFramework;
 using UnityEngine;
 using System.Collections.Generic;
 
-/// <summary> 游戏状态变化：0=Waiting, 1=CD, 2=Playing, 3=Over </summary>
-public struct OnGameStateChange : IEvent
-{
-    public EGameState gameState;
-    public OnGameStateChange(byte _state)
-    {
-        gameState = (EGameState)_state;
-    }
-}
-
 public struct OnPlayerPosition : IEvent
 {
     public int playerId;
@@ -83,10 +73,10 @@ public struct OnReceivePlayerReadyStatusUpdate : IEvent
 #region 游戏流程事件
 
 /// <summary> 游戏计时器同步 </summary>
-public struct OnGameTimerSync : IEvent
+public struct GameingTimerSync : IEvent
 {
     public float remainingSeconds;
-    public OnGameTimerSync(float _seconds) => remainingSeconds = _seconds;
+    public GameingTimerSync(float _seconds) => remainingSeconds = _seconds;
 }
 
 /// <summary> 开局倒计时同步 </summary>
@@ -95,6 +85,8 @@ public struct OnGameStartCD : IEvent
     public float cdSeconds;
     public OnGameStartCD(float _seconds) => cdSeconds = _seconds;
 }
+
+public struct GameOver : IEvent{}
 
 #endregion
 

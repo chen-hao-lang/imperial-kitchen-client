@@ -1,7 +1,6 @@
 using KitchenChaos;
 using LiteGameFramework;
 using System;
-using UnityEngine;
 
 public class NetworkKitchenGameManager : SingletonMono<NetworkKitchenGameManager>
 {
@@ -21,29 +20,7 @@ public class NetworkKitchenGameManager : SingletonMono<NetworkKitchenGameManager
     {
         if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
         {
-            EventManager.AddListener<OnGameStateChange>(this, OnGameStateChange);
             EventManager.AddListener<OnPauseActionEvent>(this, OnPauseActionEvent);
-        }
-    }
-
-    private void OnGameStateChange(OnGameStateChange _arg)
-    {
-        State = _arg.gameState;
-        Debug.Log($"[NetworkKitchenGameManager] 状态切换: {State}");
-
-        switch (State)
-        {
-            case EGameState.CDToStart:
-                // 倒计时阶段：可在此处触发准备逻辑（如锁定玩家输入）
-                break;
-            case EGameState.GamePlaying:
-                // 游戏正式开始：锁定光标，启用玩法系统
-                Cursor.lockState = CursorLockMode.Locked;
-                break;
-            case EGameState.GameOver:
-                // 游戏结束：解锁光标，禁用玩法输入
-                Cursor.lockState = CursorLockMode.None;
-                break;
         }
     }
 
@@ -73,11 +50,6 @@ public class NetworkKitchenGameManager : SingletonMono<NetworkKitchenGameManager
     {
         base.OnDestroy();
 
-        if (NetworkManager.Instance != null)
-        {
-            EventManager.RemoveListener<OnGameStateChange>(this, OnGameStateChange);
-        }
-
-        EventManager.RemoveListener<OnPauseActionEvent>(this, OnPauseActionEvent);
+        EventManager.RemoveAllListener(this);
     }
 }

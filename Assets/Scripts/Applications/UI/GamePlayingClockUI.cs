@@ -16,8 +16,7 @@ public class GamePlayingClockUI : BasePanel
         }
         else
         {
-            EventManager.AddListener<OnGameTimerSync>(this, OnNetworkTimerSync);
-            EventManager.AddListener<OnGameStateChange>(this,OnGameStateChange);
+            EventManager.AddListener<GameingTimerSync>(this, OnNetworkTimerSync);
         }
     }
 
@@ -35,15 +34,7 @@ public class GamePlayingClockUI : BasePanel
         }
     }
 
-    private void OnGameStateChange(OnGameStateChange _arg)
-    {
-        if(_arg.gameState == EGameState.GamePlaying)
-        {
-            OpenPanel();
-        }
-    }
-
-    private void OnNetworkTimerSync(OnGameTimerSync _arg)
+    private void OnNetworkTimerSync(GameingTimerSync _arg)
     {
         float max = KitchenGameManager.Instance.GamePlayingTimerMax;
         float fillAmount = 1f - (_arg.remainingSeconds / max);

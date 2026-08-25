@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using LiteGameFramework;
 using UnityEngine;
+using YooAsset;
 
 /// <summary>
 /// 订单管理器（服务器权威模式）。
@@ -18,8 +19,11 @@ class DeliveryManager : SingletonMono<DeliveryManager>
     public event EventHandler OnRecipeCompleted;
     public event EventHandler OnRecipeFailed;
 
-    /// <summary> 配方表：场景中未配置时自动从 Resources/RecipeListSO 加载 </summary>
+    /// <summary> 配方表：场景中未配置时自动从 GameScene 包加载（RecipeListSO 已随 ScriptObjects 组打包） </summary>
     [SerializeField] private RecipeListSO recipeListSO;
+
+    /// <summary> 持有 RecipeListSO 的加载句柄，防止资源被卸载 </summary>
+    private AssetHandle _recipeListHandle;
 
     private readonly List<RecipeSO> waitingRecipeSOList = new List<RecipeSO>();
     private int successfulRecipesAmount;
@@ -30,12 +34,19 @@ class DeliveryManager : SingletonMono<DeliveryManager>
 
         if (recipeListSO == null)
         {
-            recipeListSO = Resources.Load<RecipeListSO>("RecipeListSO");
+            if (YooAssetsLoad.Instance != null)
+            {
+                _recipeListHandle = YooAssetsLoad.Instance.LoadAssetSync<RecipeListSO>("RecipeListSO", "GameScene");
+                if (_recipeListHandle != null && _recipeListHandle.Status == EOperationStatus.Succeeded)
+                {
+                    recipeListSO = _recipeListHandle.AssetObject as RecipeListSO;
+                }
+            }
         }
 
         if (recipeListSO == null)
         {
-            Debug.LogError("[DeliveryManager] 未找到 RecipeListSO！请在场景中配置，或将其放入 Resources 文件夹。");
+            Debug.LogError("[DeliveryManager] 未找到 RecipeListSO！请在场景中配置，或确认其已收集进 GameScene 包。");
         }
     }
 

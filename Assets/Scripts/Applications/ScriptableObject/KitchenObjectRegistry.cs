@@ -1,20 +1,40 @@
 using System.Collections.Generic;
+using LiteGameFramework;
 using UnityEngine;
+using YooAsset;
 
 [CreateAssetMenu(menuName  = "Kitchen Chaos/KitchenObject Registry")]
 public class KitchenObjectRegistry : ScriptableObject
 {
     private static KitchenObjectRegistry _instance;
+
+    /// <summary>
+    /// 持有注册表资产的加载句柄，防止 YooAsset 引用计数归零后卸载资源
+    /// </summary>
+    private static AssetHandle _assetHandle;
+
     public static KitchenObjectRegistry Instance
     {
         get
         {
             if (_instance == null)
             {
-                _instance = Resources.Load<KitchenObjectRegistry>("KitchenObjectRegistry");
-                if (_instance == null)
+                if (YooAssetsLoad.Instance == null)
                 {
-                    Debug.LogError("[KitchenObjectRegistry] 未在 Resources 中找到！请将资产放入 Resources 文件夹。");
+                    Debug.LogError("[KitchenObjectRegistry] YooAssetsLoad 未初始化，无法从资源包加载注册表！");
+                    return null;
+                }
+
+                // 方案二：注册表已随 GameScene 包的 ScriptObjects 组打包，
+                // 与厨房物品/台子共享同一份 SO 实例，避免 Resources(主构建)↔Bundle 实例分裂。
+                _assetHandle = YooAssetsLoad.Instance.LoadAssetSync<KitchenObjectRegistry>("KitchenObjectRegistry", "GameScene");
+                if (_assetHandle != null && _assetHandle.Status == EOperationStatus.Succeeded)
+                {
+                    _instance = _assetHandle.AssetObject as KitchenObjectRegistry;
+                }
+                else
+                {
+                    Debug.LogError("[KitchenObjectRegistry] 从 GameScene 包加载失败！请确认注册表已收集进 ScriptObjects 组并重新构建 Bundle。");
                 }
             }
             return _instance;
@@ -36,10 +56,8 @@ public class KitchenObjectRegistry : ScriptableObject
     {
         if (_so == null) return -1;
 
-        // 注意：不能用 objectList.IndexOf(_so)（引用/实例ID 相等）。
-        // OfflinePlayMode 下厨房物品预制体从 YooAsset Bundle 加载，而本注册表从
-        // Resources（主构建）加载，同一 SO 资产在两边是两份不同实例，
-        // 引用比较会永远返回 -1。Bundle 副本与主构建副本的 name 一致，故按名称匹配。
+        // 已按方案二将注册表与厨房物品统一打包进 GameScene 包并走 YooAsset 加载，
+        // 引用比较已恢复正常；此处仍按 name 匹配作为兜底（跨 Bundle 边界时更稳妥）。
         for (int i = 0; i < objectList.Count; i++)
         {
             if (objectList[i] != null && objectList[i].name == _so.name)

@@ -4,15 +4,16 @@ public enum MessageType : byte
     Connect = 0,   // 分配玩家ID（连接成功后）
     PlayerLeft = 2,   // 有玩家离开
     PlayerPosition = 3,   // 广播玩家位置
-                          // 4 已废弃（原 PlayerHeldKitchenObjUpdate），合并到 InteractionSync
     InteractionSync = 5,   // 交互同步：一次原子操作，同时携带操作台和玩家的物品状态
-    GameStateChange = 6,   // 游戏状态变化
-    TimerSync = 7,   // 同步倒计时
+    
+    GameStartCD = 12,  // 开局倒计时
+    GameingTimerSync = 7,   // 同步倒计时
+    GameOver = 18,// 游戏结束
+    
     RecipeSpawned = 8,   // 新订单出现
     RecipeCompleted = 9,   // 订单完成
     RecipeFailed = 10,  // 交付失败
     ScoreUpdate = 11,  // 分数更新
-    GameStartCD = 12,  // 开局倒计时
     FullSync = 13,  // 新玩家加入时的全量同步
     CounterProgressSync = 14, // 操作台进度同步（切菜/煎/煮的进度条）
     CounterAddIngredient = 15, // 操作台添加配料（BoilingCounter）
@@ -69,7 +70,8 @@ public enum MessageType : byte
     C2S_DestroyRoom = 123,     // 房主解散房间
     C2S_RequestRoomList = 125,// 请求房间列表
     C2S_PlayerReady = 126, // 玩家准备就绪
-    C2S_StartGame = 127 // 开始游戏
+    C2S_StartGame = 127, // 开始游戏
+    C2S_ScucessEnterGameScene = 128,// 成功进入场景
 
     #endregion
 }

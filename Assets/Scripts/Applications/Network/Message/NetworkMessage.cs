@@ -627,6 +627,17 @@ public static class NetworkMessage
         return Pack(MessageType.C2S_StartGame, ms.ToArray());
     }
 
+    /// <summary>
+    /// 由房主发送
+    /// </summary>
+    /// <returns></returns>
+    public static byte[] Create_SucessEnterGameScene()
+    {
+        var ms = new MemoryStream();
+        var writer = new BinaryWriter(ms);
+        return Pack(MessageType.C2S_ScucessEnterGameScene,ms.ToArray());
+    }
+
     #region 解析
     /// <summary>
     /// 解析来自创建房间消息，客户端接受来自服务器分配的房间id
