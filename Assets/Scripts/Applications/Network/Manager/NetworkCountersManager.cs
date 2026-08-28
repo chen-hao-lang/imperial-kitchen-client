@@ -3,7 +3,7 @@ using UnityEngine;
 using System;
 using LiteGameFramework;
 
-public class CountersManager : SingletonMono<CountersManager>
+public class NetworkCountersManager : SingletonMono<NetworkCountersManager>
 {
 
     /// <summary>

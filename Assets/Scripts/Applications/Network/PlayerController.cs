@@ -278,14 +278,11 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
 
     public void SetKitchenObject(KitchenObject _kitchenObject)
     {
-        ClearKitchenObject();
-
         kitchenObject = _kitchenObject;
     }
 
     public void ClearKitchenObject()
     {
-        Destroy(kitchenObject.gameObject);
         kitchenObject = null;
     }
 
