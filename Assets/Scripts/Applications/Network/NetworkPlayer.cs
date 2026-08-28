@@ -30,7 +30,7 @@ public class NetworkPlayer : MonoBehaviour
 
     void OnEnable()
     {
-        EventManager.AddListener<OnNetworkPlayerInteract>(this, OnInteractionSyncReceived);
+        EventManager.AddListener<OnInteractionSync>(this, OnInteractionSyncReceived);
         EventManager.AddListener<OnPlayerPosition>(this, OnPlayerPositionReceived);
     }
 
@@ -67,11 +67,11 @@ public class NetworkPlayer : MonoBehaviour
         lastReceivedPosition = _arg.pos;
     }
 
-    private void OnInteractionSyncReceived(OnNetworkPlayerInteract _arg)
+    private void OnInteractionSyncReceived(OnInteractionSync _arg)
     {
         if (_arg.playerId != this.playerId) return; // 不是发给我的
 
-        ApplyHeldItem(_arg.itemIndex);
+        ApplyHeldItem(_arg.playerHeldId);
     }
 
     /// <summary>

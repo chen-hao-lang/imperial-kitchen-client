@@ -12,8 +12,8 @@ public class GameScenePlayerManager : SingletonMono<GameScenePlayerManager>
     /// <summary>
     /// 存储所有已生成的玩家
     /// </summary>
-    private Dictionary<int, PlayerController> spawnedPlayers = new Dictionary<int, PlayerController>();
-    private Dictionary<int,NetworkPlayer> remotePlayers = new Dictionary<int, NetworkPlayer>();
+    public PlayerController LocalPlayers { get; private set; }
+    private Dictionary<int, NetworkPlayer> remotePlayers = new Dictionary<int, NetworkPlayer>();
 
     /// <summary>
     /// 本地玩家
@@ -38,9 +38,14 @@ public class GameScenePlayerManager : SingletonMono<GameScenePlayerManager>
         }
     }
 
+    public bool IsLocalPlayer(int _playerId)
+    {
+        return _playerId == LocalPlayer.PlayerId;
+    }
+
     public NetworkPlayer GetNetworkPlayer(int _playerId)
     {
-        if(spawnedPlayers.TryGetValue(_playerId ,out var player))
+        if (remotePlayers.TryGetValue(_playerId, out var player))
         {
             return player.GetComponent<NetworkPlayer>();
         }
@@ -72,7 +77,7 @@ public class GameScenePlayerManager : SingletonMono<GameScenePlayerManager>
             }
             else// 其他玩家
             {
-                SpawnRemotePlayer(info[i].seadId,info[i].playerId);
+                SpawnRemotePlayer(info[i].seadId, info[i].playerId);
             }
         }
     }
@@ -85,9 +90,9 @@ public class GameScenePlayerManager : SingletonMono<GameScenePlayerManager>
     {
         Debug.Log($"[PlayerSpawner] 玩家离开: {_arg.playerId}");
 
-        if (spawnedPlayers.TryGetValue(_arg.playerId, out var pc))
+        if (remotePlayers.TryGetValue(_arg.playerId, out var pc))
         {
-            spawnedPlayers.Remove(_arg.playerId);
+            remotePlayers.Remove(_arg.playerId);
 
             // 触发事件
             EventManager.Invoke<OnRemotePlayerDestroyed>(new OnRemotePlayerDestroyed(_arg.playerId));
@@ -131,7 +136,7 @@ public class GameScenePlayerManager : SingletonMono<GameScenePlayerManager>
             {
                 pc.SetPlayerIdentity(NetworkManager.Instance.PlayerID, true);
                 LocalPlayer = pc;
-                spawnedPlayers[NetworkManager.Instance.PlayerID] = pc;
+                // spawnedPlayers[NetworkManager.Instance.PlayerID] = pc;
             }
             else
             {

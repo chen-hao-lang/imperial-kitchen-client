@@ -39,6 +39,7 @@ public class CountersManager : SingletonMono<CountersManager>
     void Start()
     {
         // NetworkManager.Instance.OnPlayerInteract += OnPlayerInteract;
+        EventManager.AddListener<OnInteractionSync>(this,OnInteractionSync);
         EventManager.AddListener<OnCounterProgressSync>(this, OnCounterProgressSync);
         EventManager.AddListener<OnCounterExtraSync>(this, ApplyCounterState);
 
@@ -49,11 +50,19 @@ public class CountersManager : SingletonMono<CountersManager>
         }
     } 
 
-    private void OnDestroy()
+    void OnDisable()
     {
         if (NetworkManager.Instance != null)
         {
             EventManager.RemoveAllListener(this);
+        }
+    }
+
+    private void OnInteractionSync(OnInteractionSync _arg)
+    {
+        if(counterMap.TryGetValue(_arg.counterId,out BaseCounter baseCounter))
+        {
+            
         }
     }
 

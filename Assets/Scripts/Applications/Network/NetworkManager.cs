@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Threading;
 using LiteGameFramework;
-using Unity.VisualScripting;
 using UnityEngine;
 
 public class NetworkManager : SingletonMono<NetworkManager>
@@ -173,11 +172,10 @@ public class NetworkManager : SingletonMono<NetworkManager>
     /// <summary>
     /// 上报玩家交互
     /// </summary>
-    /// <param name="playerId"></param>
-    /// <param name="playerItemIndex"></param>
-    public void SendPlayerInteract(int playerItemIndex)
+    /// <param name="counterId"></param>
+    public void SendPlayerInteract(int counterId)
     {
-        Send(NetworkMessage.Create_PlayerInteract(PlayerID, playerItemIndex));
+        Send(NetworkMessage.Create_PlayerInteract(PlayerID, counterId));
     }
 
     #region 操作台
@@ -431,13 +429,6 @@ public class NetworkManager : SingletonMono<NetworkManager>
         #endregion
 
         #region 玩家交互
-        if (_type == MessageType.PlayerInteract)
-        {
-            var (playerId, playerItem) = NetworkMessage.Parse_PlayerIneract(_body);
-            EventManager.Invoke<OnNetworkPlayerInteract>(new OnNetworkPlayerInteract(playerId, playerItem));
-            return;
-        }
-
         if(_type == MessageType.InteractionSync)
         {
             var (counterId,counterItem,playerId,playerItem) = NetworkMessage.Parse_InteractionSync(_body);

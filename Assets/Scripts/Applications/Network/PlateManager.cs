@@ -1,15 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 using LiteGameFramework;
-using UnityEditor.Build.Pipeline;
+using Unity.VisualScripting;
 
-/// <summary>
-/// 盘子中央管理器（唯一权威）。
-/// - 池化：服务器生成盘子时，创建失活的 PlateKitchenObject 作为 PlateManager 子对象，等待分配
-/// - 登记：Dictionary&lt;plateId, PlateKitchenObject&gt; 全量登记所有盘子
-/// - 移动：收到 owner sync 时，把唯一的盘子实体挂到持有者（玩家/操作台）
-/// - 视觉：PlateCounter 上的盘子数量由 PlateCounterVisual 独立表现（与实体解耦）
-/// </summary>
 public class PlateManager : MonoBehaviour
 {
     public static PlateManager Instance { get; private set; }
@@ -239,6 +232,12 @@ public class PlateManager : MonoBehaviour
 
         if (_ownerType == 0) // 玩家
         {
+            if(GameScenePlayerManager.Instance.IsLocalPlayer(_ownerId))
+            {
+                MovePlateTo(_plate,GameScenePlayerManager.Instance.LocalPlayer);
+                return;
+            }
+
             NetworkPlayer np = GameScenePlayerManager.Instance?.GetNetworkPlayer(_ownerId);
             if (np != null)
             {

@@ -42,18 +42,6 @@ public struct OnNetworkPlayerLeft : IEvent
     public OnNetworkPlayerLeft(int _playerId) => playerId = _playerId;
 }
 
-/// <summary> 远程玩家交互（玩家ID, 手持物品索引） </summary>
-public struct OnNetworkPlayerInteract : IEvent
-{
-    public int playerId;
-    public int itemIndex;
-    public OnNetworkPlayerInteract(int _playerId, int _itemIndex)
-    {
-        playerId = _playerId;
-        itemIndex = _itemIndex;
-    }
-}
-
 public struct OnInteractionSync : IEvent
 {
     public int counterId;

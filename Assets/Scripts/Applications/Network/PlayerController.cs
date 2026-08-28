@@ -80,8 +80,7 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
     {
         if (_isLocalPlayer)
         {
-            EventManager.RemoveListener<OnInteractActionEvent>(this, OnInteractActionEvent);
-            EventManager.RemoveListener<OnInteractAlternateEvent>(this, OnInteractAlternateEvent);
+            EventManager.RemoveAllListener(this);
         }
     }
 
@@ -274,15 +273,13 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
     {
         this._selectedCounter = _selectedCounter;
 
-        // OnSelectedCounterChanged?.Invoke(this, new OnSelectedCounterChangedEventArgs
-        // {
-        //     SelectedCounter = _selectedCounter
-        // });
         EventManager.Invoke<OnSelectedCounterChanged>(new OnSelectedCounterChanged(_selectedCounter));
     }
 
     public void SetKitchenObject(KitchenObject _kitchenObject)
     {
+        ClearKitchenObject();
+
         kitchenObject = _kitchenObject;
     }
 

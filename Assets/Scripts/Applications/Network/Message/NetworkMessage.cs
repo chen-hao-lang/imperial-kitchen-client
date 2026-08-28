@@ -64,12 +64,12 @@ public static class NetworkMessage
         return Pack(MessageType.C2S_PlayerMove, ms.ToArray());
     }
 
-    public static byte[] Create_PlayerInteract(int _playerId, int _playerItem)
+    public static byte[] Create_PlayerInteract(int _playerId, int _counterId)
     {
         using var ms = new MemoryStream();
         using var writer = new BinaryWriter(ms);
         writer.Write(_playerId);
-        writer.Write(_playerItem);
+        writer.Write(_counterId);
         return Pack(MessageType.C2S_PlayerInteract, ms.ToArray());
     }
 
@@ -263,20 +263,6 @@ public static class NetworkMessage
         float z = reader.ReadSingle();
         float rotY = reader.ReadSingle();
         return (id, x, y, z, rotY);
-    }
-
-    /// <summary>
-    /// 解析交互同步消息（合并了原来的 CounterStateUpdate + PlayerHeldItem）。
-    /// 一次交互产生一次原子性的物品转移：操作台和玩家状态同时变化。
-    /// 返回：(counterId, counterItem(-1=空), playerId, playerItem(-1=空))
-    /// </summary>
-    public static (int playerId, int playerItem) Parse_PlayerIneract(byte[] body)
-    {
-        using var ms = new MemoryStream(body);
-        using var reader = new BinaryReader(ms);
-        int playerId = reader.ReadInt32();
-        int playerItem = reader.ReadInt32();
-        return (playerId, playerItem);
     }
 
     public static (int,int,int,int) Parse_InteractionSync(byte[] _data)
