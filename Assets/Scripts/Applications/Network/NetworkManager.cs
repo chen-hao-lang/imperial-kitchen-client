@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Threading;
 using LiteGameFramework;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class NetworkManager : SingletonMono<NetworkManager>
@@ -209,49 +210,17 @@ public class NetworkManager : SingletonMono<NetworkManager>
     {
         Send(NetworkMessage.Create_CounterStartMark(_counterId, _maxBoilingTimer));
     }
-
-    public void SendRemotePlate(int _counterId, int _plateId)
-    {
-        Send(NetworkMessage.Create_RemotePlate(_counterId, _plateId));
-    }
     #endregion
     #region 盘子
-    /// <summary>
-    /// 上报盘子添加配料（plateId + ingredientIndex）。
-    /// </summary>
-    public void SendPlateAddIngredient(int _plateId, int _ingredientIndex)
-    {
-        Send(NetworkMessage.Create_PlateAddIngredient(_plateId, _ingredientIndex));
-    }
-
-    /// <summary>
-    /// 上报盘子持有者变更。
-    /// </summary>
-    public void SendPlateOwnerSync(int _plateId, byte _ownerType, int _ownerId, List<int> _ingredients)
-    {
-        Send(NetworkMessage.Create_PlateOwnerSync(_plateId, _ownerType, _ownerId, _ingredients));
-    }
-
-    /// <summary>
-    ///  上报盘子被销毁
-    /// </summary>
-    /// <param name="_plateId"></param>
-    public void SendPlateDestroy(int _plateId)
-    {
-        Send(NetworkMessage.Create_PlateDestroy(_plateId));
-    }
-
-    /// <summary>
-    /// 上报盘子移除配料（plateId + ingredientIndex）。
-    /// </summary>
-    public void SendPlateRemoveIngredient(int _plateId, int _ingredientIndex)
-    {
-        Send(NetworkMessage.Create_PlateRemoveIngredient(_plateId, _ingredientIndex));
-    }
-
     public void SendPlateRegisterSO(int _plateId, int _plateSO)
     {
         Send(NetworkMessage.Create_RegisterPlate(_plateId, _plateSO));
+    }
+
+    //TODO:
+    public void SendRegisterPlateValidIngredients(List<int> _ingredients)
+    {
+        Send(NetworkMessage.Create_RegisterPlateValidIngredients(_ingredients));
     }
     #endregion
 
@@ -467,6 +436,12 @@ public class NetworkManager : SingletonMono<NetworkManager>
             var (playerId, playerItem) = NetworkMessage.Parse_PlayerIneract(_body);
             EventManager.Invoke<OnNetworkPlayerInteract>(new OnNetworkPlayerInteract(playerId, playerItem));
             return;
+        }
+
+        if(_type == MessageType.InteractionSync)
+        {
+            var (counterId,counterItem,playerId,playerItem) = NetworkMessage.Parse_InteractionSync(_body);
+            EventManager.Invoke<OnInteractionSync>(new OnInteractionSync(counterId,counterItem,playerId,playerItem));
         }
         #endregion
 

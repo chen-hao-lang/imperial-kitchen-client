@@ -25,6 +25,11 @@ public class CuttingCounuter : BaseCounter, IHasPrograss
 
     public override void Interact(PlayerController _player)
     {
+        if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
+        {
+            return;
+        }
+
         if (!HasKitchenObject())//如果切台上没东西
         {
             if (_player.HasKitchenObject())//如果角色手里有东西
@@ -55,22 +60,10 @@ public class CuttingCounuter : BaseCounter, IHasPrograss
                 //判断玩家手里的东西是不是盘子
                 if (_player.GetKitchenObject().TryGetPlate(out PlateKitchenObject plate))
                 {
-                    if (IsNetworkMode)
+                    if (plate.TryAddIngredient(so))
                     {
-                        if (PlateManager.Instance.PlateAddIngredient(plate, so))
-                        {
-                            GetKitchenObject().DestroySlef();
-                            // 通知服务器操作台已被清空
-                            CountersManager.Instance?.SendCounterAddIngredient(NetworkCounterId, 255);
-                        }
-                    }
-                    else
-                    {
-                        if (plate.TryAddIngredient(so))
-                        {
-                            // ★ 在销毁前缓存数据，避免 DestroySlef 后 GetKitchenObject() 返回 null
-                            GetKitchenObject().DestroySlef();
-                        }
+                        // ★ 在销毁前缓存数据，避免 DestroySlef 后 GetKitchenObject() 返回 null
+                        GetKitchenObject().DestroySlef();
                     }
                 }
             }
@@ -78,9 +71,6 @@ public class CuttingCounuter : BaseCounter, IHasPrograss
             {
                 //玩家拿起桌子上的东西
                 GetKitchenObject().SetKitchenObjectParent(_player);
-
-                // 通知服务器操作台物品被拿走
-                CountersManager.Instance?.SendCounterAddIngredient(NetworkCounterId, 255);
             }
         }
     }

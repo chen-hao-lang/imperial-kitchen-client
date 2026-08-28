@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.IO;
-using System.Runtime;
 using System.Text;
-using TMPro;
+using UnityEngine.Rendering;
 
 /// <summary>
 /// 客户端网络消息工具类。
@@ -148,57 +146,17 @@ public static class NetworkMessage
         return Pack(MessageType.C2S_CounterRegister, ms.ToArray());
     }
 
-    public static byte[] Create_RemotePlate(int _counterId, int _plateId)
-    {
-        using var ms = new MemoryStream();
-        using var writer = new BinaryWriter(ms);
-        writer.Write(_counterId);
-        writer.Write(_plateId);
-        return Pack(MessageType.C2S_RemotePlate, ms.ToArray());
-    }
-
     #region 盘子相关
-    /// <summary>
-    /// 上报盘子持有者变更。
-    /// </summary>
-    public static byte[] Create_PlateOwnerSync(int _plateId, byte _ownerType, int _ownerId, List<int> _plateCurrentIngredients)
+    public static byte[] Create_RegisterPlateValidIngredients(List<int> _ingredients)
     {
         using var ms = new MemoryStream();
         using var writer = new BinaryWriter(ms);
-        writer.Write(_plateId);
-        writer.Write(_ownerType);
-        writer.Write(_ownerId);
-        writer.Write(_plateCurrentIngredients.Count);
-        foreach (var temp in _plateCurrentIngredients)
+        writer.Write(_ingredients.Count);
+        foreach (var c in _ingredients)
         {
-            writer.Write(temp);
+            writer.Write(c);
         }
-        return Pack(MessageType.C2S_PlateOwnerSync, ms.ToArray());
-    }
-
-    /// <summary>
-    /// 上报盘子添加配料（plateId + ingredientIndex）。
-    /// </summary>
-    public static byte[] Create_PlateAddIngredient(int _plateId, int _ingredientIndex)
-    {
-        using var ms = new MemoryStream();
-        using var writer = new BinaryWriter(ms);
-        writer.Write(_plateId);
-        writer.Write(_ingredientIndex);
-        return Pack(MessageType.C2S_PlateAddIngredient, ms.ToArray());
-    }
-
-    /// <summary>
-    /// 上报盘子销毁（plateId）。
-    /// </summary>
-    /// <param name="_plateId">销毁的盘子ID</param>
-    /// <returns></returns>
-    public static byte[] Create_PlateDestroy(int _plateId)
-    {
-        using var ms = new MemoryStream();
-        using var writer = new BinaryWriter(ms);
-        writer.Write(_plateId);
-        return Pack(MessageType.C2S_PlateDestroy, ms.ToArray());
+        return Pack(MessageType.C2S_RegisterPlateValidIngredients, ms.ToArray());
     }
 
     /// <summary>
@@ -248,14 +206,14 @@ public static class NetworkMessage
     /// <summary>
     /// 上报盘子移除配料（plateId + ingredientIndex）。
     /// </summary>
-    public static byte[] Create_PlateRemoveIngredient(int _plateId, int _ingredientIndex)
-    {
-        using var ms = new MemoryStream();
-        using var writer = new BinaryWriter(ms);
-        writer.Write(_plateId);
-        writer.Write(_ingredientIndex);
-        return Pack(MessageType.C2S_PlateRemoveIngredient, ms.ToArray());
-    }
+    // public static byte[] Create_PlateRemoveIngredient(int _plateId, int _ingredientIndex)
+    // {
+    //     using var ms = new MemoryStream();
+    //     using var writer = new BinaryWriter(ms);
+    //     writer.Write(_plateId);
+    //     writer.Write(_ingredientIndex);
+    //     return Pack(MessageType.C2S_PlateRemoveIngredient, ms.ToArray());
+    // }
     #endregion
 
     public static byte[] Create_SendMessage(int _playerId, string _message)
@@ -319,6 +277,17 @@ public static class NetworkMessage
         int playerId = reader.ReadInt32();
         int playerItem = reader.ReadInt32();
         return (playerId, playerItem);
+    }
+
+    public static (int,int,int,int) Parse_InteractionSync(byte[] _data)
+    {
+        using var ms = new MemoryStream(_data);
+        using var reader = new BinaryReader(ms);
+        int counterId = reader.ReadInt32();
+        int counterHeldItemId = reader.ReadInt32();
+        int playerId = reader.ReadInt32();
+        int playerItem = reader.ReadInt32();
+        return (counterId,counterHeldItemId,playerId, playerItem);
     }
 
     public static byte Parse_GameStateChange(byte[] body)

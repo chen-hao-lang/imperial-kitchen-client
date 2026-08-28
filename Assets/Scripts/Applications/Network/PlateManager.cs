@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using LiteGameFramework;
+using UnityEditor.Build.Pipeline;
 
 /// <summary>
 /// 盘子中央管理器（唯一权威）。
@@ -30,7 +31,7 @@ public class PlateManager : MonoBehaviour
         if (Instance == null) Instance = this;
     }
 
-    void Start()
+    void OnEnable()
     {
         EventManager.AddListener<OnPlateSpawned>(this, OnPlateSpawned);
         EventManager.AddListener<OnPlateOwnerSync>(this, OnPlateOwnerSync);
@@ -40,15 +41,10 @@ public class PlateManager : MonoBehaviour
         EventManager.AddListener<OnRemotePlateRemoved>(this, OnRemotePlateRemoved);
     }
 
-    private void OnDestroy()
+    void OnDisable()
     {
         if (NetworkManager.Instance == null) return;
-        EventManager.RemoveListener<OnPlateSpawned>(this, OnPlateSpawned);
-        EventManager.RemoveListener<OnPlateOwnerSync>(this, OnPlateOwnerSync);
-        EventManager.RemoveListener<OnPlateIngredientSync>(this, OnPlateIngredientSyncReceived);
-        EventManager.RemoveListener<OnPlateIngredientRemoved>(this, OnPlateIngredientRemovedReceived);
-        EventManager.RemoveListener<OnPlateDestroy>(this, OnPlateDestroyReceived);
-        EventManager.RemoveListener<OnRemotePlateRemoved>(this, OnRemotePlateRemoved);
+        EventManager.RemoveAllListener(this);
     }
 
     #region 生成 & 池化
@@ -141,10 +137,6 @@ public class PlateManager : MonoBehaviour
         // 视觉：操作台少一个盘子
         _counter.OnPlateRemove?.Invoke();
 
-        // 通知服务器：盘子归属变化 + 操作台数量变化
-        NetworkManager.Instance.SendPlateOwnerSync(plate.NetworkPlateId, 0, _player.PlayerId, GetIngredientIndices(plate));
-        NetworkManager.Instance.SendRemotePlate(_counter.NetworkCounterId, plate.NetworkPlateId);
-
         Debug.Log($"[PlateManager] 玩家{_player.PlayerId} 从操作台{_counter.NetworkCounterId} 拿起盘子 {plate.NetworkPlateId}");
         return true;
     }
@@ -166,6 +158,7 @@ public class PlateManager : MonoBehaviour
     #region 添加配料
 
     /// <summary>本地玩家向盘子加配料（成功则上报服务器）。</summary>
+    /// TODO:
     public bool PlateAddIngredient(PlateKitchenObject _plate, KitchenObjectSO _so)
     {
         if (_plate == null || _plate.NetworkPlateId < 0) return false;
@@ -173,11 +166,6 @@ public class PlateManager : MonoBehaviour
 
         if (_plate.TryAddIngredient(_so))
         {
-            int id = KitchenObjectRegistry.Instance != null ? KitchenObjectRegistry.Instance.GetIndexBySO(_so) : -1;
-            if (id >= 0)
-            {
-                NetworkManager.Instance.SendPlateAddIngredient(_plate.NetworkPlateId, id);
-            }
             return true;
         }
         return false;
@@ -192,6 +180,7 @@ public class PlateManager : MonoBehaviour
     }
 
     /// <summary>本地玩家从盘子移除配料（成功则上报服务器）。</summary>
+    /// TODO:
     public bool PlateRemoveIngredient(PlateKitchenObject _plate, KitchenObjectSO _so)
     {
         if (_plate == null || _plate.NetworkPlateId < 0) return false;
@@ -199,11 +188,6 @@ public class PlateManager : MonoBehaviour
 
         if (_plate.RemoveIngredient(_so))
         {
-            int id = KitchenObjectRegistry.Instance != null ? KitchenObjectRegistry.Instance.GetIndexBySO(_so) : -1;
-            if (id >= 0)
-            {
-                NetworkManager.Instance.SendPlateRemoveIngredient(_plate.NetworkPlateId, id);
-            }
             return true;
         }
         return false;

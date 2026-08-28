@@ -75,6 +75,11 @@ public class BoilingCounter : BaseCounter, IHasPrograss
 
     public override void Interact(PlayerController _player)
     {
+        if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
+        {
+            return;
+        }
+
         // 操作台没东西
         if (!HasKitchenObject())
         {
@@ -108,10 +113,6 @@ public class BoilingCounter : BaseCounter, IHasPrograss
 
                                 // 触发交互事件
                                 OnInteracted?.Invoke(new OnInteractedEventArgs { kitchenObjectSO = ingredient });
-
-                                // 通知服务器
-                                CountersManager.Instance?.SendCounterAddIngredient(NetworkCounterId, KitchenObjectRegistry.Instance?.GetIndexBySO(ingredient) ?? 255);
-
                                 //尝试开始制作
                                 TryStartRecipeIfPossible();
                             }
@@ -131,9 +132,6 @@ public class BoilingCounter : BaseCounter, IHasPrograss
 
                         // 触发交互事件
                         OnInteracted?.Invoke(new OnInteractedEventArgs { kitchenObjectSO = ingredient });
-
-                        // 通知服务器
-                        CountersManager.Instance?.SendCounterAddIngredient(NetworkCounterId, KitchenObjectRegistry.Instance?.GetIndexBySO(ingredient) ?? 255);
 
                         // 查看现在的配料表是否满足某个菜单
                         TryStartRecipeIfPossible();
@@ -163,9 +161,6 @@ public class BoilingCounter : BaseCounter, IHasPrograss
                     activeRecipe = null;
 
                     OnPlateCompleted?.Invoke();
-
-                    // 通知服务器操作台已清空
-                    CountersManager.Instance?.SendCounterAddIngredient(NetworkCounterId, 255);
                 }
             }
         }

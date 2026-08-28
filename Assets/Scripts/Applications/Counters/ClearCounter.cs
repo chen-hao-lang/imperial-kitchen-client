@@ -7,14 +7,17 @@ public class ClearCounter : BaseCounter
 {
     public override void Interact(PlayerController _player)
     {
+        if(NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
+        {
+            return;
+        }
+
         if (!HasKitchenObject())// 如果没有东西
         {
             if (_player.HasKitchenObject())//如果玩家手里有东西
             {
                 //将玩家手上的东西放置到操作台上
                 _player.GetKitchenObject().SetKitchenObjectParent(this);
-
-                CountersManager.Instance?.SendCounterAddIngredient(NetworkCounterId, KitchenObjectRegistry.Instance?.GetIndexBySO(GetKitchenObject().GetKitchenObjectSO()) ?? 255);
             }
         }
         else// 如果台子上有东西
@@ -31,9 +34,6 @@ public class ClearCounter : BaseCounter
                         if (PlateManager.Instance.PlateAddIngredient(plate, so))
                         {
                             GetKitchenObject().DestroySlef();
-
-                            // 通知服务器操作台已被清空
-                            CountersManager.Instance?.SendCounterAddIngredient(NetworkCounterId, 255);
                         }
                     }
                     else
@@ -42,9 +42,6 @@ public class ClearCounter : BaseCounter
                         if (plate.TryAddIngredient(GetKitchenObject().GetKitchenObjectSO()))
                         {
                             GetKitchenObject().DestroySlef();
-
-                            // 通知服务器操作台已被清空
-                            CountersManager.Instance?.SendCounterAddIngredient(NetworkCounterId, 255);
                         }
                     }
                 }
@@ -74,8 +71,6 @@ public class ClearCounter : BaseCounter
             {
                 //将操作台上的东西给玩家拿着
                 GetKitchenObject().SetKitchenObjectParent(_player);
-
-                CountersManager.Instance?.SendCounterAddIngredient(NetworkCounterId, 255);
             }
         }
     }

@@ -3,10 +3,10 @@ using KitchenChaos;
 using LiteGameFramework;
 using UnityEngine;
 
-public struct OnSelectedCounterChanged :IEvent
+public struct OnSelectedCounterChanged : IEvent
 {
     public BaseCounter selectCounter;
-    public OnSelectedCounterChanged(BaseCounter _selectCounter) => selectCounter =_selectCounter;
+    public OnSelectedCounterChanged(BaseCounter _selectCounter) => selectCounter = _selectCounter;
 }
 
 public class PlayerController : MonoBehaviour, IKitchenObjectParent
@@ -63,6 +63,7 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
         {
             EventManager.AddListener<OnInteractActionEvent>(this, OnInteractActionEvent);
             EventManager.AddListener<OnInteractAlternateEvent>(this, OnInteractAlternateEvent);
+            EventManager.AddListener<OnInteractionSync>(this,OnInteractionSync);
         }
         else// 远程玩家
         {
@@ -88,6 +89,42 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
     {
         PlayerId = _playerId;
         _isLocalPlayer = _isLocal;
+    }
+
+    private void OnInteractionSync(OnInteractionSync _arg)
+    {
+        if(_arg.playerId != PlayerId) return;
+        ApplyHeldItem(_arg.playerHeldId);
+    }
+
+    private void ApplyHeldItem(int _soIndex)
+    {
+        if (_soIndex >= 0)
+        {
+            KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetByIndex(_soIndex);
+            if (so != null && so.prefab != null && so.prefab.GetComponent<PlateKitchenObject>() != null)
+            {
+                return;
+            }
+        }
+
+        // 销毁旧物品
+        ClearKitchenObject();
+        
+
+        // 生成新物品
+        if (_soIndex >= 0)
+        {
+            KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetByIndex(_soIndex);
+            if (so != null)
+            {
+                Transform kitchenObjectTransform = Instantiate(so.prefab, kitchenObjectHoldPoint);
+                kitchenObjectTransform.localPosition = Vector3.zero;
+                kitchenObject = kitchenObjectTransform.GetComponent<KitchenObject>();
+
+                Debug.Log($"[NetworkPlayer] 玩家{PlayerId} 手持: {so.name}");
+            }
+        }
     }
 
     /// <summary>
@@ -116,22 +153,20 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
     {
         if (_selectedCounter == null) return;
 
-        if (_isMain)//主交互
+        // 联网
+        if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
         {
-            _selectedCounter.Interact(this);
-        }
-        else//副交互
-        {
-            if (_selectedCounter.IsProgressCounter)
-            {
+            // 网络模式：只发意图，不本地执行（含取盘/放盘/装料/交付）
+            if (_isMain)
+                NetworkManager.Instance.SendPlayerInteract(_selectedCounter.NetworkCounterId);
+            else
                 NetworkManager.Instance.SendInteractAlternate(_selectedCounter.NetworkCounterId);
-            }
-
-            _selectedCounter.InteractAlternate(this);
+            return;
         }
 
-        // 普通操作台：先上报交互前状态，再执行本地交互
-        SendInteractionResultToServer();
+        // 单机
+        if (_isMain) _selectedCounter.Interact(this);
+        else _selectedCounter.InteractAlternate(this);
     }
 
     // Update is called once per frame
@@ -167,21 +202,6 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
         _lastSentRotY = currentRotY;
 
         NetworkManager.Instance.SendPlayerMove(transform.position.x, transform.position.y, transform.position.z, currentRotY);
-    }
-
-    /// <summary>
-    /// 向服务器发送交互结果（玩家手里物品 + 台子上物品）
-    /// </summary>
-    private void SendInteractionResultToServer()
-    {
-        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnected) return;
-
-        var kitchenObj = GetKitchenObject();
-        int playerItemIndex = (kitchenObj != null && KitchenObjectRegistry.Instance != null)
-            ? KitchenObjectRegistry.Instance.GetIndexBySO(kitchenObj.GetKitchenObjectSO())
-            : -1;
-
-        NetworkManager.Instance.SendPlayerInteract(playerItemIndex);
     }
 
     private void HandleIneraction()
@@ -268,6 +288,7 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
 
     public void ClearKitchenObject()
     {
+        Destroy(kitchenObject.gameObject);
         kitchenObject = null;
     }
 

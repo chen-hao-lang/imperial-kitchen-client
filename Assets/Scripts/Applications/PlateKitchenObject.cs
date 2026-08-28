@@ -48,15 +48,6 @@ public class PlateKitchenObject : KitchenObject
                 list.Add(id);
             }
         }
-
-        if (_newParent is PlayerController pc && pc.IsLocalPlayer)
-        {
-            NetworkManager.Instance.SendPlateOwnerSync(NetworkPlateId, 0, pc.PlayerId, list);
-        }
-        else if (_newParent is BaseCounter bc)
-        {
-            NetworkManager.Instance.SendPlateOwnerSync(NetworkPlateId, 1, bc.NetworkCounterId, list);
-        }
     }
 
     public bool TryAddIngredient(KitchenObjectSO _kitchenObjectSO)

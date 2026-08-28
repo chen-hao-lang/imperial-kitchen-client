@@ -42,15 +42,16 @@ public enum MessageType : byte
     C2S_CounterAddIngredient = 109, // BoilingCounter 放入配料时，通知服务器
 
     // 盘子相关
-    C2S_PlateOwnerSync = 110, // 盘子持有者变更（plateId + ownerType + ownerId）
-    C2S_PlateAddIngredient = 111, // 盘子添加配料（plateId + ingredientIndex）
-    C2S_PlateDestroy = 112, // 盘子销毁（plateId）
+    // C2S_PlateOwnerSync = 110, // 盘子持有者变更（plateId + ownerType + ownerId）
+    // C2S_PlateAddIngredient = 111, // 盘子添加配料（plateId + ingredientIndex）
+    // C2S_PlateDestroy = 112, // 盘子销毁（plateId）
     C2S_RegisterPlateSO = 113,
-    C2S_RemotePlate = 114,
-    C2S_PlateRemoveIngredient = 115, // 盘子移除配料（plateId + ingredientIndex）
+    // C2S_RemotePlate = 114,
+    // C2S_PlateRemoveIngredient = 115, // 盘子移除配料（plateId + ingredientIndex）
     C2S_SendMessage = 116, // 客户端发送聊天消息（playerId + message）
     C2S_DeliveryRequest = 117, // 客户端提交交付请求（plateId）——服务器权威校验订单
     C2S_RegisterRecipes = 118, // 客户端上报配方表（连接后注册）——内容由客户端提供，裁决由服务端执行
+    C2S_RegisterPlateValidIngredients = 125,
 
 
     #region Room

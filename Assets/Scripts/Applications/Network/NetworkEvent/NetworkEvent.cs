@@ -54,6 +54,21 @@ public struct OnNetworkPlayerInteract : IEvent
     }
 }
 
+public struct OnInteractionSync : IEvent
+{
+    public int counterId;
+    public int counterIetmId;
+    public int playerId;
+    public int playerHeldId;
+    public OnInteractionSync(int _counterId,int _counterItemId,int _playerId,int _playerHeldId)
+    {
+        counterId = _counterId;
+        counterIetmId = _counterItemId;
+        playerId = _playerId;
+        playerHeldId = _playerHeldId;
+    }
+}
+
 /// <summary>
 /// 远程玩家准备
 /// </summary>

@@ -13,6 +13,13 @@ public class PlateCounter : BaseCounter
 
     public override void Interact(PlayerController _player)
     {
+        // 网络模式
+        if(NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
+        {
+            return;
+        }
+
+        // 单机模式
         // 玩家空手时，由 PlateManager 从池中分配一个盘子
         if (!_player.HasKitchenObject())
         {
