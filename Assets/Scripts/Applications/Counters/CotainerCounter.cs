@@ -6,7 +6,7 @@ using UnityEngine;
 /// </summary>
 public class CotainerCounter : BaseCounter
 {
-    [SerializeField] private KitchenObjectSO kitchenObjectSO;
+    [SerializeField] public KitchenObjectSO kitchenObjectSO;
 
     public override void Interact(PlayerController _player)
     {

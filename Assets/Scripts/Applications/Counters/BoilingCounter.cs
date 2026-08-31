@@ -15,7 +15,7 @@ public class BoilingCounter : BaseCounter, IHasPrograss
     /// <summary>
     /// 该操作台能制作的菜单
     /// </summary>
-    [SerializeField] private BoilingRecipeSO[] boilingRecipeSOArray;
+    [SerializeField] public BoilingRecipeSO[] BoilingRecipeSOArray { get; private set; }
 
     private float boilingTimer;
     private bool isBoiling;
@@ -173,7 +173,7 @@ public class BoilingCounter : BaseCounter, IHasPrograss
     {
         List<KitchenObjectSO> currentIngredients = new List<KitchenObjectSO>(ingredients);
 
-        foreach (var recipeList in boilingRecipeSOArray)
+        foreach (var recipeList in BoilingRecipeSOArray)
         {
             //如果操作台上的配料满足这个配方的要求
             if (IsMatch(recipeList.inputs, currentIngredients))
@@ -185,10 +185,35 @@ public class BoilingCounter : BaseCounter, IHasPrograss
                 isBoiling = true;
 
                 // 通知服务器开始计时（携带该配方的最大煮沸时长）
-                CountersManager.Instance?.SendCounterStartMark(NetworkCounterId, activeRecipe.maxBoilingTimer);
+                // NetworkCountersManager.Instance?.SendCounterStartMark(NetworkCounterId, activeRecipe.maxBoilingTimer);
 
                 return;
             }
+        }
+    }
+
+    /// <summary>该物品是否是可接收的配料（用于区分"加料"与"成品渲染"）</summary>
+    public bool CanAcceptIngredient(KitchenObjectSO _so)
+    {
+        return currectKitchenObjectSO.Contains(_so);
+    }
+
+    /// <summary>
+    /// ★ 新增：服务器下发锅内配料变化（CounterAddIngredient 消息）。
+    /// ingredientIndex = 255 表示锅被清空；否则为加入的配料。
+    /// </summary>
+    public void ApplyServerIngredient(int _ingredientIndex)
+    {
+        if (_ingredientIndex == byte.MaxValue)
+        {
+            ClearCounter();
+            return;
+        }
+
+        KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetByIndex(_ingredientIndex);
+        if (so != null && TryAddIngredients(so))
+        {
+            OnInteracted?.Invoke(new OnInteractedEventArgs { kitchenObjectSO = so });
         }
     }
 
@@ -242,12 +267,40 @@ public class BoilingCounter : BaseCounter, IHasPrograss
         return false;
     }
 
+    public void OnBoilingStateChanged(byte _state)
+    {
+        if (_state == 1)
+        {
+            activeRecipe = GetMatchingRecipe();   // 本地按当前配料匹配，仅展示
+            isBoiling = true;
+            boilingTimer = 0f;
+            OnProgressChanged?.Invoke(this, new IHasPrograss.OnPrograssChangeEventArgs { prograssNormalized = 0f });
+        }
+        else
+        {
+            activeRecipe = null;
+            isBoiling = false;
+            boilingTimer = 0f;
+            OnProgressChanged?.Invoke(this, new IHasPrograss.OnPrograssChangeEventArgs { prograssNormalized = 0f });
+        }
+    }
+
+    private BoilingRecipeSO? GetMatchingRecipe()
+    {
+        List<KitchenObjectSO> currentIngredients = new List<KitchenObjectSO>(ingredients);
+        foreach (var recipe in BoilingRecipeSOArray)
+        {
+            if (IsMatch(recipe.inputs, currentIngredients)) return recipe;
+        }
+        return null;
+    }
+
     /// <summary>
     /// 将菜单中的食物添加进可操作列表中
     /// </summary>
     private void AddKitchenObjectInCurrectMap()
     {
-        foreach (var receipeKitchenObject in boilingRecipeSOArray)
+        foreach (var receipeKitchenObject in BoilingRecipeSOArray)
         {
             var list = receipeKitchenObject.inputs;
 
@@ -267,32 +320,14 @@ public class BoilingCounter : BaseCounter, IHasPrograss
     /// <param name="_progressNormalized"></param>
     public void ApplyServerBoilingProgress(float _progressNormalized)
     {
-        if (activeRecipe == null)
-        {
-            Debug.LogWarning("ApplyServerBoilingProgress called but activeRecipe is null.");
-            return;
-        }
-
-        // 更新本地进度（用于 UI 显示）
-        boilingTimer = _progressNormalized * activeRecipe.maxBoilingTimer;
-
         OnProgressChanged?.Invoke(this, new IHasPrograss.OnPrograssChangeEventArgs
         {
             prograssNormalized = _progressNormalized
         });
 
-        // 如果进度达到 1.0，执行物品转换
-        if (_progressNormalized >= 1.0f)
-        {
-            KitchenObject.SpawnKitchenObject(activeRecipe.output, this);
-
-            OnProgressChanged?.Invoke(this, new IHasPrograss.OnPrograssChangeEventArgs { prograssNormalized = 0f });
-            OnBoilingCompleted?.Invoke();
-
-            activeRecipe = null;
-            boilingTimer = 0;
-            isBoiling = false;
-        }
+        if(activeRecipe == null) return;
+        // 更新本地进度（用于 UI 显示）
+        boilingTimer = _progressNormalized * activeRecipe.maxBoilingTimer;
     }
 
     public void ClearCounter()

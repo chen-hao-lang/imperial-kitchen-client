@@ -9,7 +9,7 @@ public class CuttingCounuter : BaseCounter, IHasPrograss
     /// <summary>
     /// 可以切的食物列表
     /// </summary>
-    [SerializeField] private List<CuttingRecipeSO> _cuttingRecipeSOArray;
+    [SerializeField] public List<CuttingRecipeSO> CuttingRecipeSOArray{get;private set;}
 
     private int cuttingPrograss;
 
@@ -47,7 +47,7 @@ public class CuttingCounuter : BaseCounter, IHasPrograss
                         prograssNormalized = (float)cuttingPrograss / cuttingRecipeSO.cuttingPrograssMax
                     });
 
-                    CountersManager.Instance?.SendCounterAddIngredient(NetworkCounterId, KitchenObjectRegistry.Instance?.GetIndexBySO(GetKitchenObject().GetKitchenObjectSO()) ?? 255);
+                    // NetworkCountersManager.Instance?.SendCounterAddIngredient(NetworkCounterId, KitchenObjectRegistry.Instance?.GetIndexBySO(GetKitchenObject().GetKitchenObjectSO()) ?? 255);
                 }
             }
         }
@@ -133,7 +133,7 @@ public class CuttingCounuter : BaseCounter, IHasPrograss
     /// <returns></returns>
     private CuttingRecipeSO GetCuttingRecipeSOWithInput(KitchenObjectSO _kitchenObjectSO)
     {
-        foreach (var value in _cuttingRecipeSOArray)
+        foreach (var value in CuttingRecipeSOArray)
         {
             if (value.input.name == _kitchenObjectSO.name)
             {
@@ -151,14 +151,6 @@ public class CuttingCounuter : BaseCounter, IHasPrograss
     /// <param name="_progressNormalized">归一化进度 0~1，1 表示切完</param>
     public void ApplyServerCutProgress(float _progressNormalized)
     {
-        if (!HasKitchenObject()) return;
-
-        CuttingRecipeSO recipe = GetCuttingRecipeSOWithInput(GetKitchenObject().GetKitchenObjectSO());
-        if (recipe == null) return;
-
-        // 更新本地进度（用于 UI 显示）
-        cuttingPrograss = Mathf.RoundToInt(_progressNormalized * recipe.cuttingPrograssMax);
-
         // 对其他客户端的 UI 发送进度更新事件
         OnProgressChanged?.Invoke(this, new IHasPrograss.OnPrograssChangeEventArgs
         {
@@ -167,15 +159,13 @@ public class CuttingCounuter : BaseCounter, IHasPrograss
 
         // 触发动画
         OnPlayerInteractAlternate?.Invoke();
+        
+        if (!HasKitchenObject()) return;
 
-        // 进度达到 1.0 → 切菜完成，执行物品转换
-        if (_progressNormalized >= 1f)
-        {
-            KitchenObjectSO output = GetOutputForInput(GetKitchenObject().GetKitchenObjectSO());
+        CuttingRecipeSO recipe = GetCuttingRecipeSOWithInput(GetKitchenObject().GetKitchenObjectSO());
+        if (recipe == null) return;
 
-            GetKitchenObject().DestroySlef();
-
-            KitchenObject.SpawnKitchenObject(output, this);
-        }
+        // 更新本地进度（用于 UI 显示）
+        cuttingPrograss = Mathf.RoundToInt(_progressNormalized * recipe.cuttingPrograssMax);
     }
 }

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Threading;
 using LiteGameFramework;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class NetworkManager : SingletonMono<NetworkManager>
@@ -19,7 +20,7 @@ public class NetworkManager : SingletonMono<NetworkManager>
     /// <summary> 我在当前房间中的座位号（-1=未加入房间），供后加载的场景/面板补齐初始化 </summary>
     public int MySeatId { get; private set; } = -1;
 
-    public List<PlayeInfo> RoomPlayers {get;private set;} = new List<PlayeInfo>();
+    public List<PlayeInfo> RoomPlayers { get; private set; } = new List<PlayeInfo>();
 
     /// <summary> 最近一次全量同步下发的其他玩家数据（不含自己），供错过 OnFullSync 事件的面板补齐初始化 </summary>
     public (int id, string name, float x, float y, float z, float rotY)[] FullSyncPlayers { get; private set; } = new (int, string, float, float, float, float)[0];
@@ -157,6 +158,7 @@ public class NetworkManager : SingletonMono<NetworkManager>
         }
     }
 
+    #region  玩家
     /// <summary> 上报玩家移动 </summary>
     public void SendPlayerMove(float x, float y, float z, float rotY)
     {
@@ -177,38 +179,42 @@ public class NetworkManager : SingletonMono<NetworkManager>
     {
         Send(NetworkMessage.Create_PlayerInteract(PlayerID, counterId));
     }
+    #endregion
 
     #region 操作台
     /// <summary>
     /// 上报操作台类型映射（连接后由 CountersManager 调用一次）。
     /// </summary>
-    public void SendCounterTypeMapping((int counterId, byte counterType)[] _counters)
+    public void SendCounterRegister((int counterId, byte counterType)[] _counters)
     {
         Send(NetworkMessage.Create_CounterRegister(_counters));
     }
 
-    /// <summary>
-    /// 上报交互结果（玩家手里物品 + 台子上物品）
-    /// </summary>
-    /// <param name="_counterId"></param>
-    /// <param name="_counterItemId"></param>
-    /// <param name="_playerItemId"></param>
-    public void SendCounterAddIngredient(int _counterId, int _counterItemId)
+    public void SendRegisterContainerItem(int _counterId, int _soId)
     {
-        Send(NetworkMessage.Create_CounterAddIngredient(_counterId, _counterItemId));
+        Send(NetworkMessage.Create_RegisterContainerItem(_counterId, _soId));
+    }
+
+    public void SendRegisterBoilingRecipe(int _counterId, List<BoilingRecipeSO> _boilingRecipes)
+    {
+        Send(NetworkMessage.Create_RegisterBoilingRecipes(_counterId, _boilingRecipes));
+    }
+
+    public void SendRegisterCuttingRecipes(int _counterId, List<CuttingRecipeSO> _cuttingRecipes)
+    {
+        Send(NetworkMessage.Create_RegisterCuttingRecipes(_counterId, _cuttingRecipes));
     }
 
     /// <summary>
-    /// 上报操作台状态更新（操作台ID + 最大计时时长）
-    /// 通知服务器开始计时
+    /// 提交交付请求（plateId）。服务器权威校验订单，客户端不本地校验。
     /// </summary>
-    /// <param name="_counterId">操作台网络ID</param>
-    /// <param name="_maxBoilingTimer">最大煮沸时长（秒），仅 BoilingCounter 使用</param>
-    public void SendCounterStartMark(int _counterId, float _maxBoilingTimer)
+    /// <param name="_plateId">要交付的盘子网络ID</param>
+    public void SendDeliveryRequest(int _plateId)
     {
-        Send(NetworkMessage.Create_CounterStartMark(_counterId, _maxBoilingTimer));
+        Send(NetworkMessage.Create_DeliveryRequest(_plateId));
     }
     #endregion
+
     #region 盘子
     public void SendPlateRegisterSO(int _plateId, int _plateSO)
     {
@@ -221,15 +227,6 @@ public class NetworkManager : SingletonMono<NetworkManager>
         Send(NetworkMessage.Create_RegisterPlateValidIngredients(_ingredients));
     }
     #endregion
-
-    /// <summary>
-    /// 提交交付请求（plateId）。服务器权威校验订单，客户端不本地校验。
-    /// </summary>
-    /// <param name="_plateId">要交付的盘子网络ID</param>
-    public void SendDeliveryRequest(int _plateId)
-    {
-        Send(NetworkMessage.Create_DeliveryRequest(_plateId));
-    }
 
     /// <summary>
     /// 上报配方表（连接后注册）。内容由客户端提供，订单裁决仍由服务器执行。
@@ -429,10 +426,10 @@ public class NetworkManager : SingletonMono<NetworkManager>
         #endregion
 
         #region 玩家交互
-        if(_type == MessageType.InteractionSync)
+        if (_type == MessageType.InteractionSync)
         {
-            var (counterId,counterItem,playerId,playerItem) = NetworkMessage.Parse_InteractionSync(_body);
-            EventManager.Invoke<OnInteractionSync>(new OnInteractionSync(counterId,counterItem,playerId,playerItem));
+            var (counterId, counterItem, playerId, playerItem) = NetworkMessage.Parse_InteractionSync(_body);
+            EventManager.Invoke<OnInteractionSync>(new OnInteractionSync(counterId, counterItem, playerId, playerItem));
         }
         #endregion
 
@@ -451,7 +448,7 @@ public class NetworkManager : SingletonMono<NetworkManager>
             return;
         }
 
-        if(_type == MessageType.GameOver)
+        if (_type == MessageType.GameOver)
         {
             EventManager.Invoke<GameOver>(new GameOver());
             return;
@@ -514,8 +511,14 @@ public class NetworkManager : SingletonMono<NetworkManager>
         if (_type == MessageType.CounterAddIngredient)
         {
             var (caId, ingredientIndex) = NetworkMessage.Parse_CounterAddIngredient(_body);
-            EventManager.Invoke<OnCounterExtraSync>(new OnCounterExtraSync(caId, (byte)ingredientIndex));
+            EventManager.Invoke<OnCounterIngredientSync>(new OnCounterIngredientSync(caId, ingredientIndex));
             return;
+        }
+
+        if (_type == MessageType.CounterStateSync)
+        {
+            var (counterId, state) = NetworkMessage.Parse_CounterStateSync(_body);
+            EventManager.Invoke<OnCounterStateSync>(new OnCounterStateSync(counterId, state));
         }
         #endregion
 
@@ -578,9 +581,9 @@ public class NetworkManager : SingletonMono<NetworkManager>
 
         if (_type == MessageType.RoomJoined)
         {
-            var (roomId, seatId, playerId,name) = NetworkMessage.Parse_JoinRoom(_body);
+            var (roomId, seatId, playerId, name) = NetworkMessage.Parse_JoinRoom(_body);
 
-            if(playerId == PlayerID)
+            if (playerId == PlayerID)
             {
                 MySeatId = seatId;
             }
@@ -591,7 +594,7 @@ public class NetworkManager : SingletonMono<NetworkManager>
                 YooAssetsLoad.Instance.LoadSceneAsync("GameRoom", "GameRoomScene");
             }
 
-            EventManager.Invoke<OnReceiveRoomJoined>(new OnReceiveRoomJoined(roomId, seatId,playerId, name));
+            EventManager.Invoke<OnReceiveRoomJoined>(new OnReceiveRoomJoined(roomId, seatId, playerId, name));
             return;
         }
 

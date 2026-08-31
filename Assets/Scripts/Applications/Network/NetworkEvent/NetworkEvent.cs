@@ -48,7 +48,7 @@ public struct OnInteractionSync : IEvent
     public int counterIetmId;
     public int playerId;
     public int playerHeldId;
-    public OnInteractionSync(int _counterId,int _counterItemId,int _playerId,int _playerHeldId)
+    public OnInteractionSync(int _counterId, int _counterItemId, int _playerId, int _playerHeldId)
     {
         counterId = _counterId;
         counterIetmId = _counterItemId;
@@ -89,7 +89,7 @@ public struct OnGameStartCD : IEvent
     public OnGameStartCD(float _seconds) => cdSeconds = _seconds;
 }
 
-public struct GameOver : IEvent{}
+public struct GameOver : IEvent { }
 
 #endregion
 
@@ -170,15 +170,29 @@ public struct OnCounterProgressSync : IEvent
     }
 }
 
-/// <summary> 操作台扩展数据同步（操作台ID, 物品索引） </summary>
-public struct OnCounterExtraSync : IEvent
+/// <summary>
+/// 操作台配料变化（counterId + ingredientIndex；255=清空）——煮锅配料同步用
+/// </summary>
+public struct OnCounterIngredientSync : IEvent
 {
     public int counterId;
-    public byte ingredientId;
-    public OnCounterExtraSync(int _counterId, byte _ingredientId)
+    public int ingredientIndex;
+    public OnCounterIngredientSync(int _counterId, int _ingredientIndex)
     {
         counterId = _counterId;
-        ingredientId = _ingredientId;
+        ingredientIndex = _ingredientIndex;
+    }
+}
+
+public struct OnCounterStateSync : IEvent
+{
+    public int counterId;
+    public byte state;
+
+    public OnCounterStateSync(int _counterId, byte _state)
+    {
+        counterId = _counterId;
+        state = _state;
     }
 }
 
@@ -306,7 +320,7 @@ public struct OnReceiveRoomJoined : IEvent
     /// </summary>
     public string playerName;
 
-    public OnReceiveRoomJoined(int _roomId, int _seatId,int _playerId,string _playerName)
+    public OnReceiveRoomJoined(int _roomId, int _seatId, int _playerId, string _playerName)
     {
         roomId = _roomId;
         seatId = _seatId;

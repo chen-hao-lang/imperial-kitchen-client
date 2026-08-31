@@ -47,7 +47,7 @@ public class PlateManager : MonoBehaviour
     /// </summary>
     private void OnPlateSpawned(OnPlateSpawned _arg)
     {
-        PlateCounter plateCounter = CountersManager.Instance?.GetCounter(_arg.counterId) as PlateCounter;
+        PlateCounter plateCounter = NetworkCountersManager.Instance?.GetCounter(_arg.counterId) as PlateCounter;
         if (plateCounter == null)
         {
             Debug.LogWarning($"[PlateManager] PlateSpawned：操作台 {_arg.counterId} 不是 PlateCounter");
@@ -252,7 +252,7 @@ public class PlateManager : MonoBehaviour
         }
         else // 操作台
         {
-            BaseCounter counter = CountersManager.Instance?.GetCounter(_ownerId);
+            BaseCounter counter = NetworkCountersManager.Instance?.GetCounter(_ownerId);
             if (counter == null)
             {
                 Debug.LogWarning($"[PlateManager] 操作台 {_ownerId} 未找到，无法移动盘子 {_plate.NetworkPlateId}");
@@ -322,7 +322,7 @@ public class PlateManager : MonoBehaviour
     /// <summary>服务器广播"某操作台盘子被拿走" → 该操作台视觉减少一个。</summary>
     private void OnRemotePlateRemoved(OnRemotePlateRemoved _arg)
     {
-        PlateCounter plateCounter = CountersManager.Instance?.GetCounter(_arg.counterId) as PlateCounter;
+        PlateCounter plateCounter = NetworkCountersManager.Instance?.GetCounter(_arg.counterId) as PlateCounter;
         if (plateCounter != null)
         {
             plateCounter.OnPlateRemove?.Invoke();
@@ -359,7 +359,7 @@ public class PlateManager : MonoBehaviour
 
     private void RestorePlateOnCounter((int plateId, byte ownerType, int ownerId, int soIndex, int[] ingredients) _data)
     {
-        BaseCounter counter = CountersManager.Instance?.GetCounter(_data.ownerId);
+        BaseCounter counter = NetworkCountersManager.Instance?.GetCounter(_data.ownerId);
         if (counter == null)
         {
             Debug.LogWarning($"[PlateManager] FullSync 恢复失败：找不到操作台 {_data.ownerId}");

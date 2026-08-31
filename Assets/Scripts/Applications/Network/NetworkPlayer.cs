@@ -146,7 +146,7 @@ public class NetworkPlayer : MonoBehaviour
         Debug.Log($"[NetworkPlayer] FullSync 恢复玩家{playerId} 手持盘子: ID={_plateId}");
     }
 
-    private void ApplyHeldItem(int _soIndex)
+    public void ApplyHeldItem(int _soIndex)
     {
         if (_soIndex >= 0)
         {

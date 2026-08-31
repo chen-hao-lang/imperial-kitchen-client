@@ -63,7 +63,7 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
         {
             EventManager.AddListener<OnInteractActionEvent>(this, OnInteractActionEvent);
             EventManager.AddListener<OnInteractAlternateEvent>(this, OnInteractAlternateEvent);
-            EventManager.AddListener<OnInteractionSync>(this,OnInteractionSync);
+            EventManager.AddListener<OnInteractionSync>(this, OnInteractionSync);
         }
         else// 远程玩家
         {
@@ -92,11 +92,11 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
 
     private void OnInteractionSync(OnInteractionSync _arg)
     {
-        if(_arg.playerId != PlayerId) return;
+        if (_arg.playerId != PlayerId) return;
         ApplyHeldItem(_arg.playerHeldId);
     }
 
-    private void ApplyHeldItem(int _soIndex)
+    public void ApplyHeldItem(int _soIndex)
     {
         if (_soIndex >= 0)
         {
@@ -108,8 +108,11 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
         }
 
         // 销毁旧物品
-        ClearKitchenObject();
-        
+        if (kitchenObject != null)
+        {
+            Destroy(kitchenObject.gameObject);
+            kitchenObject = null;
+        }
 
         // 生成新物品
         if (_soIndex >= 0)

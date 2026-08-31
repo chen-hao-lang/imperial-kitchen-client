@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using UnityEditor.TerrainTools;
 using UnityEngine.Rendering;
 
 /// <summary>
@@ -104,48 +105,6 @@ public static class NetworkMessage
         return Pack(MessageType.C2S_Disconnect, Array.Empty<byte>());
     }
 
-    /// <summary>
-    /// 上报交互结果：台子ID, 台子上的物品(-1=空), 玩家手上的物品(-1=空)
-    /// </summary>
-    public static byte[] Create_CounterAddIngredient(int counterId, int counterItemIndex)
-    {
-        using var ms = new MemoryStream();
-        using var writer = new BinaryWriter(ms);
-        writer.Write(counterId);
-        writer.Write(counterItemIndex);
-        return Pack(MessageType.C2S_CounterAddIngredient, ms.ToArray());
-    }
-
-    /// <summary>
-    /// 上报操作台状态变化（煮沸等进度类操作台启动时调用）。
-    /// 格式：counterId(int) + maxBoilingTimer(float)
-    /// </summary>
-    public static byte[] Create_CounterStartMark(int _counterId, float _maxBoilingTimer = 0f)
-    {
-        using var ms = new MemoryStream();
-        using var writer = new BinaryWriter(ms);
-        writer.Write(_counterId);
-        writer.Write(_maxBoilingTimer);
-        return Pack(MessageType.C2S_CounterStartMark, ms.ToArray());
-    }
-
-    /// <summary>
-    /// 上报操作台类型映射（连接后首次发送）。
-    /// 格式：counterCount(int) + [counterId(int) + counterType(byte)] * N
-    /// </summary>
-    public static byte[] Create_CounterRegister((int counterId, byte counterType)[] counters)
-    {
-        using var ms = new MemoryStream();
-        using var writer = new BinaryWriter(ms);
-        writer.Write(counters.Length);
-        foreach (var c in counters)
-        {
-            writer.Write(c.counterId);
-            writer.Write(c.counterType);
-        }
-        return Pack(MessageType.C2S_CounterRegister, ms.ToArray());
-    }
-
     #region 盘子相关
     public static byte[] Create_RegisterPlateValidIngredients(List<int> _ingredients)
     {
@@ -202,18 +161,6 @@ public static class NetworkMessage
         writer.Write(_soIndex);
         return Pack(MessageType.C2S_RegisterPlateSO, ms.ToArray());
     }
-
-    /// <summary>
-    /// 上报盘子移除配料（plateId + ingredientIndex）。
-    /// </summary>
-    // public static byte[] Create_PlateRemoveIngredient(int _plateId, int _ingredientIndex)
-    // {
-    //     using var ms = new MemoryStream();
-    //     using var writer = new BinaryWriter(ms);
-    //     writer.Write(_plateId);
-    //     writer.Write(_ingredientIndex);
-    //     return Pack(MessageType.C2S_PlateRemoveIngredient, ms.ToArray());
-    // }
     #endregion
 
     public static byte[] Create_SendMessage(int _playerId, string _message)
@@ -265,7 +212,7 @@ public static class NetworkMessage
         return (id, x, y, z, rotY);
     }
 
-    public static (int,int,int,int) Parse_InteractionSync(byte[] _data)
+    public static (int, int, int, int) Parse_InteractionSync(byte[] _data)
     {
         using var ms = new MemoryStream(_data);
         using var reader = new BinaryReader(ms);
@@ -273,7 +220,7 @@ public static class NetworkMessage
         int counterHeldItemId = reader.ReadInt32();
         int playerId = reader.ReadInt32();
         int playerItem = reader.ReadInt32();
-        return (counterId,counterHeldItemId,playerId, playerItem);
+        return (counterId, counterHeldItemId, playerId, playerItem);
     }
 
     public static byte Parse_GameStateChange(byte[] body)
@@ -394,39 +341,6 @@ public static class NetworkMessage
                 recipes[i] = reader.ReadInt32();
             }
         }
-    }
-
-    /// <summary>
-    /// 解析操作台进度同步：(操作台ID, 进度0~1)
-    /// </summary>
-    public static (int counterId, float progress) Parse_CounterProgressSync(byte[] body)
-    {
-        using var ms = new MemoryStream(body);
-        using var reader = new BinaryReader(ms);
-        int counterId = reader.ReadInt32();
-        float progress = reader.ReadSingle();
-        return (counterId, progress);
-    }
-
-    /// <summary>
-    /// 解析操作台扩展数据同步：(操作台ID, 扩展数据)
-    /// </summary>
-    public static (int counterId, byte extraData) Parse_CounterExtraSync(byte[] body)
-    {
-        using var ms = new MemoryStream(body);
-        using var reader = new BinaryReader(ms);
-        int counterId = reader.ReadInt32();
-        byte extra = reader.ReadByte();
-        return (counterId, extra);
-    }
-
-    public static (int counterId, int ingredientIndex) Parse_CounterAddIngredient(byte[] body)
-    {
-        using var ms = new MemoryStream(body);
-        using var reader = new BinaryReader(ms);
-        int counterId = reader.ReadInt32();
-        int ingredientIndex = reader.ReadInt32();
-        return (counterId, ingredientIndex);
     }
 
     public static (int counterId, int plateId) Parse_RemotePlate(byte[] body)
@@ -590,7 +504,7 @@ public static class NetworkMessage
     {
         var ms = new MemoryStream();
         var writer = new BinaryWriter(ms);
-        return Pack(MessageType.C2S_ScucessEnterGameScene,ms.ToArray());
+        return Pack(MessageType.C2S_ScucessEnterGameScene, ms.ToArray());
     }
 
     #region 解析
@@ -693,5 +607,103 @@ public static class NetworkMessage
         return roomId;
     }
     #endregion
+    #endregion
+
+    #region 操作台
+    /// <summary>
+    /// 上报操作台类型映射（连接后首次发送）。
+    /// 格式：counterCount(int) + [counterId(int) + counterType(byte)] * N
+    /// </summary>
+    public static byte[] Create_CounterRegister((int counterId, byte counterType)[] counters)
+    {
+        using var ms = new MemoryStream();
+        using var writer = new BinaryWriter(ms);
+        writer.Write(counters.Length);
+        foreach (var c in counters)
+        {
+            writer.Write(c.counterId);
+            writer.Write(c.counterType);
+        }
+        return Pack(MessageType.C2S_CounterRegister, ms.ToArray());
+    }
+
+    /// <summary>
+    /// 上报操作台状态变化（煮沸等进度类操作台启动时调用）。
+    /// 格式：counterId(int) + maxBoilingTimer(float)
+    /// </summary>
+    public static byte[] Create_RegisterContainerItem(int _counterId, int _soId)
+    {
+        using var ms = new MemoryStream();
+        using var writer = new BinaryWriter(ms);
+        writer.Write(_counterId);
+        writer.Write(_soId);
+        return Pack(MessageType.C2S_RegisterContainerItem, ms.ToArray());
+    }
+
+    public static byte[] Create_RegisterCuttingRecipes(int _counterId, List<CuttingRecipeSO> _cuttingRecipes)
+    {
+        var ms = new MemoryStream();
+        var writer = new BinaryWriter(ms);
+        writer.Write(_counterId);
+        int count = _cuttingRecipes.Count;
+        writer.Write(count);
+        foreach (var recipe in _cuttingRecipes)
+        {
+            writer.Write(KitchenObjectRegistry.Instance.GetIndexBySO(recipe.input));
+            writer.Write(KitchenObjectRegistry.Instance.GetIndexBySO(recipe.output));
+            writer.Write(recipe.cuttingPrograssMax);
+        }
+        return Pack(MessageType.C2S_RegisterCuttingRecipes, ms.ToArray());
+    }
+
+    public static byte[] Create_RegisterBoilingRecipes(int _counterId, List<BoilingRecipeSO> _boilingRecipes)
+    {
+        var ms = new MemoryStream();
+        var writer = new BinaryWriter(ms);
+        writer.Write(_counterId);
+        int count = _boilingRecipes.Count;
+        writer.Write(count);
+        foreach (var recipe in _boilingRecipes)
+        {
+            writer.Write(recipe.inputs.Count);
+            foreach (var input in recipe.inputs)
+            {
+                writer.Write(KitchenObjectRegistry.Instance.GetIndexBySO(input));
+            }
+            writer.Write(KitchenObjectRegistry.Instance.GetIndexBySO(recipe.output));
+            writer.Write(recipe.maxBoilingTimer);
+        }
+        return Pack(MessageType.C2S_RegisterBoilingRecipes, ms.ToArray());
+    }
+
+    /// <summary>
+    /// 解析操作台进度同步：(操作台ID, 进度0~1)
+    /// </summary>
+    public static (int counterId, float progress) Parse_CounterProgressSync(byte[] _data)
+    {
+        using var ms = new MemoryStream(_data);
+        using var reader = new BinaryReader(ms);
+        int counterId = reader.ReadInt32();
+        float progress = reader.ReadSingle();
+        return (counterId, progress);
+    }
+
+    public static (int counterId, int ingredientIndex) Parse_CounterAddIngredient(byte[] _data)
+    {
+        using var ms = new MemoryStream(_data);
+        using var reader = new BinaryReader(ms);
+        int counterId = reader.ReadInt32();
+        int ingredientIndex = reader.ReadInt32();
+        return (counterId, ingredientIndex);
+    }
+
+    public static (int,byte) Parse_CounterStateSync(byte[] _data)
+    {
+        using var ms = new MemoryStream(_data);
+        using var reader = new BinaryReader(ms);
+        int counterId = reader.ReadInt32();
+        byte counterState = reader.ReadByte();
+        return (counterId, counterState);
+    }
     #endregion
 }
