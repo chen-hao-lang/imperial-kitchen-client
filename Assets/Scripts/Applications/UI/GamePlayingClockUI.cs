@@ -1,6 +1,7 @@
 using LiteGameFramework;
 using UnityEngine;
 using UnityEngine.UI;
+using DG.Tweening;
 
 public class GamePlayingClockUI : BasePanel
 {
@@ -37,8 +38,10 @@ public class GamePlayingClockUI : BasePanel
     private void OnNetworkTimerSync(GameingTimerSync _arg)
     {
         float max = KitchenGameManager.Instance.GamePlayingTimerMax;
-        float fillAmount = 1f - (_arg.remainingSeconds / max);
-        timerImage.fillAmount = fillAmount;
+        float fillAmount = _arg.remainingSeconds / max;
+        // 先停止上一次未完成的补间，再平滑过渡到最新值，避免多次同步叠加抖动
+        timerImage.DOKill();
+        timerImage.DOFillAmount(fillAmount, 0.9f).SetEase(Ease.Linear);
     }
 
     private void UpdateTimerImage(float obj)

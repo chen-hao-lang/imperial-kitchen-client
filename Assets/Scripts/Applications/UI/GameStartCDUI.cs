@@ -14,6 +14,7 @@ public class GameStartCDUI : BasePanel
         base.LoadPanel();
 
         animator = GetComponent<Animator>();
+        cdText.gameObject.SetActive(false);
     }
 
     public override void OnAddListener()
@@ -56,9 +57,11 @@ public class GameStartCDUI : BasePanel
         if (_state == EGameState.CDToStart)
         {
             OpenPanel();
+            cdText.gameObject.SetActive(true);
         }
         else
         {
+            cdText.gameObject.SetActive(false);
             HidePanel();
         }
     }
@@ -71,6 +74,7 @@ public class GameStartCDUI : BasePanel
         if (previousCDNumber != cdNumber)
         {
             previousCDNumber = cdNumber;
+            // animator.ResetTrigger("Play");
             animator.SetTrigger("Play");
     
             //TODO: play sound
