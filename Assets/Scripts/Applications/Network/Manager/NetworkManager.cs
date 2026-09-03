@@ -205,6 +205,12 @@ public class NetworkManager : SingletonMono<NetworkManager>
         Send(NetworkMessage.Create_RegisterCuttingRecipes(_counterId, _cuttingRecipes));
     }
 
+    public void SendRegisterPlateSpawnId(int _counterId, KitchenObjectSO _plateSO)
+    {
+        int plateId = KitchenObjectRegistry.Instance.GetIndexBySO(_plateSO);
+        Send(NetworkMessage.Create_RegisterPlateSpawnId(_counterId, plateId));
+    }
+
     /// <summary>
     /// 提交交付请求（plateId）。服务器权威校验订单，客户端不本地校验。
     /// </summary>
@@ -219,12 +225,6 @@ public class NetworkManager : SingletonMono<NetworkManager>
     public void SendPlateRegisterSO(int _plateId, int _plateSO)
     {
         Send(NetworkMessage.Create_RegisterPlate(_plateId, _plateSO));
-    }
-
-    //TODO:
-    public void SendRegisterPlateValidIngredients(List<int> _ingredients)
-    {
-        Send(NetworkMessage.Create_RegisterPlateValidIngredients(_ingredients));
     }
     #endregion
 
@@ -311,9 +311,9 @@ public class NetworkManager : SingletonMono<NetworkManager>
     /// <summary>
     /// 上报开始游戏
     /// </summary>
-    public void SendStartGame()
+    public void SendRequestEnterGameScene()
     {
-        Send(NetworkMessage.Create_StartGame(RoomId));
+        Send(NetworkMessage.Create_RequestEnterGameScene(RoomId));
     }
     #endregion
     #endregion
@@ -488,7 +488,6 @@ public class NetworkManager : SingletonMono<NetworkManager>
             FullSyncRecipes = recipes;
             EventManager.Invoke<OnFullSync>(new OnFullSync(players, counters));
             EventManager.Invoke<OnRecipeFullSync>(new OnRecipeFullSync(recipes));
-            PlateManager.Instance?.RestorePlatesFromFullSync(plates);
             return;
         }
         #endregion

@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 
 public class PlateCounter : BaseCounter
@@ -8,22 +7,15 @@ public class PlateCounter : BaseCounter
     /// <summary>盘子的 SO（供 PlateManager 池化生成用）</summary>
     public KitchenObjectSO PlateKitchenObjectSO => plateKitchenObjectSO;
 
-    public Action OnPlateSpawned;
-    public Action OnPlateRemove;
-
     public override void Interact(PlayerController _player)
     {
-        // 网络模式
-        if(NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
+        // 网络模式：服务器权威分配盘子，客户端只发交互意图（PlayerController.DoInteract 已处理）
+        if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
         {
             return;
         }
 
-        // 单机模式
-        // 玩家空手时，由 PlateManager 从池中分配一个盘子
-        if (!_player.HasKitchenObject())
-        {
-            PlateManager.Instance?.GivePlateToPlayer(this, _player);
-        }
+        // 单机模式：盘子实体由服务器（PlateOwnerSync）驱动生成，本地不再直接分配
+        // TODO: 如需单机模式，可在此直接生成一个空盘子挂到玩家手上
     }
 }

@@ -199,6 +199,33 @@ public struct OnCounterStateSync : IEvent
 #endregion
 
 #region 盘子事件
+/// <summary> 
+/// 新盘子生成（counterId, plateId） 
+/// </summary>
+public struct OnPlateSpawned : IEvent
+{
+    public int counterId;
+    public int plateId;
+    public OnPlateSpawned(int _counterId, int _plateId)
+    {
+        counterId = _counterId;
+        plateId = _plateId;
+    }
+}
+
+/// <summary> 
+/// 操作台上的盘子被拿走（counterId, plateId） 
+/// </summary>
+public struct OnRemotePlateRemoved : IEvent
+{
+    public int counterId;
+    public int plateId;
+    public OnRemotePlateRemoved(int _counterId, int _plateId)
+    {
+        counterId = _counterId;
+        plateId = _plateId;
+    }
+}
 
 /// <summary> 盘子配料添加（plateId, ingredientIndex） </summary>
 public struct OnPlateIngredientSync : IEvent
@@ -224,18 +251,6 @@ public struct OnPlateIngredientRemoved : IEvent
     }
 }
 
-/// <summary> 新盘子生成（counterId, plateId） </summary>
-public struct OnPlateSpawned : IEvent
-{
-    public int counterId;
-    public int plateId;
-    public OnPlateSpawned(int _counterId, int _plateId)
-    {
-        counterId = _counterId;
-        plateId = _plateId;
-    }
-}
-
 /// <summary> 盘子持有者变更（plateId, ownerType, ownerId, ingredients） </summary>
 public struct OnPlateOwnerSync : IEvent
 {
@@ -258,19 +273,6 @@ public struct OnPlateDestroy : IEvent
     public int plateId;
     public OnPlateDestroy(int _plateId) => plateId = _plateId;
 }
-
-/// <summary> 操作台上的盘子被拿走（counterId, plateId） </summary>
-public struct OnRemotePlateRemoved : IEvent
-{
-    public int counterId;
-    public int plateId;
-    public OnRemotePlateRemoved(int _counterId, int _plateId)
-    {
-        counterId = _counterId;
-        plateId = _plateId;
-    }
-}
-
 #endregion
 
 #region 聊天事件

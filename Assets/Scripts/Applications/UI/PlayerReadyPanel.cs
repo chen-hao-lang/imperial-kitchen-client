@@ -105,6 +105,6 @@ public class PlayerReadyPanel : BasePanel
     private void OnStartGameBtnOnClick()
     {
         // 上报请求开始游戏
-        NetworkManager.Instance.SendStartGame();
+        NetworkManager.Instance.SendRequestEnterGameScene();
     }
 }

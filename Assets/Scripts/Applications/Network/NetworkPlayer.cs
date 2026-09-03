@@ -2,7 +2,7 @@ using System;
 using LiteGameFramework;
 using UnityEngine;
 
-public class NetworkPlayer : MonoBehaviour
+public class NetworkPlayer : MonoBehaviour, IKitchenObjectParent
 {
     [SerializeField] private float positionLerpSpeed = 15f;
     [SerializeField] private float rotationLerpSpeed = 20f;
@@ -76,7 +76,8 @@ public class NetworkPlayer : MonoBehaviour
 
     /// <summary>
     /// 把指定的盘子挂到远程玩家手上（由 PlateManager.OnPlateOwnerSync 调用）。
-    /// 盘子是唯一实体，这里只负责移动和登记，不重新生成。
+    /// 远程玩家 Prefab 没有 PlayerController，NetworkPlayer 自身实现 IKitchenObjectParent，
+    /// 以自身作为盘子的持有者（挂点为 kitchenObjectHoldPoint）。
     /// </summary>
     public void AttachHeldPlate(PlateKitchenObject _plate)
     {
@@ -90,14 +91,12 @@ public class NetworkPlayer : MonoBehaviour
         // 如果盘子还没挂到这个玩家身上，则移动它（抑制回声）
         if (heldKitchenObject != _plate)
         {
-            _plate.gameObject.SetActive(true);   // 池化盘子是失活的，挂上玩家前激活
+            _plate.gameObject.SetActive(true);   // 盘子实体挂到玩家手上前激活
             _plate.SuppressOwnerSync = true;
-            _plate.SetKitchenObjectParent(GetComponent<PlayerController>());
+            _plate.SetKitchenObjectParent(this);
             _plate.SuppressOwnerSync = false;
             heldKitchenObject = _plate;
         }
-
-        PlateManager.Instance?.RegisterPlayerHeldPlate(playerId, _plate);
     }
 
     /// <summary>
@@ -109,45 +108,27 @@ public class NetworkPlayer : MonoBehaviour
         {
             heldKitchenObject = null;
         }
-        PlateManager.Instance?.UnregisterPlayerHeldPlate(playerId, _plate);
     }
 
-    /// <summary>
-    /// 在远程玩家手上生成指定ID的盘子（FullSync 恢复用）。
-    /// 与 ApplyHeldItem 不同：直接指定 NetworkPlateId，不需要等待 PlateOwnerSync。
-    /// </summary>
-    public void RestoreHeldPlate(int _plateId, int _soIndex)
-    {
-        // 销毁旧物品
-        if (heldKitchenObject != null)
-        {
-            if (heldKitchenObject.TryGetPlate(out PlateKitchenObject oldPlate))
-            {
-                PlateManager.Instance?.UnregisterPlayerHeldPlate(playerId, oldPlate);
-            }
+    #region IKitchenObjectParent（远程玩家自身作为盘子持有者）
 
-            Destroy(heldKitchenObject.gameObject);
-            heldKitchenObject = null;
-        }
+    public Transform GetKitchenObjectFollowTransform() => kitchenObjectHoldPoint;
 
-        KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetByIndex(_soIndex);
-        if (so == null) return;
+    public void SetKitchenObject(KitchenObject kitchenObject) => heldKitchenObject = kitchenObject;
 
-        Transform kitchenObjectTransform = Instantiate(so.prefab, kitchenObjectHoldPoint);
-        kitchenObjectTransform.localPosition = Vector3.zero;
-        heldKitchenObject = kitchenObjectTransform.GetComponent<KitchenObject>();
+    public KitchenObject GetKitchenObject() => heldKitchenObject;
 
-        if (heldKitchenObject.TryGetPlate(out PlateKitchenObject plate))
-        {
-            plate.SetNetworkId(_plateId);
-            PlateManager.Instance?.RegisterPlayerHeldPlate(playerId, plate);
-        }
+    public void ClearKitchenObject() => heldKitchenObject = null;
 
-        Debug.Log($"[NetworkPlayer] FullSync 恢复玩家{playerId} 手持盘子: ID={_plateId}");
-    }
+    public bool HasKitchenObject() => heldKitchenObject != null;
+
+    #endregion
 
     public void ApplyHeldItem(int _soIndex)
     {
+        // 盘子实体由 PlateManager 统一管理，这里只处理普通物品：
+        // 1) 不下发正索引的盘子（避免重复生成）
+        // 2) 不清空/不销毁当前手持的盘子（其生命周期由 PlateManager 负责）
         if (_soIndex >= 0)
         {
             KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetByIndex(_soIndex);
@@ -157,8 +138,8 @@ public class NetworkPlayer : MonoBehaviour
             }
         }
 
-        // 销毁旧物品
-        if (heldKitchenObject != null)
+        // 销毁旧物品（盘子除外）
+        if (heldKitchenObject != null && !heldKitchenObject.TryGetPlate(out _))
         {
             Destroy(heldKitchenObject.gameObject);
             heldKitchenObject = null;

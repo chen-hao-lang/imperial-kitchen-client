@@ -9,7 +9,7 @@ public class CuttingCounuter : BaseCounter, IHasPrograss
     /// <summary>
     /// 可以切的食物列表
     /// </summary>
-    [SerializeField] public List<CuttingRecipeSO> CuttingRecipeSOArray{get;private set;}
+    [SerializeField] private List<CuttingRecipeSO> cuttingRecipeSOArray;
 
     private int cuttingPrograss;
 
@@ -114,6 +114,11 @@ public class CuttingCounuter : BaseCounter, IHasPrograss
         }
     }
 
+    public List<CuttingRecipeSO> GetCuttingRecipeSOs()
+    {
+        return cuttingRecipeSOArray;
+    }
+
     private KitchenObjectSO GetOutputForInput(KitchenObjectSO _kitchenObjectSO)
     {
         CuttingRecipeSO cuttingRecipeSO = GetCuttingRecipeSOWithInput(_kitchenObjectSO);
@@ -133,7 +138,7 @@ public class CuttingCounuter : BaseCounter, IHasPrograss
     /// <returns></returns>
     private CuttingRecipeSO GetCuttingRecipeSOWithInput(KitchenObjectSO _kitchenObjectSO)
     {
-        foreach (var value in CuttingRecipeSOArray)
+        foreach (var value in cuttingRecipeSOArray)
         {
             if (value.input.name == _kitchenObjectSO.name)
             {

@@ -98,6 +98,9 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
 
     public void ApplyHeldItem(int _soIndex)
     {
+        // 盘子实体由 PlateManager 统一管理，这里只处理普通物品：
+        // 1) 不下发正索引的盘子（避免重复生成）
+        // 2) 不清空/不销毁当前手持的盘子（其生命周期由 PlateManager 负责）
         if (_soIndex >= 0)
         {
             KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetByIndex(_soIndex);
@@ -107,8 +110,8 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
             }
         }
 
-        // 销毁旧物品
-        if (kitchenObject != null)
+        // 销毁旧物品（盘子除外）
+        if (kitchenObject != null && !kitchenObject.TryGetPlate(out _))
         {
             Destroy(kitchenObject.gameObject);
             kitchenObject = null;
@@ -124,7 +127,7 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
                 kitchenObjectTransform.localPosition = Vector3.zero;
                 kitchenObject = kitchenObjectTransform.GetComponent<KitchenObject>();
 
-                Debug.Log($"[NetworkPlayer] 玩家{PlayerId} 手持: {so.name}");
+                Debug.Log($"[PlayerController] 玩家{PlayerId} 手持: {so.name}");
             }
         }
     }

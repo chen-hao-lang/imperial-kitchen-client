@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using LiteGameFramework;
 using UnityEngine;
 
 public class PlateCounterVisual : MonoBehaviour
@@ -7,39 +8,44 @@ public class PlateCounterVisual : MonoBehaviour
     [SerializeField] private Transform counterTopPoint;
     [SerializeField] private Transform plateVisualPrefab;
 
-    private Stack<GameObject> plateVisualGameObjectStack;   
+    private Stack<GameObject> plateVisualGameObjectStack;
 
     void Awake()
     {
         plateVisualGameObjectStack = new Stack<GameObject>();
     }
 
-    // Start is called before the first frame update
-    void Start()
+    void OnEnable()
     {
-        plateCounter.OnPlateSpawned += PlateCounter_OnPlateSpawned;
-        plateCounter.OnPlateRemove += PlateCounter_OnPlateRemoved;
+        EventManager.AddListener<OnPlateSpawned>(this, PlateCounter_OnPlateSpawned);
+        EventManager.AddListener<OnRemotePlateRemoved>(this, PlateCounter_OnPlateRemoved);
     }
 
-    void OnDestroy()
+    void OnDisable()
     {
-        plateCounter.OnPlateSpawned -= PlateCounter_OnPlateSpawned;
-        plateCounter.OnPlateRemove -= PlateCounter_OnPlateRemoved;
+        if (NetworkManager.Instance != null)
+            EventManager.RemoveAllListener(this);
     }
 
-    private void PlateCounter_OnPlateRemoved()
+    private void PlateCounter_OnPlateRemoved(OnRemotePlateRemoved _arg)
     {
+        if(plateCounter.NetworkCounterId != _arg.counterId)
+            return;
+
         GameObject plateGameobject = plateVisualGameObjectStack.Pop();
-        Destroy(plateGameobject);   
+        Destroy(plateGameobject);
     }
 
-    private void PlateCounter_OnPlateSpawned()
+    private void PlateCounter_OnPlateSpawned(OnPlateSpawned _arg)
     {
-        Transform plateVisualTransform = Instantiate(plateVisualPrefab, counterTopPoint); 
+        if(plateCounter.NetworkCounterId != _arg.counterId)
+            return;
+            
+        Transform plateVisualTransform = Instantiate(plateVisualPrefab, counterTopPoint);
 
         float plateOffsetY = 0.1f;
         plateVisualTransform.localPosition = new Vector3(0, plateOffsetY * plateVisualGameObjectStack.Count, 0);
 
-        plateVisualGameObjectStack.Push(plateVisualTransform.gameObject);   
+        plateVisualGameObjectStack.Push(plateVisualTransform.gameObject);
     }
 }

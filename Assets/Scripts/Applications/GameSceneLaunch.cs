@@ -15,6 +15,9 @@ public class GameSceneLaunch : MonoBehaviour
     {
         if(NetworkManager.Instance.isRoomOwner)
         {
+            // 先注册，在开始
+            NetworkCountersManager.Instance.RegisterAllCounters();
+            
             NetworkManager.Instance.SendSucessEnterGameScene();
         }
         

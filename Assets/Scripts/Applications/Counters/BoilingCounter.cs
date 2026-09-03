@@ -15,7 +15,7 @@ public class BoilingCounter : BaseCounter, IHasPrograss
     /// <summary>
     /// 该操作台能制作的菜单
     /// </summary>
-    [SerializeField] public BoilingRecipeSO[] BoilingRecipeSOArray { get; private set; }
+    [SerializeField] private List<BoilingRecipeSO> BoilingRecipeSOArray;
 
     private float boilingTimer;
     private bool isBoiling;
@@ -45,6 +45,11 @@ public class BoilingCounter : BaseCounter, IHasPrograss
         AddKitchenObjectInCurrectMap();
     }
 
+    /// <summary>
+    /// 【单机专用】本地煮沸模拟：计时 → 完成时本地生成成品。
+    /// 联网（服务器权威）下被 IsNetworkMode 守卫跳过，煮沸的计时/完成/产出由服务器
+    /// CounterProgressSync / CounterStateSync / InteractionSync 消息驱动。
+    /// </summary>
     private void FixedUpdate()
     {
         if (IsNetworkMode) return;
@@ -73,6 +78,12 @@ public class BoilingCounter : BaseCounter, IHasPrograss
         }
     }
 
+    /// <summary>
+    /// 【单机专用】本地交互逻辑（加料 / 开始煮 / 装盘）。
+    /// 联网下此方法不会被调用：PlayerController.DoInteract 只发送 C2S_PlayerInteract 意图，
+    /// 由服务器 HandleBoilingCounterInteract 权威裁决后通过 CounterAddIngredient /
+    /// CounterStateSync / InteractionSync 消息回放；此处 IsConnected 守卫仅为双保险。
+    /// </summary>
     public override void Interact(PlayerController _player)
     {
         if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
@@ -89,8 +100,7 @@ public class BoilingCounter : BaseCounter, IHasPrograss
                 //如果玩家手里拿的是盘子
                 if (_player.GetKitchenObject().TryGetPlate(out PlateKitchenObject plate))
                 {
-                    //TODO:List是引用类型，直接传递过去会导致操作台和盘子共用同一个List，修改一个会影响另一个。需要复制一份新的List。
-                    //查看这个盘子里有什么配料
+                    //查看这个盘子里有什么配料（拷贝一份，避免与盘子内部 List 共用引用）
                     List<KitchenObjectSO> plateIngredients = new List<KitchenObjectSO>(plate.GetKitchenObjectSOList());
 
                     //如果这个盘子里有配料，放到操作台上
@@ -101,15 +111,8 @@ public class BoilingCounter : BaseCounter, IHasPrograss
                             //检查操作台上是否已存在这个配料
                             if (TryAddIngredients(ingredient))
                             {
-                                // ★ 从盘子里移除配料：网络模式走 PlateManager 同步到服务器/其他客户端
-                                if (IsNetworkMode)
-                                {
-                                    PlateManager.Instance?.PlateRemoveIngredient(plate, ingredient);
-                                }
-                                else
-                                {
-                                    plate.RemoveIngredient(ingredient);
-                                }
+                                // 从盘子里移除该配料（单机逻辑；联网时本地 Interact 不会被调用）
+                                plate.RemoveIngredient(ingredient);
 
                                 // 触发交互事件
                                 OnInteracted?.Invoke(new OnInteractedEventArgs { kitchenObjectSO = ingredient });
@@ -146,14 +149,8 @@ public class BoilingCounter : BaseCounter, IHasPrograss
             {
                 if (_player.GetKitchenObject().TryGetPlate(out PlateKitchenObject plate))
                 {
-                    if (IsNetworkMode)
-                    {
-                        PlateManager.Instance.PlateAddIngredient(plate, GetKitchenObject().GetKitchenObjectSO());
-                    }
-                    else
-                    {
-                        plate.TryAddIngredient(GetKitchenObject().GetKitchenObjectSO());
-                    }
+                    // 把成品装进盘子（单机逻辑；联网时由服务器权威处理）
+                    plate.TryAddIngredient(GetKitchenObject().GetKitchenObjectSO());
 
                     GetKitchenObject().DestroySlef();
 
@@ -166,8 +163,14 @@ public class BoilingCounter : BaseCounter, IHasPrograss
         }
     }
 
+    public List<BoilingRecipeSO> GetBoilingRecipeSOs()
+    {
+        return BoilingRecipeSOArray;
+    }
+
     /// <summary>
-    /// 查看当前操作台上的配料是否满足某个配方的要求，如果满足则开始制作这个配方
+    /// 【单机专用】查看当前操作台上的配料是否满足某个配方的要求，如果满足则开始制作这个配方。
+    /// 联网下由服务器 TryStartBoiling 权威匹配并广播 CounterStateSync(2)，客户端不执行此方法。
     /// </summary>
     public void TryStartRecipeIfPossible()
     {
@@ -183,9 +186,6 @@ public class BoilingCounter : BaseCounter, IHasPrograss
                 boilingTimer = 0f;
 
                 isBoiling = true;
-
-                // 通知服务器开始计时（携带该配方的最大煮沸时长）
-                // NetworkCountersManager.Instance?.SendCounterStartMark(NetworkCounterId, activeRecipe.maxBoilingTimer);
 
                 return;
             }
@@ -267,32 +267,39 @@ public class BoilingCounter : BaseCounter, IHasPrograss
         return false;
     }
 
+    /// <summary>
+    /// 【网络】服务器广播 CounterStateSync 时驱动煮锅状态机（0=空闲 / 2=煮食中 / 3=煮食完成）。
+    /// 单机模式的煮沸流程走 FixedUpdate 本地模拟，不走此方法。
+    /// </summary>
     public void OnBoilingStateChanged(byte _state)
     {
-        if (_state == 1)
+        switch (_state)
         {
-            activeRecipe = GetMatchingRecipe();   // 本地按当前配料匹配，仅展示
-            isBoiling = true;
-            boilingTimer = 0f;
-            OnProgressChanged?.Invoke(this, new IHasPrograss.OnPrograssChangeEventArgs { prograssNormalized = 0f });
+            case 0:
+                Debug.Log($"[BoilingCounter] 煮锅状态：空闲");
+                OnPlateCompleted?.Invoke();
+                break;
+            case 1:
+                Debug.Log($"[BoilingCounter] 煮锅状态：准备煮食");
+                break;
+            case 2:
+                Debug.Log($"[BoilingCounter] 煮锅状态：煮食中");
+                isBoiling = true;
+                boilingTimer = 0f;
+                OnProgressChanged?.Invoke(this, new IHasPrograss.OnPrograssChangeEventArgs { prograssNormalized = 0f });
+                break;
+            case 3:
+                Debug.Log($"[BoilingCounter] 煮锅状态：煮食完成");
+                activeRecipe = null;
+                isBoiling = false;
+                boilingTimer = 0f;
+                OnProgressChanged?.Invoke(this, new IHasPrograss.OnPrograssChangeEventArgs { prograssNormalized = 0f });
+                OnBoilingCompleted?.Invoke();
+                break;
+            default:
+                Debug.LogWarning($"[BoilingCounter] 煮锅状态：未知（{_state}）");
+                break;
         }
-        else
-        {
-            activeRecipe = null;
-            isBoiling = false;
-            boilingTimer = 0f;
-            OnProgressChanged?.Invoke(this, new IHasPrograss.OnPrograssChangeEventArgs { prograssNormalized = 0f });
-        }
-    }
-
-    private BoilingRecipeSO? GetMatchingRecipe()
-    {
-        List<KitchenObjectSO> currentIngredients = new List<KitchenObjectSO>(ingredients);
-        foreach (var recipe in BoilingRecipeSOArray)
-        {
-            if (IsMatch(recipe.inputs, currentIngredients)) return recipe;
-        }
-        return null;
     }
 
     /// <summary>
@@ -315,7 +322,8 @@ public class BoilingCounter : BaseCounter, IHasPrograss
     }
 
     /// <summary>
-    /// 由服务器下发煮食进度时调用（ItemSyncManager 触发）。
+    /// 【网络】服务器下发煮食进度（CounterProgressSync）时调用，仅用于更新进度条 UI。
+    /// 联网下煮沸的计时/完成由服务器权威驱动，本地无需按进度折算 boilingTimer。
     /// </summary>
     /// <param name="_progressNormalized"></param>
     public void ApplyServerBoilingProgress(float _progressNormalized)
@@ -324,10 +332,6 @@ public class BoilingCounter : BaseCounter, IHasPrograss
         {
             prograssNormalized = _progressNormalized
         });
-
-        if(activeRecipe == null) return;
-        // 更新本地进度（用于 UI 显示）
-        boilingTimer = _progressNormalized * activeRecipe.maxBoilingTimer;
     }
 
     public void ClearCounter()

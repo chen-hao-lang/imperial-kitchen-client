@@ -39,16 +39,6 @@ public class NetworkCountersManager : SingletonMono<NetworkCountersManager>
         }
     }
 
-    // Start is called before the first frame update
-    void Start()
-    {
-        // 如果已经处于连接状态（如切换场景后重连），立即发送
-        if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
-        {
-            OnConnectedToServer();
-        }
-    }
-
     void OnEnable()
     {
         EventManager.AddListener<OnInteractionSync>(this, OnInteractionSync);
@@ -106,13 +96,17 @@ public class NetworkCountersManager : SingletonMono<NetworkCountersManager>
     private void OnCounterStateSync(OnCounterStateSync _arg)
     {
         if (!counterMap.TryGetValue(_arg.counterId, out var counter)) return;
+
+        // 如果是煮锅
         if (counter is BoilingCounter boilingCounter)
         {
             boilingCounter.OnBoilingStateChanged(_arg.state);
         }
     }
 
-    /// <summary>★ 新增：煮锅配料变化 → BoilingCounter</summary>
+    /// <summary>
+    /// 煮锅配料变化 → BoilingCounter
+    /// </summary>
     private void OnCounterIngredientSync(OnCounterIngredientSync _arg)
     {
         if (!counterMap.TryGetValue(_arg.counterId, out var counter)) return;
@@ -126,7 +120,7 @@ public class NetworkCountersManager : SingletonMono<NetworkCountersManager>
     /// <summary>
     /// 连接服务器成功后，上报所有操作台的类型映射。
     /// </summary>
-    private void OnConnectedToServer()
+    public void RegisterAllCounters()
     {
         if (counterTypeMapping == null || counterTypeMapping.Length == 0) return;
 
@@ -145,13 +139,19 @@ public class NetworkCountersManager : SingletonMono<NetworkCountersManager>
 
             if (counter.CounterType == (byte)CounterType.BoilingCounter)
             {
-                NetworkManager.Instance.SendRegisterBoilingRecipe(counter.NetworkCounterId, (counter as BoilingCounter).BoilingRecipeSOArray.ToList());
+                NetworkManager.Instance.SendRegisterBoilingRecipe(counter.NetworkCounterId, (counter as BoilingCounter).GetBoilingRecipeSOs());
                 continue;
             }
 
             if (counter.CounterType == (byte)CounterType.CuttingCounter)
             {
-                NetworkManager.Instance.SendRegisterCuttingRecipes(counter.NetworkCounterId, (counter as CuttingCounuter).CuttingRecipeSOArray);
+                NetworkManager.Instance.SendRegisterCuttingRecipes(counter.NetworkCounterId, (counter as CuttingCounuter).GetCuttingRecipeSOs());
+                continue;
+            }
+
+            if(counter.CounterType == (byte)CounterType.PlateCounter)
+            {
+                NetworkManager.Instance.SendRegisterPlateSpawnId(counter.NetworkCounterId,(counter as PlateCounter).PlateKitchenObjectSO);
                 continue;
             }
         }

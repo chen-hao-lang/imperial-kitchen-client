@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using UnityEditor.TerrainTools;
-using UnityEngine.Rendering;
 
 /// <summary>
 /// 客户端网络消息工具类。
@@ -488,12 +486,12 @@ public static class NetworkMessage
         return Pack(MessageType.C2S_RequestRoomList, ms.ToArray());
     }
 
-    public static byte[] Create_StartGame(int _roomId)
+    public static byte[] Create_RequestEnterGameScene(int _roomId)
     {
         var ms = new MemoryStream();
         var writer = new BinaryWriter(ms);
         writer.Write(_roomId);
-        return Pack(MessageType.C2S_StartGame, ms.ToArray());
+        return Pack(MessageType.C2S_RequestEnterGameScene, ms.ToArray());
     }
 
     /// <summary>
@@ -676,6 +674,15 @@ public static class NetworkMessage
         return Pack(MessageType.C2S_RegisterBoilingRecipes, ms.ToArray());
     }
 
+    public static byte[] Create_RegisterPlateSpawnId(int _counterId, int _plateId)
+    {
+        var ms = new MemoryStream();
+        var writer = new BinaryWriter(ms);
+        writer.Write(_counterId);
+        writer.Write(_plateId);
+        return Pack(MessageType.C2S_RegisterPlateSpawnId, ms.ToArray());
+    }
+
     /// <summary>
     /// 解析操作台进度同步：(操作台ID, 进度0~1)
     /// </summary>
@@ -697,7 +704,7 @@ public static class NetworkMessage
         return (counterId, ingredientIndex);
     }
 
-    public static (int,byte) Parse_CounterStateSync(byte[] _data)
+    public static (int, byte) Parse_CounterStateSync(byte[] _data)
     {
         using var ms = new MemoryStream(_data);
         using var reader = new BinaryReader(ms);
