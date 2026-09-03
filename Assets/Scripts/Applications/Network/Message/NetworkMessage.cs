@@ -368,13 +368,14 @@ public static class NetworkMessage
     /// </summary>
     /// <param name="body"></param>
     /// <returns></returns>
-    public static (int plateId, byte ownerType, int ownerId, List<int> plateCurrentIngredients) Parse_PlateOwnerSync(byte[] body)
+    public static (int plateId, byte ownerType, int ownerId, int plateKitchenObjectId, List<int> plateCurrentIngredients) Parse_PlateOwnerSync(byte[] body)
     {
         using var ms = new MemoryStream(body);
         using var reader = new BinaryReader(ms);
         int plateId = reader.ReadInt32();
         byte ownerType = reader.ReadByte();
         int ownerId = reader.ReadInt32();
+        int plateKitchenObjectId = reader.ReadInt32();
         int count = reader.ReadInt32();
         List<int> plateCurrentIngredients = new List<int>();
         while (count > 0)
@@ -382,7 +383,7 @@ public static class NetworkMessage
             plateCurrentIngredients.Add(reader.ReadInt32());
             count--;
         }
-        return (plateId, ownerType, ownerId, plateCurrentIngredients);
+        return (plateId, ownerType, ownerId, plateKitchenObjectId,plateCurrentIngredients);
     }
 
     /// <summary>

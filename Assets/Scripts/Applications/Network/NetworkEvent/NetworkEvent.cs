@@ -257,12 +257,14 @@ public struct OnPlateOwnerSync : IEvent
     public int plateId;
     public int ownerType;
     public int ownerId;
+    public int plateKitchenObjectId;
     public List<int> ingredients;
-    public OnPlateOwnerSync(int _plateId, int _ownerType, int _ownerId, List<int> _ingredients)
+    public OnPlateOwnerSync(int _plateId, int _ownerType, int _ownerId, int _plateKitchenObjectId, List<int> _ingredients)
     {
         plateId = _plateId;
         ownerType = _ownerType;
         ownerId = _ownerId;
+        plateKitchenObjectId = _plateKitchenObjectId;
         ingredients = _ingredients;
     }
 }

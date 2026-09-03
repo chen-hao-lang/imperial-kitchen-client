@@ -52,7 +52,7 @@ public class PlateManager : MonoBehaviour
         // 1. 确保盘子实体存在（不存在则按事件参数生成）
         if (!plates.TryGetValue(_arg.plateId, out PlateKitchenObject plate))
         {
-            plate = CreatePlateEntity(_arg.plateId);
+            plate = CreatePlateEntity(_arg.plateId,_arg.plateKitchenObjectId);
             if (plate == null) return;
         }
 
@@ -64,7 +64,7 @@ public class PlateManager : MonoBehaviour
     }
 
     /// <summary>生成一个新的盘子唯一实体并登记（不设父对象，由调用方挂载）。</summary>
-    private PlateKitchenObject CreatePlateEntity(int _plateId)
+    private PlateKitchenObject CreatePlateEntity(int _plateId, int _plateKitchenObjectId)
     {
         if (defaultPlateSO == null || defaultPlateSO.prefab == null)
         {
@@ -72,7 +72,8 @@ public class PlateManager : MonoBehaviour
             return null;
         }
 
-        PlateKitchenObject plate = Instantiate(defaultPlateSO.prefab, transform).GetComponent<PlateKitchenObject>();
+        Transform prefab = KitchenObjectRegistry.Instance?.GetByIndex(_plateKitchenObjectId)?.prefab;
+        PlateKitchenObject plate = Instantiate(prefab, transform).GetComponent<PlateKitchenObject>();
         if (plate == null)
         {
             Debug.LogError("[PlateManager] 默认盘子预制体上没有 PlateKitchenObject 组件");

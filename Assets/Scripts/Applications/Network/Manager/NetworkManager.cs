@@ -545,8 +545,8 @@ public class NetworkManager : SingletonMono<NetworkManager>
 
         if (_type == MessageType.PlateOwnerSync)
         {
-            var (pId1, ownerType, ownerId, ingredients) = NetworkMessage.Parse_PlateOwnerSync(_body);
-            EventManager.Invoke<OnPlateOwnerSync>(new OnPlateOwnerSync(pId1, ownerType, ownerId, ingredients));
+            var (plateId, ownerType, ownerId, plateKitchenObjectId, ingredients) = NetworkMessage.Parse_PlateOwnerSync(_body);
+            EventManager.Invoke<OnPlateOwnerSync>(new OnPlateOwnerSync(plateId, ownerType, ownerId, plateKitchenObjectId, ingredients));
             return;
         }
 

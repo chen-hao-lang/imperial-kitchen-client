@@ -22,14 +22,14 @@ public class BoilingCounter : BaseCounter, IHasPrograss
     private BoilingRecipeSO activeRecipe;
 
     /// <summary>
-    /// 存放当前操作台能操作的配料
+    /// 存放当前操作台能添加的配料
     /// </summary>
-    private HashSet<KitchenObjectSO> currectKitchenObjectSO;
+    private HashSet<KitchenObjectSO> canAddIngredients;
 
     /// <summary>
-    /// 容器中存在的配料列表（不包含盘子），用于判断当前配料是否满足某个配方的要求
+    /// 当前容器内已经放入的配料（用于匹配菜单）
     /// </summary>
-    private List<KitchenObjectSO> ingredients;
+    private List<KitchenObjectSO> currentIngredients;
 
     /// <summary>
     /// 是否是进度类操作台（如 CuttingCounter、StoveCounter）。
@@ -39,12 +39,170 @@ public class BoilingCounter : BaseCounter, IHasPrograss
     private void Start()
     {
         boilingTimer = 0;
-        ingredients = new List<KitchenObjectSO>();
-        currectKitchenObjectSO = new HashSet<KitchenObjectSO>();
+        currentIngredients = new List<KitchenObjectSO>();
+        canAddIngredients = new HashSet<KitchenObjectSO>();
 
         AddKitchenObjectInCurrectMap();
     }
 
+    public List<BoilingRecipeSO> GetBoilingRecipeSOs()
+    {
+        return BoilingRecipeSOArray;
+    }
+
+    /// <summary>该物品是否是可接收的配料（用于区分"加料"与"成品渲染"）</summary>
+    public bool CanAcceptIngredient(KitchenObjectSO _so)
+    {
+        return canAddIngredients.Contains(_so);
+    }
+
+    /// <summary>
+    /// ★ 新增：服务器下发锅内配料变化（CounterAddIngredient 消息）。
+    /// ingredientIndex = 255 表示锅被清空；否则为加入的配料。
+    /// </summary>
+    public void ApplyServerIngredient(int _ingredientIndex)
+    {
+        if (_ingredientIndex == byte.MaxValue)
+        {
+            ClearCounter();
+            return;
+        }
+
+        KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetByIndex(_ingredientIndex);
+        if (so != null && TryAddIngredients(so))
+        {
+            // 视觉上更新
+            OnInteracted?.Invoke(new OnInteractedEventArgs { kitchenObjectSO = so });
+        }
+    }
+
+    /// <summary>
+    /// 查看当前操作台上的配料是否满足某个配方的要求
+    /// </summary>
+    /// <param name="recipeInputs"></param>
+    /// <param name="currentIngredients"></param>
+    /// <returns></returns>
+    private bool IsMatch(List<KitchenObjectSO> recipeInputs, List<KitchenObjectSO> currentIngredients)
+    {
+        if (recipeInputs == null || recipeInputs.Count == 0) return false;
+
+        // 复制当前配料列表，用于模拟消耗
+        List<KitchenObjectSO> temp = new List<KitchenObjectSO>(currentIngredients);
+
+        // 遍历配方所需的所有配料
+        foreach (var input in recipeInputs)
+        {
+            if (temp.Contains(input))
+            {
+                temp.Remove(input); // 匹配到一个，移除一个
+            }
+            else
+            {
+                // 缺少某个必需的配料 → 不匹配
+                return false;
+            }
+        }
+
+        // 所有配方配料都找到了：
+        // 如果要求“只能放恰好需要的配料，不能多也不能少”，则返回 temp.Count == 0
+        // 如果允许有多余的配料（例如可以煮完再挑出来），则返回 true
+        return temp.Count == 0;
+    }
+
+    /// <summary>
+    /// 将配料加入到配料表中
+    /// </summary>
+    /// <param name="_addSO"></param>
+    /// <returns></returns>
+    public bool TryAddIngredients(KitchenObjectSO _addSO)
+    {
+        // 当操作台能操作当前的配料 且 配料表中没有这个配料
+        if (canAddIngredients.Contains(_addSO) && !currentIngredients.Contains(_addSO))
+        {
+            currentIngredients.Add(_addSO);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// 【网络】服务器广播 CounterStateSync 时驱动煮锅状态机（0=空闲 / 2=煮食中 / 3=煮食完成）。
+    /// 单机模式的煮沸流程走 FixedUpdate 本地模拟，不走此方法。
+    /// </summary>
+    public void OnBoilingStateChanged(byte _state)
+    {
+        switch (_state)
+        {
+            case 0:
+                Debug.Log($"[BoilingCounter] 煮锅状态：空闲");
+                OnPlateCompleted?.Invoke();
+                break;
+            case 1:
+                Debug.Log($"[BoilingCounter] 煮锅状态：准备煮食");
+                break;
+            case 2:
+                Debug.Log($"[BoilingCounter] 煮锅状态：煮食中");
+                isBoiling = true;
+                boilingTimer = 0f;
+                OnProgressChanged?.Invoke(this, new IHasPrograss.OnPrograssChangeEventArgs { prograssNormalized = 0f });
+                break;
+            case 3:
+                Debug.Log($"[BoilingCounter] 煮锅状态：煮食完成");
+                currentIngredients.Clear(); 
+                activeRecipe = null;
+                isBoiling = false;
+                boilingTimer = 0f;
+                OnProgressChanged?.Invoke(this, new IHasPrograss.OnPrograssChangeEventArgs { prograssNormalized = 0f });
+                OnBoilingCompleted?.Invoke();
+                break;
+            default:
+                Debug.LogWarning($"[BoilingCounter] 煮锅状态：未知（{_state}）");
+                break;
+        }
+    }
+
+    /// <summary>
+    /// 将菜单中的食物添加进可操作列表中
+    /// </summary>
+    private void AddKitchenObjectInCurrectMap()
+    {
+        foreach (var receipeKitchenObject in BoilingRecipeSOArray)
+        {
+            var list = receipeKitchenObject.inputs;
+
+            foreach (var kitchenObject in list)
+            {
+                if (!canAddIngredients.Contains(kitchenObject))
+                {
+                    canAddIngredients.Add(kitchenObject);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// 【网络】服务器下发煮食进度（CounterProgressSync）时调用，仅用于更新进度条 UI。
+    /// 联网下煮沸的计时/完成由服务器权威驱动，本地无需按进度折算 boilingTimer。
+    /// </summary>
+    /// <param name="_progressNormalized"></param>
+    public void ApplyServerBoilingProgress(float _progressNormalized)
+    {
+        OnProgressChanged?.Invoke(this, new IHasPrograss.OnPrograssChangeEventArgs
+        {
+            prograssNormalized = _progressNormalized
+        });
+    }
+
+    public void ClearCounter()
+    {
+        activeRecipe = null;
+        ClearKitchenObject();
+        currentIngredients.Clear();
+        OnPlateCompleted?.Invoke();
+    }
+
+    #region 单机
     /// <summary>
     /// 【单机专用】本地煮沸模拟：计时 → 完成时本地生成成品。
     /// 联网（服务器权威）下被 IsNetworkMode 守卫跳过，煮沸的计时/完成/产出由服务器
@@ -154,7 +312,7 @@ public class BoilingCounter : BaseCounter, IHasPrograss
 
                     GetKitchenObject().DestroySlef();
 
-                    ingredients.Clear();
+                    currentIngredients.Clear();
                     activeRecipe = null;
 
                     OnPlateCompleted?.Invoke();
@@ -163,23 +321,18 @@ public class BoilingCounter : BaseCounter, IHasPrograss
         }
     }
 
-    public List<BoilingRecipeSO> GetBoilingRecipeSOs()
-    {
-        return BoilingRecipeSOArray;
-    }
-
     /// <summary>
     /// 【单机专用】查看当前操作台上的配料是否满足某个配方的要求，如果满足则开始制作这个配方。
     /// 联网下由服务器 TryStartBoiling 权威匹配并广播 CounterStateSync(2)，客户端不执行此方法。
     /// </summary>
     public void TryStartRecipeIfPossible()
     {
-        List<KitchenObjectSO> currentIngredients = new List<KitchenObjectSO>(ingredients);
+        List<KitchenObjectSO> copy = new List<KitchenObjectSO>(currentIngredients);
 
         foreach (var recipeList in BoilingRecipeSOArray)
         {
             //如果操作台上的配料满足这个配方的要求
-            if (IsMatch(recipeList.inputs, currentIngredients))
+            if (IsMatch(recipeList.inputs, copy))
             {
                 //开始制作这个配方
                 activeRecipe = recipeList;
@@ -191,156 +344,7 @@ public class BoilingCounter : BaseCounter, IHasPrograss
             }
         }
     }
-
-    /// <summary>该物品是否是可接收的配料（用于区分"加料"与"成品渲染"）</summary>
-    public bool CanAcceptIngredient(KitchenObjectSO _so)
-    {
-        return currectKitchenObjectSO.Contains(_so);
-    }
-
-    /// <summary>
-    /// ★ 新增：服务器下发锅内配料变化（CounterAddIngredient 消息）。
-    /// ingredientIndex = 255 表示锅被清空；否则为加入的配料。
-    /// </summary>
-    public void ApplyServerIngredient(int _ingredientIndex)
-    {
-        if (_ingredientIndex == byte.MaxValue)
-        {
-            ClearCounter();
-            return;
-        }
-
-        KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetByIndex(_ingredientIndex);
-        if (so != null && TryAddIngredients(so))
-        {
-            OnInteracted?.Invoke(new OnInteractedEventArgs { kitchenObjectSO = so });
-        }
-    }
-
-    /// <summary>
-    /// 查看当前操作台上的配料是否满足某个配方的要求
-    /// </summary>
-    /// <param name="recipeInputs"></param>
-    /// <param name="currentIngredients"></param>
-    /// <returns></returns>
-    private bool IsMatch(List<KitchenObjectSO> recipeInputs, List<KitchenObjectSO> currentIngredients)
-    {
-        if (recipeInputs == null || recipeInputs.Count == 0) return false;
-
-        // 复制当前配料列表，用于模拟消耗
-        List<KitchenObjectSO> temp = new List<KitchenObjectSO>(currentIngredients);
-
-        // 遍历配方所需的所有配料
-        foreach (var input in recipeInputs)
-        {
-            if (temp.Contains(input))
-            {
-                temp.Remove(input); // 匹配到一个，移除一个
-            }
-            else
-            {
-                // 缺少某个必需的配料 → 不匹配
-                return false;
-            }
-        }
-
-        // 所有配方配料都找到了：
-        // 如果要求“只能放恰好需要的配料，不能多也不能少”，则返回 temp.Count == 0
-        // 如果允许有多余的配料（例如可以煮完再挑出来），则返回 true
-        return temp.Count == 0;
-    }
-
-    /// <summary>
-    /// 将配料加入到配料表中
-    /// </summary>
-    /// <param name="_addSO"></param>
-    /// <returns></returns>
-    public bool TryAddIngredients(KitchenObjectSO _addSO)
-    {
-        // 当操作台能操作当前的配料 且 配料表中没有这个配料
-        if (currectKitchenObjectSO.Contains(_addSO) && !ingredients.Contains(_addSO))
-        {
-            ingredients.Add(_addSO);
-            return true;
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// 【网络】服务器广播 CounterStateSync 时驱动煮锅状态机（0=空闲 / 2=煮食中 / 3=煮食完成）。
-    /// 单机模式的煮沸流程走 FixedUpdate 本地模拟，不走此方法。
-    /// </summary>
-    public void OnBoilingStateChanged(byte _state)
-    {
-        switch (_state)
-        {
-            case 0:
-                Debug.Log($"[BoilingCounter] 煮锅状态：空闲");
-                OnPlateCompleted?.Invoke();
-                break;
-            case 1:
-                Debug.Log($"[BoilingCounter] 煮锅状态：准备煮食");
-                break;
-            case 2:
-                Debug.Log($"[BoilingCounter] 煮锅状态：煮食中");
-                isBoiling = true;
-                boilingTimer = 0f;
-                OnProgressChanged?.Invoke(this, new IHasPrograss.OnPrograssChangeEventArgs { prograssNormalized = 0f });
-                break;
-            case 3:
-                Debug.Log($"[BoilingCounter] 煮锅状态：煮食完成");
-                activeRecipe = null;
-                isBoiling = false;
-                boilingTimer = 0f;
-                OnProgressChanged?.Invoke(this, new IHasPrograss.OnPrograssChangeEventArgs { prograssNormalized = 0f });
-                OnBoilingCompleted?.Invoke();
-                break;
-            default:
-                Debug.LogWarning($"[BoilingCounter] 煮锅状态：未知（{_state}）");
-                break;
-        }
-    }
-
-    /// <summary>
-    /// 将菜单中的食物添加进可操作列表中
-    /// </summary>
-    private void AddKitchenObjectInCurrectMap()
-    {
-        foreach (var receipeKitchenObject in BoilingRecipeSOArray)
-        {
-            var list = receipeKitchenObject.inputs;
-
-            foreach (var kitchenObject in list)
-            {
-                if (!currectKitchenObjectSO.Contains(kitchenObject))
-                {
-                    currectKitchenObjectSO.Add(kitchenObject);
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// 【网络】服务器下发煮食进度（CounterProgressSync）时调用，仅用于更新进度条 UI。
-    /// 联网下煮沸的计时/完成由服务器权威驱动，本地无需按进度折算 boilingTimer。
-    /// </summary>
-    /// <param name="_progressNormalized"></param>
-    public void ApplyServerBoilingProgress(float _progressNormalized)
-    {
-        OnProgressChanged?.Invoke(this, new IHasPrograss.OnPrograssChangeEventArgs
-        {
-            prograssNormalized = _progressNormalized
-        });
-    }
-
-    public void ClearCounter()
-    {
-        activeRecipe = null;
-        ClearKitchenObject();
-        ingredients.Clear();
-        OnPlateCompleted?.Invoke();
-    }
+    #endregion
 }
 
 public class OnInteractedEventArgs

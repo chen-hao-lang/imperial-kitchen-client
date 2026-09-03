@@ -163,6 +163,69 @@ namespace LiteGameFramework
 
     #region 初始化资源包
     //根据不同模式调用不用模式的初始化方式
+
+    /// <summary>
+    /// 确保 YooAssets 主入口已初始化（幂等，重复调用安全）。
+    /// </summary>
+    private void EnsureYooAssetsInitialized()
+    {
+        if (YooAssets.IsInitialized)
+        {
+            IsYooAssetsInitialized = true;
+            return;
+        }
+
+        YooAssets.Initialize();
+        IsYooAssetsInitialized = true;
+    }
+
+    /// <summary>
+    /// 获取或复用指定名称的资源包对象。
+    /// 本地缓存与 YooAssets 注册表中均不存在时新建并缓存；已存在时直接复用，
+    /// 避免对同名包重复 CreatePackage 抛出 "already exists" 异常。
+    /// </summary>
+    /// <param name="_packageName">资源包名称。</param>
+    /// <param name="package">输出参数：可用于初始化的资源包对象；不可用时为 null。</param>
+    /// <returns>
+    /// true 表示返回的包可直接用于初始化；
+    /// false 表示包名无效，或该包已初始化成功 / 正处于初始化中，应由调用方做幂等或等待处理。
+    /// </returns>
+    private bool TryGetOrCreatePackage(string _packageName, out ResourcePackage package)
+    {
+        package = null;
+        _packageName = ResolvePackageName(_packageName);
+        if (string.IsNullOrEmpty(_packageName))
+            return false;
+
+        EnsureYooAssetsInitialized();
+
+        // 本地缓存中存在该包
+        if (_packageCache.TryGetValue(_packageName, out var cached))
+        {
+            // 已初始化成功：无需再次初始化
+            if (cached.InitializeStatus == EOperationStatus.Succeeded)
+            {
+                Debug.LogWarning($"[{nameof(YooAssetsLoad)}] Package '{_packageName}' already initialized, skip.");
+                return false;
+            }
+
+            // 正在初始化中：不可重复调用 InitializePackageAsync，交给调用方等待
+            if (cached.InitializeStatus == EOperationStatus.Processing)
+                return false;
+
+            // None / Failed：复用包对象重新初始化（Failed 时 InitializePackageAsync 内部会自动重置）
+            package = cached;
+            return true;
+        }
+
+        // 本地无缓存但 YooAssets 已注册（异常遗留 / 外部注册等）：直接复用，禁止再次 CreatePackage
+        package = YooAssets.ContainsPackage(_packageName)
+            ? YooAssets.GetPackage(_packageName)
+            : YooAssets.CreatePackage(_packageName);
+        _packageCache[_packageName] = package;
+        return true;
+    }
+
     public IEnumerator InitializePackageCoroutine(
         string _packageName,
         EPlayMode _ePlayMode = EPlayMode.EditorSimulateMode,
@@ -173,18 +236,37 @@ namespace LiteGameFramework
     {
         _packageName = ResolvePackageName(_packageName);
         if (string.IsNullOrEmpty(_packageName))
-            yield break;
-
-        if (!IsYooAssetsInitialized)
         {
-            YooAssets.Initialize();
-            IsYooAssetsInitialized = true;
+            _fail?.Invoke();
+            yield break;
         }
 
-        // 检查当前包是否已经创建
-        if (_packageCache.ContainsKey(_packageName))
+        EnsureYooAssetsInitialized();
+
+        // 幂等保护：包已存在且已初始化成功，直接走成功回调，避免重复初始化
+        if (_packageCache.TryGetValue(_packageName, out var cachedPackage) &&
+            cachedPackage.InitializeStatus == EOperationStatus.Succeeded)
         {
             Debug.LogWarning($"[{nameof(YooAssetsLoad)}] Package '{_packageName}' already initialized, skip.");
+            _sucess?.Invoke();
+            yield break;
+        }
+
+        // 包已存在且正被其它协程初始化：原地等待其完成后按结果回调，
+        // 避免对同一包重复调用 InitializePackageAsync 抛异常
+        if (cachedPackage != null && cachedPackage.InitializeStatus == EOperationStatus.Processing)
+        {
+            Debug.LogWarning($"[{nameof(YooAssetsLoad)}] Package '{_packageName}' is being initialized by another coroutine, waiting...");
+            while (cachedPackage.InitializeStatus == EOperationStatus.Processing)
+                yield return null;
+
+            if (cachedPackage.InitializeStatus == EOperationStatus.Succeeded)
+                _sucess?.Invoke();
+            else
+            {
+                Debug.LogError($"包：{_packageName} 初始化失败，状态：{cachedPackage.InitializeStatus}");
+                _fail?.Invoke();
+            }
             yield break;
         }
 
@@ -206,6 +288,16 @@ namespace LiteGameFramework
                 Debug.LogError($"暂时不支持这种初始化包的模型：{_ePlayMode}");
                 break;
         }
+
+        // 防御：初始化操作创建失败（模式不支持 / 包状态异常等）时直接失败退出，
+        // 否则下方对空对象解引用会抛 NullReferenceException
+        if (initOperation == null)
+        {
+            Debug.LogError($"[{nameof(YooAssetsLoad)}] Package '{_packageName}' initialize failed: init operation is null.");
+            _fail?.Invoke();
+            yield break;
+        }
+
         yield return initOperation;
 
         if (initOperation.Status == EOperationStatus.Succeeded)
@@ -261,24 +353,9 @@ namespace LiteGameFramework
     /// <returns>初始化操作对象，供协程 yield return 等待完成；若参数无效或包已存在则返回 null。</returns>
     public InitializePackageOperation InitializeEditorPackageOperation(string _packageName = null)
     {
-        _packageName = ResolvePackageName(_packageName);
-        if (string.IsNullOrEmpty(_packageName))
+        // 获取或复用包对象；包已初始化成功 / 正在初始化 / 参数无效时返回 null
+        if (!TryGetOrCreatePackage(_packageName, out var package))
             return null;
-
-        if (!IsYooAssetsInitialized)
-        {
-            YooAssets.Initialize();
-            IsYooAssetsInitialized = true;
-        }
-
-        if (_packageCache.ContainsKey(_packageName))
-        {
-            Debug.LogWarning($"[{nameof(YooAssetsLoad)}] Package '{_packageName}' already exists, skip editor initialization.");
-            return null;
-        }
-
-        var package = YooAssets.CreatePackage(_packageName);
-        _packageCache[_packageName] = package;
 
         var buildResult = EditorSimulateBuildInvoker.Build(_packageName, (int)EBundleType.VirtualAssetBundle);
         var packageRoot = buildResult.PackageRootDirectory;
@@ -299,6 +376,13 @@ namespace LiteGameFramework
     public IEnumerator InitializeOfflinePackageCoroutine(string _packageName = null, Action _sucess = null, Action _fail = null)
     {
         var initOperation = InitializeOfflinePackageOperation(_packageName);
+        if (initOperation == null)
+        {
+            Debug.LogError($"[{nameof(YooAssetsLoad)}] Package '{_packageName}' initialize failed: init operation is null.");
+            _fail?.Invoke();
+            yield break;
+        }
+
         yield return initOperation;
 
         if (initOperation.Status == EOperationStatus.Succeeded)
@@ -316,24 +400,9 @@ namespace LiteGameFramework
 
     public InitializePackageOperation InitializeOfflinePackageOperation(string _packageName)
     {
-        _packageName = ResolvePackageName(_packageName);
-        if (string.IsNullOrEmpty(_packageName))
+        // 获取或复用包对象；包已初始化成功 / 正在初始化 / 参数无效时返回 null
+        if (!TryGetOrCreatePackage(_packageName, out var package))
             return null;
-
-        if (!IsYooAssetsInitialized)
-        {
-            YooAssets.Initialize();
-            IsYooAssetsInitialized = true;
-        }
-
-        if (_packageCache.ContainsKey(_packageName))
-        {
-            Debug.LogWarning($"[{nameof(YooAssetsLoad)}] Package '{_packageName}' already exists, skip offline initialization.");
-            return null;
-        }
-
-        var package = YooAssets.CreatePackage(_packageName);
-        _packageCache[_packageName] = package;
 
         var fileSystemParams = FileSystemParameters.CreateDefaultBuiltinFileSystemParameters();
 
@@ -360,6 +429,13 @@ namespace LiteGameFramework
     {
         // 初始化资源包
         var initOperation = InitializeRemotePackageOperation(_packageName, _hostServer, _useBuiltin);
+        if (initOperation == null)
+        {
+            Debug.LogError($"[{nameof(YooAssetsLoad)}] Remote package '{_packageName}' initialize failed: init operation is null.");
+            _fail?.Invoke();
+            yield break;
+        }
+
         yield return initOperation;
 
         if (initOperation.Status != EOperationStatus.Succeeded)
@@ -376,27 +452,13 @@ namespace LiteGameFramework
 
     public InitializePackageOperation InitializeRemotePackageOperation(string _packageName, string _hostServer, bool _useBuiltin = true)
     {
-        // 解析资源包名称，如果未提供则使用默认包名
-        _packageName = ResolvePackageName(_packageName);
-        if (string.IsNullOrEmpty(_packageName) || string.IsNullOrEmpty(_hostServer))
+        // 远端地址无效时直接返回 null
+        if (string.IsNullOrEmpty(_hostServer))
             return null;
 
-        // 初始化 YooAssets（如果尚未初始化）
-        if (!IsYooAssetsInitialized)
-        {
-            YooAssets.Initialize();
-            IsYooAssetsInitialized = true;
-        }
-
-        if (_packageCache.ContainsKey(_packageName))
-        {
-            Debug.LogWarning($"[{nameof(YooAssetsLoad)}] Package '{_packageName}' already exists, skip remote initialization.");
+        // 获取或复用包对象；包已初始化成功 / 正在初始化 / 参数无效时返回 null
+        if (!TryGetOrCreatePackage(_packageName, out var package))
             return null;
-        }
-
-        // 创建资源包并缓存
-        var package = YooAssets.CreatePackage(_packageName);
-        _packageCache[_packageName] = package;
 
         // 配置远端资源服务器和文件系统参数
         var remoteServices = new RmoteServices(_hostServer, null);

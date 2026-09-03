@@ -74,7 +74,7 @@ public class GameStartCDUI : BasePanel
         if (previousCDNumber != cdNumber)
         {
             previousCDNumber = cdNumber;
-            // animator.ResetTrigger("Play");
+            animator.ResetTrigger("Play");
             animator.SetTrigger("Play");
     
             //TODO: play sound
