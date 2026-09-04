@@ -2,8 +2,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using System;
 using LiteGameFramework;
-using Unity.VisualScripting;
-using System.Linq;
 
 public class NetworkCountersManager : SingletonMono<NetworkCountersManager>
 {
@@ -90,6 +88,11 @@ public class NetworkCountersManager : SingletonMono<NetworkCountersManager>
             {
                 (baseCounter as BoilingCounter)?.ApplyServerBoilingProgress(_progress);
             }
+
+            if (baseCounter.CounterType == (byte)CounterType.StreamingCounter && baseCounter is StreamingCounter)
+            {
+                (baseCounter as StreamingCounter)?.ApplyServerStreamingProgress(_progress);
+            }
         }
     }
 
@@ -101,6 +104,11 @@ public class NetworkCountersManager : SingletonMono<NetworkCountersManager>
         if (counter is BoilingCounter boilingCounter)
         {
             boilingCounter.OnBoilingStateChanged(_arg.state);
+        }
+
+        if (counter is StreamingCounter streamingCounter)
+        {
+            streamingCounter.OnStreamingStateChanged(_arg.state);
         }
     }
 
@@ -114,6 +122,11 @@ public class NetworkCountersManager : SingletonMono<NetworkCountersManager>
         {
             boilingCounter.ApplyServerIngredient(_arg.ingredientIndex);
         }
+
+        if (counter is StreamingCounter streamingCounter)
+        {
+            streamingCounter.StartSteamingFromServer();
+        }
     }
     #endregion
 
@@ -123,6 +136,15 @@ public class NetworkCountersManager : SingletonMono<NetworkCountersManager>
     public void RegisterAllCounters()
     {
         if (counterTypeMapping == null || counterTypeMapping.Length == 0) return;
+
+        // 注册表必须可用：后续所有 SO→索引 转换（容器物品/切煮蒸配方/盘子类型）都依赖它。
+        // 若未加载成功直接给出明确报错并中止上报，避免逐个台子抛 NullReferenceException。
+        if (KitchenObjectRegistry.Instance == null)
+        {
+            Debug.LogError("[CountersManager] KitchenObjectRegistry 未加载，取消本次操作台上报！" +
+                           "请确认 KitchenObjectRegistry 资产已收集进 GameScene 包的 ScriptObjects 组并重新构建 Bundle。");
+            return;
+        }
 
         // 注册操作台
         NetworkManager.Instance.SendCounterRegister(counterTypeMapping);
@@ -149,9 +171,15 @@ public class NetworkCountersManager : SingletonMono<NetworkCountersManager>
                 continue;
             }
 
-            if(counter.CounterType == (byte)CounterType.PlateCounter)
+            if (counter.CounterType == (byte)CounterType.PlateCounter)
             {
-                NetworkManager.Instance.SendRegisterPlateSpawnId(counter.NetworkCounterId,(counter as PlateCounter).PlateKitchenObjectSO);
+                NetworkManager.Instance.SendRegisterPlateSpawnId(counter.NetworkCounterId, (counter as PlateCounter).PlateKitchenObjectSO);
+                continue;
+            }
+
+            if (counter.CounterType == (byte)CounterType.StreamingCounter)
+            {
+                NetworkManager.Instance.SendRegisterStreamingRecipes(counter.NetworkCounterId, (counter as StreamingCounter).GetSteamingRecipeSO());
                 continue;
             }
         }

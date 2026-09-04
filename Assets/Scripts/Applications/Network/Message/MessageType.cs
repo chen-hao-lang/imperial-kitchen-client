@@ -19,12 +19,13 @@ public enum MessageType : byte
     PlayerPosition = 3,           // 广播玩家位置
     InteractionSync = 5,          // 交互同步：一次原子操作，同时携带操作台和玩家的物品状态
 
-    // 操作台
+    #region 操作台
     // 上传（客户端 → 服务端）
     C2S_RegisterContainerItem = 119,
     C2S_RegisterCuttingRecipes = 110,// 切菜配方上报
     C2S_RegisterBoilingRecipes = 111,// 煮菜配方上报
     C2S_RegisterPlateSpawnId = 112,// 注册操作台生成盘子类型
+    C2S_RegisterStreamingRecipes = 114,
     C2S_CounterRegister = 108,    // 客户端上报操作台类型映射（连接后首次发送）
 
     // 解析（服务端 → 客户端）
@@ -32,6 +33,7 @@ public enum MessageType : byte
     CounterAddIngredient = 15,    // 操作台添加配料广播
     RemotePlate = 17,             // 盘子与操作台的同步（放到操作台上，或从操作台拿走）
     CounterStateSync = 25,// 操作台状态同步
+    #endregion
 
     // ══════════════ 盘子 ══════════════
     // 上传（客户端 → 服务端）

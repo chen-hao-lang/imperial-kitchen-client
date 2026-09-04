@@ -49,7 +49,14 @@ public class GameStartCDUI : BasePanel
 
     private void OnNetworkCDUpdate(OnGameStartCD _arg)
     {
+        // 网络模式下没有 CDToStart 状态变更事件，收到第一条倒计时消息时需手动显示数字
+        if (!cdText.gameObject.activeSelf)
+        {
+            cdText.gameObject.SetActive(true);
+        }
+
         OnCDToStartTimerUpdate(_arg.cdSeconds);
+        Debug.Log($"[CD] 帧={Time.frameCount} 时间={Time.time:F2} cd={_arg.cdSeconds}");
     }
 
     private void KitchenGameManager_OnStateChanged(EGameState _state)

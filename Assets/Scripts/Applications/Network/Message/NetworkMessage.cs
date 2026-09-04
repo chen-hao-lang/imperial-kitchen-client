@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using UnityEngine;
 
 /// <summary>
 /// 客户端网络消息工具类。
@@ -673,6 +674,47 @@ public static class NetworkMessage
             writer.Write(recipe.maxBoilingTimer);
         }
         return Pack(MessageType.C2S_RegisterBoilingRecipes, ms.ToArray());
+    }
+
+    public static byte[] Create_RegisterStreamingRecipes(int _counterId, List<StreamingRecipeSO> _streamingRecipes)
+    {
+        // 注册表未加载时无法把 SO 映射为网络索引：给出明确报错并放弃本次上报，
+        // 避免对 null 的 Instance 调用 GetIndexBySO 抛 NullReferenceException。
+        KitchenObjectRegistry registry = KitchenObjectRegistry.Instance;
+        if (registry == null)
+        {
+            Debug.LogError($"[NetworkMessage] KitchenObjectRegistry 未加载，无法上报蒸制台({_counterId})配方！" +
+                           "请确认 KitchenObjectRegistry 资产已收集进 GameScene 包的 ScriptObjects 组并重新构建 Bundle。");
+            return null;
+        }
+
+        var ms = new MemoryStream();
+        var writer = new BinaryWriter(ms);
+        writer.Write(_counterId);
+
+        // 配置兜底：过滤配方数组中的空引用（预制体/场景里某条配方槽位未赋值），
+        // 避免 foreach 内解引用 recipe.input/output 时抛 NullReferenceException。
+        int count = 0;
+        foreach (var recipe in _streamingRecipes)
+        {
+            if (recipe == null)
+            {
+                Debug.LogWarning($"[NetworkMessage] 蒸制台({_counterId})的配方列表存在空引用条目，已跳过。请检查蒸制台预制体的 steamingRecipeSOArray 配置。");
+                continue;
+            }
+            count++;
+        }
+        writer.Write(count);
+
+        foreach (var recipe in _streamingRecipes)
+        {
+            if (recipe == null) continue;
+
+            writer.Write(registry.GetIndexBySO(recipe.input));
+            writer.Write(registry.GetIndexBySO(recipe.output));
+            writer.Write(recipe.steamingTimerMax);
+        }
+        return Pack(MessageType.C2S_RegisterStreamingRecipes, ms.ToArray());
     }
 
     public static byte[] Create_RegisterPlateSpawnId(int _counterId, int _plateId)

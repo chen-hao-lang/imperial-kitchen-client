@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Threading;
 using LiteGameFramework;
-using Unity.VisualScripting;
 using UnityEngine;
 
 public class NetworkManager : SingletonMono<NetworkManager>
@@ -140,7 +139,8 @@ public class NetworkManager : SingletonMono<NetworkManager>
     /// <exception cref="NotImplementedException"></exception>
     private void Send(byte[] _data)
     {
-        if (!IsConnected || stream == null) return;
+        // _data 为 null 表示消息构造失败（如注册表未加载导致放弃构造），此时无需发送
+        if (!IsConnected || stream == null || _data == null) return;
 
         try
         {
@@ -204,6 +204,11 @@ public class NetworkManager : SingletonMono<NetworkManager>
     {
         Send(NetworkMessage.Create_RegisterCuttingRecipes(_counterId, _cuttingRecipes));
     }
+
+    public void SendRegisterStreamingRecipes(int _counterId, List<StreamingRecipeSO> _streamingRecipes)
+    {
+        Send(NetworkMessage.Create_RegisterStreamingRecipes(_counterId, _streamingRecipes));
+    }   
 
     public void SendRegisterPlateSpawnId(int _counterId, KitchenObjectSO _plateSO)
     {

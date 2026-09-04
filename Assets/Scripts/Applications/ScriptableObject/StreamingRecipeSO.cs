@@ -1,7 +1,7 @@
 using UnityEngine;
 
 [CreateAssetMenu(menuName = "ScriptableObject/SteamingRecipeSO", fileName = "")]
-public class SteamingRecipeSO : ScriptableObject
+public class StreamingRecipeSO : ScriptableObject
 {
     public KitchenObjectSO input;
     public KitchenObjectSO output;
