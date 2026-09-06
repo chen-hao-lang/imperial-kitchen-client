@@ -13,15 +13,18 @@ public class GameSceneLaunch : MonoBehaviour
 
     IEnumerator Init()
     {
-        if(NetworkManager.Instance.isRoomOwner)
+        // 1) 若处于“重连恢复”流程（D7）：不重新注册台子、不重报加载完成，
+        //    直接走 UI 预加载，快照由 ResumeGameResult/FullSync 恢复。
+        if (!NetworkManager.Instance.IsResumedSession)
         {
-            // 先注册，在开始
-            NetworkCountersManager.Instance.RegisterAllCounters();
-            
-            NetworkManager.Instance.SendSucessEnterGameScene();
+            // 台子是世界静态配置，只由房主注册（服务器只接受房主注册）。
+            if (NetworkManager.Instance.IsRoomOwner)
+            {
+                NetworkCountersManager.Instance.RegisterAllCounters();
+            }
+
+            UIManager.Instance.HideAll();
         }
-        
-        UIManager.Instance.HideAll();
 
         List<EUIType> loadPanels = new List<EUIType>()
         {
@@ -31,11 +34,18 @@ public class GameSceneLaunch : MonoBehaviour
             EUIType.GameStartCDUI,
             EUIType.GamePlayingClockUI,
             EUIType.ChatPanel,
+            EUIType.DisconnectPanel,
         };
         yield return UIManager.Instance.PreLoadPanel(loadPanels);
 
         UIManager.Instance.OpenPanel<DeliveryResultUI>(EUIType.DeliveryManagerUI);
         UIManager.Instance.OpenPanel<GameStartCDUI>(EUIType.GameStartCDUI);
         UIManager.Instance.OpenPanel<GamePlayingClockUI>(EUIType.GamePlayingClockUI);
+
+        // 2) 每个客户端都在场景/UI 就绪后上报一次，服务器收齐后才开局（D5）。
+        if (!NetworkManager.Instance.IsResumedSession)
+        {
+            NetworkManager.Instance.SendSucessEnterGameScene();
+        }
     }
 }

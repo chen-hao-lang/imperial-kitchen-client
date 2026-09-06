@@ -75,5 +75,12 @@
     "panelName": "PlayerReadyPanel",
     "layer": "Normal",
     "isWindow": false
+  },
+  {
+    "type": "DisconnectPanel",
+    "packageName": "UI",
+    "panelName": "DisconnectPanel",
+    "layer": "Info",
+    "isWindow": false
   }
 ]

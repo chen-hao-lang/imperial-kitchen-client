@@ -42,6 +42,17 @@ public class NetworkPlayer : MonoBehaviour, IKitchenObjectParent
         lastReceivedPosition = transform.position;
     }
 
+    /// <summary>
+    /// 快照位置（FullSync/服务器纠正/重连）：直接设目标，Update 插值平滑过渡，避免跳变。
+    /// </summary>
+    public void ApplySnapshotPosition(float _x, float _y, float _z, float _rotY)
+    {
+        targetPosition = new Vector3(_x, _y, _z);
+        targetRotation = Quaternion.Euler(0f, _rotY, 0f);
+        lastReceivedPosition = targetPosition;
+        isTargetWalking = false;
+    }
+
     void OnDisable()
     {
         if (NetworkManager.Instance != null)

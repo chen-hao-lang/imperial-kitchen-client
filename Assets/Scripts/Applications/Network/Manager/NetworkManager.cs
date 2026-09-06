@@ -12,8 +12,9 @@ public class NetworkManager : SingletonMono<NetworkManager>
 
     public int PlayerID { get; private set; } = -1;
     public string PlayerName { get; private set; }
+
     public int RoomId { get; private set; } = -1;
-    public bool isRoomOwner { get; private set; } = false;
+    public bool IsRoomOwner { get; private set; } = false;
     public int RoomMaxPlayer { get; private set; } = -1;
 
     /// <summary> 我在当前房间中的座位号（-1=未加入房间），供后加载的场景/面板补齐初始化 </summary>
@@ -27,6 +28,14 @@ public class NetworkManager : SingletonMono<NetworkManager>
     /// <summary> 最近一次全量同步下发的等待中订单（recipeIndex 列表），供错过 OnRecipeFullSync 事件的系统补齐 </summary>
     public int[] FullSyncRecipes { get; private set; } = new int[0];
 
+    /// <summary> 最近一次 FullSync 的操作台状态（供后加载系统补齐/重建） </summary>
+    public (int counterId, int itemIndex)[] FullSyncCounters { get; private set; }
+        = new (int counterId, int itemIndex)[0];
+
+    /// <summary> 最近一次 FullSync 的盘子快照（供 PlateManager 重建） </summary>
+    public (int plateId, byte ownerType, int ownerId, int soIndex, int[] ingredients)[] FullSyncPlates { get; private set; }
+        = new (int plateId, byte ownerType, int ownerId, int soIndex, int[] ingredients)[0];
+
     // 网络对象
     private TcpClient tcpClient;
     private NetworkStream stream;
@@ -39,6 +48,23 @@ public class NetworkManager : SingletonMono<NetworkManager>
     // 主线程消息队列
     private readonly ConcurrentQueue<Action> mainThreadActions = new ConcurrentQueue<Action>();
 
+    private float heartbeatTimer = 0f;
+    private const float HEARTBEAT_INTERVAL = 3f; // 每3秒发送一次心跳包
+
+    /// <summary>服务器 IP/端口（重连用）</summary>
+    private string serverIp;
+    private int serverPort;
+
+    /// <summary>可恢复会话（局内掉线后是否还能认领）</summary>
+    public bool HasResumableSession { get; private set; }
+
+    /// <summary>被认领前保留的旧房间/旧 PlayerId</summary>
+    public int SessionRoomId { get; private set; } = -1;
+    public int SessionPlayerId { get; private set; } = -1;
+
+    /// <summary>本次是否处于“重连恢复”流程（GameSceneLaunch 用，跳过注册/上报）</summary>
+    public bool IsResumedSession { get; private set; }
+
     // Update is called once per frame
     void Update()
     {
@@ -46,6 +72,14 @@ public class NetworkManager : SingletonMono<NetworkManager>
         while (mainThreadActions.TryDequeue(out Action action))
         {
             action?.Invoke();
+        }
+
+        // 更新心跳计时器
+        heartbeatTimer += Time.deltaTime;
+        if (heartbeatTimer >= HEARTBEAT_INTERVAL)
+        {
+            Send(NetworkMessage.Create_Heartbeat());
+            heartbeatTimer = 0f;
         }
     }
 
@@ -68,10 +102,21 @@ public class NetworkManager : SingletonMono<NetworkManager>
     /// <param name="_playerName"></param>
     public void Connect(string _ip, int _port, string _playerName)
     {
+        serverIp = _ip;
+        serverPort = _port;
+
         if (IsConnected)
         {
             Debug.LogWarning("[NetworkManager] 已连接，请先断开再重连");
             Disconnect();
+        }
+        else
+        {
+            // 被动断线（ReceiveLoop 自行退出）时 Disconnect 未执行，清理残留的旧套接字
+            try { stream?.Close(); } catch { }
+            try { tcpClient?.Close(); } catch { }
+            stream = null;
+            tcpClient = null;
         }
 
         try
@@ -121,7 +166,11 @@ public class NetworkManager : SingletonMono<NetworkManager>
         try { stream?.Close(); } catch { }
         try { tcpClient?.Close(); } catch { }
 
+        // 断线前缓存局内会话（必须在 PlayerID/RoomId 重置之前执行）
+        CacheResumableSession();
+
         bufferedBytes = 0;
+        heartbeatTimer = 0f;
         PlayerID = -1;
         MySeatId = -1;
         ResetRoomState();
@@ -208,7 +257,7 @@ public class NetworkManager : SingletonMono<NetworkManager>
     public void SendRegisterStreamingRecipes(int _counterId, List<StreamingRecipeSO> _streamingRecipes)
     {
         Send(NetworkMessage.Create_RegisterStreamingRecipes(_counterId, _streamingRecipes));
-    }   
+    }
 
     public void SendRegisterPlateSpawnId(int _counterId, KitchenObjectSO _plateSO)
     {
@@ -249,11 +298,8 @@ public class NetworkManager : SingletonMono<NetworkManager>
     }
 
     #region Room
-    public void SendRoomCreate(int _maxPlayer, string _roomName)
+    public void SendRequestRoomCreate(int _maxPlayer, string _roomName)
     {
-        isRoomOwner = true;
-        RoomMaxPlayer = _maxPlayer;
-
         Send(NetworkMessage.Create_RoomCreated(_maxPlayer, _roomName));
     }
 
@@ -289,12 +335,14 @@ public class NetworkManager : SingletonMono<NetworkManager>
     private void ResetRoomState()
     {
         RoomId = -1;
-        isRoomOwner = false;
+        IsRoomOwner = false;
         RoomMaxPlayer = -1;
         RoomPlayers.Clear();
         MySeatId = -1;
         FullSyncPlayers = new (int, string, float, float, float, float)[0];
         FullSyncRecipes = new int[0];
+        FullSyncCounters = new (int counterId, int itemIndex)[0];
+        FullSyncPlates = new (int plateId, byte ownerType, int ownerId, int soIndex, int[] ingredients)[0];
     }
 
     public void SendRequestRoomList(int _playerId)
@@ -321,6 +369,70 @@ public class NetworkManager : SingletonMono<NetworkManager>
         Send(NetworkMessage.Create_RequestEnterGameScene(RoomId));
     }
     #endregion
+    #endregion
+
+    #region 断线重连（D7）
+    /// <summary>
+    /// 断线前缓存“局内会话”，供重连认领使用。
+    /// 规则：断线时若处于 GameScene 且之前加入过房间（RoomId>=0 且 PlayerID>=0），
+    /// 则记录 (SessionRoomId=RoomId, SessionPlayerId=PlayerID)。
+    /// </summary>
+    private void CacheResumableSession()
+    {
+        // 重连流程进行中：不覆盖已有会话（此时 PlayerID 已临时切到新连接 id，覆盖会丢失旧 PlayerId）
+        if (IsResumedSession) return;
+
+        HasResumableSession = false;
+
+        // 大厅/未进房掉线 → 无可恢复会话（可回大厅正常重连）
+        if (RoomId < 0 || PlayerID < 0) return;
+        // 只在游戏场景（对局中）才保留认领会话；大厅掉线走重新加入即可
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "GameScene") return;
+
+        SessionRoomId = RoomId;
+        SessionPlayerId = PlayerID;
+        HasResumableSession = true;
+        Debug.Log($"[NetworkManager] 已缓存可重连会话: room={SessionRoomId}, player={SessionPlayerId}");
+    }
+
+    /// <summary>
+    /// 重连上次局内会话：TCP 重连成功后立即发送认领请求。
+    /// </summary>
+    public void TryResumeLastSession()
+    {
+        if (!HasResumableSession) return;
+
+        int roomId = SessionRoomId;
+        int oldPlayerId = SessionPlayerId;
+
+        IsResumedSession = true;          // 让 GameSceneLaunch 跳过注册台子/上报 loaded
+
+        // 清理旧连接后重连（先读走 roomId/oldPlayerId，避免被 Connect 内部的 Disconnect 覆盖）
+        try { stream?.Close(); } catch { }
+        try { tcpClient?.Close(); } catch { }
+        stream = null;
+        tcpClient = null;
+        shouldStop = true;
+        IsConnected = false;
+
+        Connect(serverIp, serverPort, PlayerName);
+
+        // Connect 为同步 TCP 连接；服务器 accept 后会立刻回 Connect(新临时 id)，
+        // 这里立刻发认领请求，服务器按 roomId+oldPlayerId 认领，随后回 ResumeGameResult。
+        Send(NetworkMessage.Create_ResumeGame(roomId, oldPlayerId));
+    }
+
+    /// <summary>会话已结束（认领失败/主动退出/房间解散），清除并重置房间状态</summary>
+    public void ClearResumableSession()
+    {
+        HasResumableSession = false;
+        IsResumedSession = false;
+        SessionRoomId = -1;
+        SessionPlayerId = -1;
+
+        // 同时重置房间状态，避免 RoomId 残留导致再次加入房间时不跳转场景
+        ResetRoomState();
+    }
     #endregion
 
     #region 接受消息
@@ -391,6 +503,9 @@ public class NetworkManager : SingletonMono<NetworkManager>
 
         EnqueueOnMainThread(() =>
         {
+            // 被动断线：在 PlayerID 重置前缓存局内会话，供重连认领使用
+            CacheResumableSession();
+
             IsConnected = false;
             PlayerID = -1;
             EventManager.Invoke<OnNetworkDisconnected>(new OnNetworkDisconnected());
@@ -490,6 +605,8 @@ public class NetworkManager : SingletonMono<NetworkManager>
         {
             NetworkMessage.Parse_FullSync(_body, out var players, out var counters, out var plates, out var recipes);
             FullSyncPlayers = players;
+            FullSyncCounters = counters;
+            FullSyncPlates = plates;
             FullSyncRecipes = recipes;
             EventManager.Invoke<OnFullSync>(new OnFullSync(players, counters));
             EventManager.Invoke<OnRecipeFullSync>(new OnRecipeFullSync(recipes));
@@ -575,9 +692,14 @@ public class NetworkManager : SingletonMono<NetworkManager>
         #region 房间
         if (_type == MessageType.RoomCreated)
         {
-            int roomId = NetworkMessage.Parse_CreateRoom(_body);
+            var (roomId, name, maxPlayer) = NetworkMessage.Parse_CreateRoom(_body);
+            IsRoomOwner = true; 
             RoomId = roomId;
+            RoomMaxPlayer = maxPlayer;  
+
             Debug.Log($"[NetworkManager] 房间创建成功: {roomId}");
+
+            // 切换到房间场景
             YooAssetsLoad.Instance.LoadSceneAsync("GameRoom", "GameRoomScene");
             EventManager.Invoke<OnReceiveRoomCreated>(new OnReceiveRoomCreated(roomId));
             return;
@@ -585,17 +707,24 @@ public class NetworkManager : SingletonMono<NetworkManager>
 
         if (_type == MessageType.RoomJoined)
         {
-            var (roomId, seatId, playerId, name) = NetworkMessage.Parse_JoinRoom(_body);
+            var (roomId, seatId, playerId, name, maxPlayer) = NetworkMessage.Parse_JoinRoom(_body);
 
-            if (playerId == PlayerID)
+            RoomMaxPlayer = maxPlayer;
+
+            if (playerId == PlayerID)// 说明是自己加入房间，记录座位号
             {
                 MySeatId = seatId;
             }
 
-            if (RoomId == -1)
+            if (RoomId == -1)// 说明是第一次加入房间，切换场景
             {
                 RoomId = roomId;
                 YooAssetsLoad.Instance.LoadSceneAsync("GameRoom", "GameRoomScene");
+            }
+
+            if(RoomPlayers.FindIndex(p => p.playerId == playerId) == -1)
+            {
+                RoomPlayers.Add(new PlayeInfo(playerId, seatId, name, false));
             }
 
             EventManager.Invoke<OnReceiveRoomJoined>(new OnReceiveRoomJoined(roomId, seatId, playerId, name));
@@ -640,6 +769,18 @@ public class NetworkManager : SingletonMono<NetworkManager>
         if (_type == MessageType.PlayerReady)
         {
             var (playerId, isReady) = NetworkMessage.Parse_PlayerReady(_body);
+
+            for (int i = 0; i < RoomPlayers.Count; i++)
+            {
+                if (RoomPlayers[i].playerId == playerId)
+                {
+                    PlayeInfo info = RoomPlayers[i];
+                    info.isReady = isReady;
+                    RoomPlayers[i] = info;
+                    break;
+                }
+            }
+
             EventManager.Invoke<OnReceivePlayerReadyStatusUpdate>(new OnReceivePlayerReadyStatusUpdate(playerId, isReady));
             return;
         }
@@ -653,6 +794,39 @@ public class NetworkManager : SingletonMono<NetworkManager>
 
             // 发送事件
             EventManager.Invoke<OnReceiveStartGame>(new OnReceiveStartGame(roomId));
+            return;
+        }
+
+        if (_type == MessageType.RoomOwnerChanged)
+        {
+            int newOwnerPlayerId = NetworkMessage.Parse_RoomOwnerChanged(_body);
+            IsRoomOwner = newOwnerPlayerId == PlayerID;
+            Debug.Log($"[NetworkManager] 新房主: {newOwnerPlayerId}, 我是房主={IsRoomOwner}");
+            EventManager.Invoke<OnRoomOwnerChanged>(new OnRoomOwnerChanged(newOwnerPlayerId));
+            return;
+        }
+
+        if (_type == MessageType.ResumeGameResult)
+        {
+            var (ok, playerId, x, y, z, rotY, heldItemIndex) = NetworkMessage.Parse_ResumeGameResult(_body);
+
+            if (!ok)
+            {
+                Debug.LogWarning("[NetworkManager] 重连认领失败（窗口过期/房间已销毁）");
+                ClearResumableSession();
+                EventManager.Invoke<OnResumeGameFailed>(new OnResumeGameFailed());
+                return;
+            }
+
+            // 认领成功：身份回到旧 PlayerId（服务器此后以旧 id 收发本连接的消息）
+            PlayerID = playerId;
+            RoomId = SessionRoomId;
+            HasResumableSession = false;
+            IsResumedSession = false;
+
+            Debug.Log($"[NetworkManager] 重连认领成功: playerId={playerId}, room={RoomId}");
+
+            EventManager.Invoke<OnResumeGameSucceeded>(new OnResumeGameSucceeded(x, y, z, rotY, heldItemIndex));
             return;
         }
         #endregion

@@ -91,7 +91,7 @@ public class RoomPanel : BasePanel
         int maxPlayerNum = int.Parse(maxPlayerText);
         
         // NetworkManager.Instance.RoomMaxPlayer = maxPlayerNum;
-        NetworkManager.Instance.SendRoomCreate(maxPlayerNum,roomName.text);
+        NetworkManager.Instance.SendRequestRoomCreate(maxPlayerNum,roomName.text);
     }
 
     /// <summary>

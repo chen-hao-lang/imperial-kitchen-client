@@ -19,7 +19,7 @@ public enum MessageType : byte
     PlayerPosition = 3,           // 广播玩家位置
     InteractionSync = 5,          // 交互同步：一次原子操作，同时携带操作台和玩家的物品状态
 
-    #region 操作台
+    // 操作台
     // 上传（客户端 → 服务端）
     C2S_RegisterContainerItem = 119,
     C2S_RegisterCuttingRecipes = 110,// 切菜配方上报
@@ -33,7 +33,6 @@ public enum MessageType : byte
     CounterAddIngredient = 15,    // 操作台添加配料广播
     RemotePlate = 17,             // 盘子与操作台的同步（放到操作台上，或从操作台拿走）
     CounterStateSync = 25,// 操作台状态同步
-    #endregion
 
     // ══════════════ 盘子 ══════════════
     // 上传（客户端 → 服务端）
@@ -69,7 +68,7 @@ public enum MessageType : byte
     // 解析（服务端 → 客户端）
     SendMessage = 23,             // 聊天消息广播（playerId + message）
 
-    // ══════════════ 房间 ══════════════
+    #region Room
     // 上传（客户端 → 服务端）
     C2S_CreateRoom = 120,         // 创建房间（附带最大玩家数）
     C2S_JoinRoom = 121,           // 加入房间（附带房间号）
@@ -77,7 +76,7 @@ public enum MessageType : byte
     C2S_DestroyRoom = 123,        // 房主解散房间
     C2S_RequestRoomList = 125,    // 请求房间列表
     C2S_PlayerReady = 126,        // 玩家准备就绪
-    C2S_RequestEnterGameScene = 127,// 开始游戏
+    C2S_RequestEnterGameScene = 127,          // 开始游戏
 
     // 解析（服务端 → 客户端）
     RoomCreated = 30,             // 房间创建成功，附带房间号
@@ -88,4 +87,10 @@ public enum MessageType : byte
     RequestRoomList = 35,         // 房间列表
     PlayerReady = 36,             // 玩家准备
     StartGame = 37,               // 开始游戏
+    RoomOwnerChanged = 38,          // 房主变更 
+    ResumeGameResult = 40,
+
+    C2S_HeartBeat = 138,
+    C2S_ResumeGame = 131
+    #endregion
 }

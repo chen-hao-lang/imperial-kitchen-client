@@ -384,7 +384,7 @@ public static class NetworkMessage
             plateCurrentIngredients.Add(reader.ReadInt32());
             count--;
         }
-        return (plateId, ownerType, ownerId, plateKitchenObjectId,plateCurrentIngredients);
+        return (plateId, ownerType, ownerId, plateKitchenObjectId, plateCurrentIngredients);
     }
 
     /// <summary>
@@ -433,6 +433,7 @@ public static class NetworkMessage
     #endregion
 
     #region Room
+    #region 发送
     public static byte[] Create_RoomCreated(int _maxPlayer, string _nams)
     {
         var ms = new MemoryStream();
@@ -506,6 +507,7 @@ public static class NetworkMessage
         var writer = new BinaryWriter(ms);
         return Pack(MessageType.C2S_ScucessEnterGameScene, ms.ToArray());
     }
+    #endregion 
 
     #region 解析
     /// <summary>
@@ -513,11 +515,14 @@ public static class NetworkMessage
     /// </summary>
     /// <param name="_data"></param>
     /// <returns>房间id</returns>
-    public static int Parse_CreateRoom(byte[] _data)
+    public static (int,string,int) Parse_CreateRoom(byte[] _data)
     {
         var ms = new MemoryStream(_data);
         var reader = new BinaryReader(ms);
-        return reader.ReadInt32();
+        int roomId = reader.ReadInt32();
+        string name = ReadString(reader);
+        int maxPlayer = reader.ReadInt32(); 
+        return (roomId,name,maxPlayer); 
     }
 
     /// <summary>
@@ -525,7 +530,7 @@ public static class NetworkMessage
     /// </summary>
     /// <param name="_data"></param>
     /// <returns>客户端加入的房间id，以及服务器分配的座位号</returns>
-    public static (int, int, int, string) Parse_JoinRoom(byte[] _data)
+    public static (int, int, int, string, int) Parse_JoinRoom(byte[] _data)
     {
         var ms = new MemoryStream(_data);
         var reader = new BinaryReader(ms);
@@ -533,7 +538,8 @@ public static class NetworkMessage
         int seadId = reader.ReadInt32();
         int playerId = reader.ReadInt32();
         string name = ReadString(reader);
-        return (roomId, seadId, playerId, name);
+        int maxPlayer = reader.ReadInt32();
+        return (roomId, seadId, playerId, name, maxPlayer);
     }
 
     /// <summary>
@@ -605,6 +611,46 @@ public static class NetworkMessage
         using var reader = new BinaryReader(ms);
         int roomId = reader.ReadInt32();
         return roomId;
+    }
+
+    /// <summary>心跳（D2）：无消息体</summary>
+    public static byte[] Create_Heartbeat()
+    {
+        return Pack(MessageType.C2S_HeartBeat, Array.Empty<byte>());
+    }
+
+    /// <summary>重连认领请求（D7）：roomId + 旧 PlayerId</summary>
+    public static byte[] Create_ResumeGame(int _roomId, int _oldPlayerId)
+    {
+        using var ms = new MemoryStream();
+        using var writer = new BinaryWriter(ms);
+        writer.Write(_roomId);
+        writer.Write(_oldPlayerId);
+        return Pack(MessageType.C2S_ResumeGame, ms.ToArray());
+    }
+
+    /// <summary>解析房主变更（D4）：新房主 PlayerId</summary>
+    public static int Parse_RoomOwnerChanged(byte[] _body)
+    {
+        using var ms = new MemoryStream(_body);
+        using var reader = new BinaryReader(ms);
+        return reader.ReadInt32();
+    }
+
+    /// <summary>解析重连认领结果（D7）</summary>
+    public static (bool ok, int playerId, float x, float y, float z, float rotY, int heldItemIndex)
+        Parse_ResumeGameResult(byte[] _body)
+    {
+        using var ms = new MemoryStream(_body);
+        using var reader = new BinaryReader(ms);
+        bool ok = reader.ReadByte() == 1;
+        int playerId = reader.ReadInt32();
+        float x = reader.ReadSingle();
+        float y = reader.ReadSingle();
+        float z = reader.ReadSingle();
+        float rotY = reader.ReadSingle();
+        int heldItemIndex = reader.ReadInt32();
+        return (ok, playerId, x, y, z, rotY, heldItemIndex);
     }
     #endregion
     #endregion

@@ -43,6 +43,10 @@ public class NetworkCountersManager : SingletonMono<NetworkCountersManager>
         EventManager.AddListener<OnCounterProgressSync>(this, OnCounterProgressSync);
         EventManager.AddListener<OnCounterStateSync>(this, OnCounterStateSync);
         EventManager.AddListener<OnCounterIngredientSync>(this, OnCounterIngredientSync);   // ★ 新增
+        EventManager.AddListener<OnFullSync>(this, OnFullSyncReceived);
+
+        // 防错过：场景晚加载时用 NetworkManager 缓存补一次
+        ApplyCachedFullSync();
     }
 
     void OnDisable()
@@ -127,6 +131,46 @@ public class NetworkCountersManager : SingletonMono<NetworkCountersManager>
         {
             streamingCounter.StartSteamingFromServer();
         }
+    }
+
+    /// <summary>FullSync：台面物品按服务器快照重建（幂等，重复 FullSync 会先清后建）</summary>
+    private void OnFullSyncReceived(OnFullSync _arg)
+    {
+        if (_arg.counters == null) return;
+        ApplyCounterSnapshot(_arg.counters);
+    }
+
+    /// <summary>防错过：场景晚加载时用 NetworkManager 缓存补一次</summary>
+    private void ApplyCachedFullSync()
+    {
+        if (NetworkManager.Instance == null) return;
+        ApplyCounterSnapshot(NetworkManager.Instance.FullSyncCounters);
+    }
+
+    /// <summary>把全部台面清空后按快照重建（重连/开局恢复共用）</summary>
+    private void ApplyCounterSnapshot((int counterId, int itemIndex)[] _counters)
+    {
+        if (_counters == null || _counters.Length == 0) return;
+
+        // 1) 全清：所有台子的实体都拆掉（盘子实体由 PlateManager 管，这里不动盘）
+        foreach (var pair in counterMap)
+        {
+            var counter = pair.Value;
+            if (counter.HasKitchenObject() && !counter.GetKitchenObject().TryGetPlate(out _))
+            {
+                var old = counter.GetKitchenObject();
+                counter.ClearKitchenObject();
+                Destroy(old.gameObject);
+            }
+        }
+
+        // 2) 按快照重建
+        foreach (var counterState in _counters)
+        {
+            ApplyCounterState(counterState.counterId, counterState.itemIndex);
+        }
+
+        Debug.Log($"[CountersManager] FullSync 台面重建完成，共 {_counters.Length} 个台子");
     }
     #endregion
 

@@ -15,6 +15,9 @@ public class GameScenePlayerManager : SingletonMono<GameScenePlayerManager>
     public PlayerController LocalPlayers { get; private set; }
     private Dictionary<int, NetworkPlayer> remotePlayers = new Dictionary<int, NetworkPlayer>();
 
+    /// <summary>异步生成中的远程玩家（防 FullSync 与开局流程并发重复生成）</summary>
+    private readonly HashSet<int> spawningPlayers = new HashSet<int>();
+
     /// <summary>
     /// 本地玩家
     /// </summary>
@@ -100,23 +103,59 @@ public class GameScenePlayerManager : SingletonMono<GameScenePlayerManager>
             // 销毁玩家
             Destroy(pc.gameObject);
         }
+
+        // 若离开者仍在异步生成中，移除标记，避免回调把它重新加回来
+        spawningPlayers.Remove(_arg.playerId);
     }
 
     private void OnFullSyncReceived(OnFullSync _arg)
     {
+        if (NetworkManager.Instance == null) return;
+        if (_arg.players == null) return;
+
         Debug.Log($"[PlayerSpawner] 收到全量同步: {_arg.players.Length} 个已有玩家");
 
-        // foreach (var p in _arg.players)
-        // {
-        //     // 不给自己生成
-        //     if (p.id == NetworkManager.Instance.PlayerID) continue;
-        //     // 不重复生成
-        //     if (spawnedPlayers.ContainsKey(p.id)) continue;
+        // 1) 移除快照里已不在场的远程玩家（双保险；正常情况已由 PlayerLeft 移除）
+        HashSet<int> snapshotIds = new HashSet<int>();
+        foreach (var p in _arg.players)
+        {
+            snapshotIds.Add(p.id);
+        }
 
-        //     SpawnRemotePlayer(p.id, p.name, p.x, p.y, p.z, p.rotY);
-        // }
+        List<int> toRemove = new List<int>();
+        foreach (var kv in remotePlayers)
+        {
+            if (!snapshotIds.Contains(kv.Key))
+            {
+                toRemove.Add(kv.Key);
+            }
+        }
+        foreach (int id in toRemove)
+        {
+            if (remotePlayers.TryGetValue(id, out var pc))
+            {
+                remotePlayers.Remove(id);
+                EventManager.Invoke<OnRemotePlayerDestroyed>(new OnRemotePlayerDestroyed(id));
+                if (pc != null) Destroy(pc.gameObject);
+            }
+        }
 
-        // counters 的处理留到后面步骤
+        // 2) 对快照中的每个其他玩家：不存在则生成，存在则刷位置
+        foreach (var p in _arg.players)
+        {
+            if (p.id == NetworkManager.Instance.PlayerID) continue;   // 跳过自己
+
+            if (remotePlayers.TryGetValue(p.id, out var networkPlayer)
+                && networkPlayer != null)
+            {
+                networkPlayer.ApplySnapshotPosition(p.x, p.y, p.z, p.rotY);
+            }
+            else
+            {
+                // 重新加入的玩家/重连玩家：用 SeatId 0 占位生成，随后以快照坐标定位
+                SpawnRemotePlayer(0, p.id, p.x, p.y, p.z, p.rotY);
+            }
+        }
     }
 
     private void SpawnLocalPlayer(int _seadId)
@@ -151,21 +190,34 @@ public class GameScenePlayerManager : SingletonMono<GameScenePlayerManager>
 
     private void SpawnRemotePlayer(int _seadId, int _playerId)
     {
-        // 生成本地玩家（位置与出生点一致，但不作为出生点子物体）
+        // 本地生成的远程玩家（开局流程），坐标落到出生点
+        Vector3 pos = GetSpawnPosition(_seadId);
+        SpawnRemotePlayer(_seadId, _playerId, pos.x, pos.y, pos.z, 0f);
+    }
+
+    /// <summary>FullSync/重连用：带目标位置生成远程玩家</summary>
+    private void SpawnRemotePlayer(int _seadId, int _playerId, float _x, float _y, float _z, float _rotY)
+    {
+        if (remotePlayers.ContainsKey(_playerId) || spawningPlayers.Contains(_playerId)) return;   // 已存在或生成中
+
+        spawningPlayers.Add(_playerId);
+
         YooAsset.InstantiateOptions options1 = new YooAsset.InstantiateOptions(true, GetSpawnPosition(_seadId), Quaternion.identity);
         YooAssetsLoad.Instance.LoadPrefab(networkPlayerPrefabName, options1, (go) =>
         {
+            spawningPlayers.Remove(_playerId);
+
             if (go == null)
             {
-                Debug.LogError("[GameScenePlayerManager] 生成本地玩家失败");
+                Debug.LogError($"[GameScenePlayerManager] 生成远程玩家 {_playerId} 失败");
                 return;
             }
 
             NetworkPlayer networkPlayer = go.GetComponent<NetworkPlayer>();
-            if (networkPlayer != null)
-            {
-                networkPlayer.Initialize(_playerId);
-            }
+            if (networkPlayer == null) { Destroy(go); return; }
+
+            networkPlayer.Initialize(_playerId);
+            networkPlayer.ApplySnapshotPosition(_x, _y, _z, _rotY);
 
             remotePlayers[_playerId] = networkPlayer;
 

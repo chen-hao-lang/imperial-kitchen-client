@@ -33,6 +33,10 @@ public class PlateManager : MonoBehaviour
         EventManager.AddListener<OnPlateIngredientSync>(this, OnPlateIngredientSyncReceived);
         EventManager.AddListener<OnPlateIngredientRemoved>(this, OnPlateIngredientRemovedReceived);
         EventManager.AddListener<OnPlateDestroy>(this, OnPlateDestroyReceived);
+        EventManager.AddListener<OnFullSync>(this, OnFullSyncReceived);
+
+        // 防错过：场景晚加载时用 NetworkManager 缓存补一次
+        ApplyCachedFullSync();
     }
 
     void OnDisable()
@@ -153,6 +157,60 @@ public class PlateManager : MonoBehaviour
             if (so != null) soList.Add(so);
         }
         _plate.ResetIngredient(soList);
+    }
+
+    /// <summary>FullSync：盘子在 FullSync 事件里未携带，从 NetworkManager 缓存取（解析时已缓存）</summary>
+    private void OnFullSyncReceived(OnFullSync _arg)
+    {
+        if (NetworkManager.Instance == null) return;
+        RebuildFromFullSync(NetworkManager.Instance.FullSyncPlates);
+    }
+
+    /// <summary>防错过：场景晚加载时用 NetworkManager 缓存补一次</summary>
+    private void ApplyCachedFullSync()
+    {
+        if (NetworkManager.Instance == null) return;
+        if (NetworkManager.Instance.FullSyncPlates.Length > 0)
+            RebuildFromFullSync(NetworkManager.Instance.FullSyncPlates);
+    }
+
+    /// <summary>
+    /// 按服务器 FullSync 的盘子快照全量重建盘子实体（重连/开局恢复共用）。
+    /// 先销毁本地全部盘子实体（含解绑持有者），再按 owner 逐个重建。
+    /// </summary>
+    public void RebuildFromFullSync(
+        (int plateId, byte ownerType, int ownerId, int soIndex, int[] ingredients)[] _snapshot)
+    {
+        // 1) 清空
+        foreach (var kv in plates)
+        {
+            var plate = kv.Value;
+            if (plate == null) continue;
+
+            if (plate.GetKitchenObjectParent() is NetworkPlayer np) np.DetachHeldPlate(plate);
+            else if (plate.GetKitchenObjectParent() is PlayerController pc) pc.ClearKitchenObject();
+            else if (plate.GetKitchenObjectParent() is BaseCounter counter) counter.ClearKitchenObject();
+
+            Destroy(plate.gameObject);
+        }
+        plates.Clear();
+
+        // 2) 重建：对每个快照先登记实体，再走统一的“移动+应用”路径
+        if (_snapshot == null) return;
+
+        foreach (var p in _snapshot)
+        {
+            if (!plates.TryGetValue(p.plateId, out PlateKitchenObject plate))
+            {
+                plate = CreatePlateEntity(p.plateId, p.soIndex);
+                if (plate == null) continue;
+            }
+
+            MovePlateToOwner(plate, p.ownerType, p.ownerId);
+            ApplyOwnerSyncData(plate, p.ownerType, p.ownerId, new List<int>(p.ingredients));
+        }
+
+        Debug.Log($"[PlateManager] FullSync 盘子重建完成，共 {_snapshot.Length} 个");
     }
 
     #endregion
