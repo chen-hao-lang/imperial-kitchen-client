@@ -3,7 +3,7 @@ using LiteGameFramework;
 using UnityEngine;
 using YooAsset;
 
-[CreateAssetMenu(menuName  = "Kitchen Chaos/KitchenObject Registry")]
+[CreateAssetMenu(menuName = "Kitchen Chaos/KitchenObject Registry")]
 public class KitchenObjectRegistry : ScriptableObject
 {
     private static KitchenObjectRegistry _instance;
@@ -66,5 +66,24 @@ public class KitchenObjectRegistry : ScriptableObject
             }
         }
         return -1;
+    }
+
+    /// <summary>按 itemId 查找，未找到返回 null。</summary>
+    public KitchenObjectSO GetByItemId(string _itemId)
+    {
+        if (string.IsNullOrEmpty(_itemId)) return null;
+        for (int i = 0; i < objectList.Count; i++)
+        {
+            if (objectList[i] != null && objectList[i].itemId == _itemId)
+                return objectList[i];
+        }
+        return null;
+    }
+
+    /// <summary>按 itemId 查下标，未找到返回 -1。</summary>
+    public int GetIndexByItemId(string _itemId)
+    {
+        KitchenObjectSO so = GetByItemId(_itemId);
+        return so == null ? -1 : GetIndexBySO(so);
     }
 }

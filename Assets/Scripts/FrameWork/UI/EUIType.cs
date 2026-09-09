@@ -7,7 +7,6 @@ public enum EUIType
     GameStartCDUI,
     GamePlayingClockUI,
     GamePausePanel,
-    SucessPanel,
     ChatPanel,
     RoomPanel,
     PlayerReadyPanel,

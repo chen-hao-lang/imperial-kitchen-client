@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using UnityEngine;
 
@@ -49,7 +50,8 @@ public static class NetworkMessage
     }
     #endregion
 
-    #region  客户端 → 服务端：消息创建方法
+    #region 玩家
+    #region 上传
     /// <summary>
     /// 上报玩家移动（位置 + Y轴旋转）。
     /// </summary>
@@ -95,6 +97,49 @@ public static class NetworkMessage
         writer.Write(_isReady);
         return Pack(MessageType.C2S_PlayerReady, ms.ToArray());
     }
+    #endregion
+
+    #region 解析
+    public static (int playerId, float x, float y, float z, float rotY) Parse_PlayerPosition(byte[] body)
+    {
+        using var ms = new MemoryStream(body);
+        using var reader = new BinaryReader(ms);
+        int id = reader.ReadInt32();
+        float x = reader.ReadSingle();
+        float y = reader.ReadSingle();
+        float z = reader.ReadSingle();
+        float rotY = reader.ReadSingle();
+        return (id, x, y, z, rotY);
+    }
+
+    public static (int, int, int, int) Parse_InteractionSync(byte[] _data)
+    {
+        using var ms = new MemoryStream(_data);
+        using var reader = new BinaryReader(ms);
+        int counterId = reader.ReadInt32();
+        int counterHeldItemId = reader.ReadInt32();
+        int playerId = reader.ReadInt32();
+        int playerItem = reader.ReadInt32();
+        return (counterId, counterHeldItemId, playerId, playerItem);
+    }
+    #endregion
+    #endregion
+
+    #region  客户端 → 服务端：消息创建方法
+
+    public static byte[] Create_RequestBackRoom()
+    {
+        using var ms = new MemoryStream();
+        return Pack(MessageType.C2S_RequestBackRoom,ms.ToArray());
+    }
+
+    public static int Parse_GameOver(byte[] _data)
+    {
+        using var ms = new MemoryStream(_data);
+        using var reader = new BinaryReader(ms);
+        return reader.ReadInt32();
+    }
+
 
     /// <summary>
     /// 主动断开连接。
@@ -197,29 +242,6 @@ public static class NetworkMessage
         using var ms = new MemoryStream(body);
         using var reader = new BinaryReader(ms);
         return reader.ReadInt32();
-    }
-
-    public static (int playerId, float x, float y, float z, float rotY) Parse_PlayerPosition(byte[] body)
-    {
-        using var ms = new MemoryStream(body);
-        using var reader = new BinaryReader(ms);
-        int id = reader.ReadInt32();
-        float x = reader.ReadSingle();
-        float y = reader.ReadSingle();
-        float z = reader.ReadSingle();
-        float rotY = reader.ReadSingle();
-        return (id, x, y, z, rotY);
-    }
-
-    public static (int, int, int, int) Parse_InteractionSync(byte[] _data)
-    {
-        using var ms = new MemoryStream(_data);
-        using var reader = new BinaryReader(ms);
-        int counterId = reader.ReadInt32();
-        int counterHeldItemId = reader.ReadInt32();
-        int playerId = reader.ReadInt32();
-        int playerItem = reader.ReadInt32();
-        return (counterId, counterHeldItemId, playerId, playerItem);
     }
 
     public static byte Parse_GameStateChange(byte[] body)
@@ -515,14 +537,14 @@ public static class NetworkMessage
     /// </summary>
     /// <param name="_data"></param>
     /// <returns>房间id</returns>
-    public static (int,string,int) Parse_CreateRoom(byte[] _data)
+    public static (int, string, int) Parse_CreateRoom(byte[] _data)
     {
         var ms = new MemoryStream(_data);
         var reader = new BinaryReader(ms);
         int roomId = reader.ReadInt32();
         string name = ReadString(reader);
-        int maxPlayer = reader.ReadInt32(); 
-        return (roomId,name,maxPlayer); 
+        int maxPlayer = reader.ReadInt32();
+        return (roomId, name, maxPlayer);
     }
 
     /// <summary>
@@ -619,15 +641,15 @@ public static class NetworkMessage
         return Pack(MessageType.C2S_HeartBeat, Array.Empty<byte>());
     }
 
-    /// <summary>重连认领请求（D7）：roomId + 旧 PlayerId</summary>
-    public static byte[] Create_ResumeGame(int _roomId, int _oldPlayerId)
-    {
-        using var ms = new MemoryStream();
-        using var writer = new BinaryWriter(ms);
-        writer.Write(_roomId);
-        writer.Write(_oldPlayerId);
-        return Pack(MessageType.C2S_ResumeGame, ms.ToArray());
-    }
+    ///// <summary>重连认领请求（D7）：roomId + 旧 PlayerId</summary>
+    //public static byte[] Create_ResumeGame(int _roomId, int _oldPlayerId)
+    //{
+    //    using var ms = new MemoryStream();
+    //    using var writer = new BinaryWriter(ms);
+    //    writer.Write(_roomId);
+    //    writer.Write(_oldPlayerId);
+    //    return Pack(MessageType.C2S_ResumeGame, ms.ToArray());
+    //}
 
     /// <summary>解析房主变更（D4）：新房主 PlayerId</summary>
     public static int Parse_RoomOwnerChanged(byte[] _body)
@@ -637,21 +659,21 @@ public static class NetworkMessage
         return reader.ReadInt32();
     }
 
-    /// <summary>解析重连认领结果（D7）</summary>
-    public static (bool ok, int playerId, float x, float y, float z, float rotY, int heldItemIndex)
-        Parse_ResumeGameResult(byte[] _body)
-    {
-        using var ms = new MemoryStream(_body);
-        using var reader = new BinaryReader(ms);
-        bool ok = reader.ReadByte() == 1;
-        int playerId = reader.ReadInt32();
-        float x = reader.ReadSingle();
-        float y = reader.ReadSingle();
-        float z = reader.ReadSingle();
-        float rotY = reader.ReadSingle();
-        int heldItemIndex = reader.ReadInt32();
-        return (ok, playerId, x, y, z, rotY, heldItemIndex);
-    }
+    ///// <summary>解析重连认领结果（D7）</summary>
+    //public static (bool ok, int playerId, float x, float y, float z, float rotY, int heldItemIndex)
+    //    Parse_ResumeGameResult(byte[] _body)
+    //{
+    //    using var ms = new MemoryStream(_body);
+    //    using var reader = new BinaryReader(ms);
+    //    bool ok = reader.ReadByte() == 1;
+    //    int playerId = reader.ReadInt32();
+    //    float x = reader.ReadSingle();
+    //    float y = reader.ReadSingle();
+    //    float z = reader.ReadSingle();
+    //    float rotY = reader.ReadSingle();
+    //    int heldItemIndex = reader.ReadInt32();
+    //    return (ok, playerId, x, y, z, rotY, heldItemIndex);
+    //}
     #endregion
     #endregion
 

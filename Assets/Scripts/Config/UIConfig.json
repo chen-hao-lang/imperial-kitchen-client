@@ -49,13 +49,6 @@
     "isWindow": false
   },
   {
-    "type": "SucessPanel",
-    "packageName": "UI",
-    "panelName": "SucessPanel",
-    "layer": "Normal",
-    "isWindow": false
-  },
-  {
     "type": "ChatPanel",
     "packageName": "UI",
     "panelName": "ChatPanel",

@@ -89,7 +89,14 @@ public struct OnGameStartCD : IEvent
     public OnGameStartCD(float _seconds) => cdSeconds = _seconds;
 }
 
-public struct GameOver : IEvent { }
+public struct OnGameOver : IEvent
+{
+    public int Score {get;}
+    public OnGameOver(int _score)
+    {
+        Score = _score;
+    }
+}
 
 #endregion
 
@@ -405,18 +412,18 @@ public struct OnRoomOwnerChanged : IEvent
     public OnRoomOwnerChanged(int _newOwnerPlayerId) => newOwnerPlayerId = _newOwnerPlayerId;
 }
 
-/// <summary>重连认领成功（D7）：携带本人服务器位置与手持</summary>
-public struct OnResumeGameSucceeded : IEvent
-{
-    public float x, y, z, rotY;
-    public int heldItemIndex;
-    public OnResumeGameSucceeded(float _x, float _y, float _z, float _rotY, int _held)
-    {
-        x = _x; y = _y; z = _z; rotY = _rotY; heldItemIndex = _held;
-    }
-}
+///// <summary>重连认领成功（D7）：携带本人服务器位置与手持</summary>
+//public struct OnResumeGameSucceeded : IEvent
+//{
+//    public float x, y, z, rotY;
+//    public int heldItemIndex;
+//    public OnResumeGameSucceeded(float _x, float _y, float _z, float _rotY, int _held)
+//    {
+//        x = _x; y = _y; z = _z; rotY = _rotY; heldItemIndex = _held;
+//    }
+//}
 
-/// <summary>重连认领失败（D7）：UI 据此回主菜单</summary>
-public struct OnResumeGameFailed : IEvent { }
+///// <summary>重连认领失败（D7）：UI 据此回主菜单</summary>
+//public struct OnResumeGameFailed : IEvent { }
 
 #endregion

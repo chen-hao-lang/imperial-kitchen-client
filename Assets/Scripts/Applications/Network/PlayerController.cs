@@ -64,7 +64,8 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
             EventManager.AddListener<OnInteractActionEvent>(this, OnInteractActionEvent);
             EventManager.AddListener<OnInteractAlternateEvent>(this, OnInteractAlternateEvent);
             EventManager.AddListener<OnInteractionSync>(this, OnInteractionSync);
-            EventManager.AddListener<OnResumeGameSucceeded>(this, OnResumeGameSucceeded);
+            // 断线重连（D7）已暂时禁用
+            //EventManager.AddListener<OnResumeGameSucceeded>(this, OnResumeGameSucceeded);
         }
         else// 远程玩家
         {
@@ -97,26 +98,27 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
         ApplyHeldItem(_arg.playerHeldId);
     }
 
-    /// <summary>
-    /// 重连认领成功：更新本地玩家身份为旧 PlayerId、瞬移回服务器位置、恢复手持普通物。
-    /// 盘子由随后的 FullSync→PlateManager 重建挂到手上，无需在此处理。
-    /// </summary>
-    private void OnResumeGameSucceeded(OnResumeGameSucceeded _arg)
-    {
-        if (!_isLocalPlayer) return;
-
-        // 身份更新（NetworkManager.PlayerID 已在 HandleMessage 里改好）
-        SetPlayerIdentity(NetworkManager.Instance.PlayerID, true);
-
-        // 瞬移回服务器最后接受的位置（角色控制器先禁用再恢复，避免被物理卡住）
-        if (_controller != null) _controller.enabled = false;
-        transform.position = new Vector3(_arg.x, _arg.y, _arg.z);
-        if (_controller != null) _controller.enabled = true;
-
-        // 手持普通物恢复（盘子索引会被 ApplyHeldItem 自动忽略，由 PlateManager 处理）
-        ApplyHeldItem(_arg.heldItemIndex);
-        Debug.Log($"[PlayerController] 重连恢复完成，位置=({_arg.x},{_arg.y},{_arg.z})");
-    }
+    // 断线重连（D7）已暂时禁用
+    ///// <summary>
+    ///// 重连认领成功：更新本地玩家身份为旧 PlayerId、瞬移回服务器位置、恢复手持普通物。
+    ///// 盘子由随后的 FullSync→PlateManager 重建挂到手上，无需在此处理。
+    ///// </summary>
+    //private void OnResumeGameSucceeded(OnResumeGameSucceeded _arg)
+    //{
+    //    if (!_isLocalPlayer) return;
+    //
+    //    // 身份更新（NetworkManager.PlayerID 已在 HandleMessage 里改好）
+    //    SetPlayerIdentity(NetworkManager.Instance.PlayerID, true);
+    //
+    //    // 瞬移回服务器最后接受的位置（角色控制器先禁用再恢复，避免被物理卡住）
+    //    if (_controller != null) _controller.enabled = false;
+    //    transform.position = new Vector3(_arg.x, _arg.y, _arg.z);
+    //    if (_controller != null) _controller.enabled = true;
+    //
+    //    // 手持普通物恢复（盘子索引会被 ApplyHeldItem 自动忽略，由 PlateManager 处理）
+    //    ApplyHeldItem(_arg.heldItemIndex);
+    //    Debug.Log($"[PlayerController] 重连恢复完成，位置=({_arg.x},{_arg.y},{_arg.z})");
+    //}
 
     public void ApplyHeldItem(int _soIndex)
     {

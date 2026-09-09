@@ -51,19 +51,20 @@ public class NetworkManager : SingletonMono<NetworkManager>
     private float heartbeatTimer = 0f;
     private const float HEARTBEAT_INTERVAL = 3f; // 每3秒发送一次心跳包
 
-    /// <summary>服务器 IP/端口（重连用）</summary>
-    private string serverIp;
-    private int serverPort;
+    // ===== 断线重连（D7）已暂时禁用 =====
+    ///// <summary>服务器 IP/端口（重连用）</summary>
+    //private string serverIp;
+    //private int serverPort;
 
-    /// <summary>可恢复会话（局内掉线后是否还能认领）</summary>
-    public bool HasResumableSession { get; private set; }
+    ///// <summary>可恢复会话（局内掉线后是否还能认领）</summary>
+    //public bool HasResumableSession { get; private set; }
 
-    /// <summary>被认领前保留的旧房间/旧 PlayerId</summary>
-    public int SessionRoomId { get; private set; } = -1;
-    public int SessionPlayerId { get; private set; } = -1;
+    ///// <summary>被认领前保留的旧房间/旧 PlayerId</summary>
+    //public int SessionRoomId { get; private set; } = -1;
+    //public int SessionPlayerId { get; private set; } = -1;
 
-    /// <summary>本次是否处于“重连恢复”流程（GameSceneLaunch 用，跳过注册/上报）</summary>
-    public bool IsResumedSession { get; private set; }
+    ///// <summary>本次是否处于“重连恢复”流程（GameSceneLaunch 用，跳过注册/上报）</summary>
+    //public bool IsResumedSession { get; private set; }
 
     // Update is called once per frame
     void Update()
@@ -102,8 +103,9 @@ public class NetworkManager : SingletonMono<NetworkManager>
     /// <param name="_playerName"></param>
     public void Connect(string _ip, int _port, string _playerName)
     {
-        serverIp = _ip;
-        serverPort = _port;
+        // 断线重连（D7）已暂时禁用
+        //serverIp = _ip;
+        //serverPort = _port;
 
         if (IsConnected)
         {
@@ -166,8 +168,8 @@ public class NetworkManager : SingletonMono<NetworkManager>
         try { stream?.Close(); } catch { }
         try { tcpClient?.Close(); } catch { }
 
-        // 断线前缓存局内会话（必须在 PlayerID/RoomId 重置之前执行）
-        CacheResumableSession();
+        // 断线前缓存局内会话（必须在 PlayerID/RoomId 重置之前执行）——断线重连（D7）已暂时禁用
+        //CacheResumableSession();
 
         bufferedBytes = 0;
         heartbeatTimer = 0f;
@@ -275,13 +277,6 @@ public class NetworkManager : SingletonMono<NetworkManager>
     }
     #endregion
 
-    #region 盘子
-    public void SendPlateRegisterSO(int _plateId, int _plateSO)
-    {
-        Send(NetworkMessage.Create_RegisterPlate(_plateId, _plateSO));
-    }
-    #endregion
-
     /// <summary>
     /// 上报配方表（连接后注册）。内容由客户端提供，订单裁决仍由服务器执行。
     /// </summary>
@@ -324,11 +319,6 @@ public class NetworkManager : SingletonMono<NetworkManager>
         // ResetRoomState();
     }
 
-    public void SendSucessEnterGameScene()
-    {
-        Send(NetworkMessage.Create_SucessEnterGameScene());
-    }
-
     /// <summary>
     /// 重置房间相关状态（离开/解散/断线时调用），避免 RoomId 残留导致再次加入时无法跳转场景。
     /// </summary>
@@ -368,72 +358,86 @@ public class NetworkManager : SingletonMono<NetworkManager>
     {
         Send(NetworkMessage.Create_RequestEnterGameScene(RoomId));
     }
-    #endregion
-    #endregion
-
-    #region 断线重连（D7）
-    /// <summary>
-    /// 断线前缓存“局内会话”，供重连认领使用。
-    /// 规则：断线时若处于 GameScene 且之前加入过房间（RoomId>=0 且 PlayerID>=0），
-    /// 则记录 (SessionRoomId=RoomId, SessionPlayerId=PlayerID)。
-    /// </summary>
-    private void CacheResumableSession()
-    {
-        // 重连流程进行中：不覆盖已有会话（此时 PlayerID 已临时切到新连接 id，覆盖会丢失旧 PlayerId）
-        if (IsResumedSession) return;
-
-        HasResumableSession = false;
-
-        // 大厅/未进房掉线 → 无可恢复会话（可回大厅正常重连）
-        if (RoomId < 0 || PlayerID < 0) return;
-        // 只在游戏场景（对局中）才保留认领会话；大厅掉线走重新加入即可
-        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "GameScene") return;
-
-        SessionRoomId = RoomId;
-        SessionPlayerId = PlayerID;
-        HasResumableSession = true;
-        Debug.Log($"[NetworkManager] 已缓存可重连会话: room={SessionRoomId}, player={SessionPlayerId}");
-    }
 
     /// <summary>
-    /// 重连上次局内会话：TCP 重连成功后立即发送认领请求。
+    /// 成功进入游戏场景
     /// </summary>
-    public void TryResumeLastSession()
+    public void SendSucessEnterGameScene()
     {
-        if (!HasResumableSession) return;
-
-        int roomId = SessionRoomId;
-        int oldPlayerId = SessionPlayerId;
-
-        IsResumedSession = true;          // 让 GameSceneLaunch 跳过注册台子/上报 loaded
-
-        // 清理旧连接后重连（先读走 roomId/oldPlayerId，避免被 Connect 内部的 Disconnect 覆盖）
-        try { stream?.Close(); } catch { }
-        try { tcpClient?.Close(); } catch { }
-        stream = null;
-        tcpClient = null;
-        shouldStop = true;
-        IsConnected = false;
-
-        Connect(serverIp, serverPort, PlayerName);
-
-        // Connect 为同步 TCP 连接；服务器 accept 后会立刻回 Connect(新临时 id)，
-        // 这里立刻发认领请求，服务器按 roomId+oldPlayerId 认领，随后回 ResumeGameResult。
-        Send(NetworkMessage.Create_ResumeGame(roomId, oldPlayerId));
-    }
-
-    /// <summary>会话已结束（认领失败/主动退出/房间解散），清除并重置房间状态</summary>
-    public void ClearResumableSession()
-    {
-        HasResumableSession = false;
-        IsResumedSession = false;
-        SessionRoomId = -1;
-        SessionPlayerId = -1;
-
-        // 同时重置房间状态，避免 RoomId 残留导致再次加入房间时不跳转场景
-        ResetRoomState();
+        Send(NetworkMessage.Create_SucessEnterGameScene());
     }
     #endregion
+
+    public void SendRequestBackRoom()
+    {
+        Send(NetworkMessage.Create_RequestBackRoom());
+    }
+    #endregion
+
+    // ═══════════════ 断线重连（D7）已暂时禁用（原实现保留，留待后续解决）═══════════════
+    //#region 断线重连（D7）
+    ///// <summary>
+    ///// 断线前缓存“局内会话”，供重连认领使用。
+    ///// 规则：断线时若处于 GameScene 且之前加入过房间（RoomId>=0 且 PlayerID>=0），
+    ///// 则记录 (SessionRoomId=RoomId, SessionPlayerId=PlayerID)。
+    ///// </summary>
+    //private void CacheResumableSession()
+    //{
+    //    // 重连流程进行中：不覆盖已有会话（此时 PlayerID 已临时切到新连接 id，覆盖会丢失旧 PlayerId）
+    //    if (IsResumedSession) return;
+    //
+    //    HasResumableSession = false;
+    //
+    //    // 大厅/未进房掉线 → 无可恢复会话（可回大厅正常重连）
+    //    if (RoomId < 0 || PlayerID < 0) return;
+    //    // 只在游戏场景（对局中）才保留认领会话；大厅掉线走重新加入即可
+    //    if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "GameScene") return;
+    //
+    //    SessionRoomId = RoomId;
+    //    SessionPlayerId = PlayerID;
+    //    HasResumableSession = true;
+    //    Debug.Log($"[NetworkManager] 已缓存可重连会话: room={SessionRoomId}, player={SessionPlayerId}");
+    //}
+    //
+    ///// <summary>
+    ///// 重连上次局内会话：TCP 重连成功后立即发送认领请求。
+    ///// </summary>
+    //public void TryResumeLastSession()
+    //{
+    //    if (!HasResumableSession) return;
+    //
+    //    int roomId = SessionRoomId;
+    //    int oldPlayerId = SessionPlayerId;
+    //
+    //    IsResumedSession = true;          // 让 GameSceneLaunch 跳过注册台子/上报 loaded
+    //
+    //    // 清理旧连接后重连（先读走 roomId/oldPlayerId，避免被 Connect 内部的 Disconnect 覆盖）
+    //    try { stream?.Close(); } catch { }
+    //    try { tcpClient?.Close(); } catch { }
+    //    stream = null;
+    //    tcpClient = null;
+    //    shouldStop = true;
+    //    IsConnected = false;
+    //
+    //    Connect(serverIp, serverPort, PlayerName);
+    //
+    //    // Connect 为同步 TCP 连接；服务器 accept 后会立刻回 Connect(新临时 id)，
+    //    // 这里立刻发认领请求，服务器按 roomId+oldPlayerId 认领，随后回 ResumeGameResult。
+    //    Send(NetworkMessage.Create_ResumeGame(roomId, oldPlayerId));
+    //}
+    //
+    ///// <summary>会话已结束（认领失败/主动退出/房间解散），清除并重置房间状态</summary>
+    //public void ClearResumableSession()
+    //{
+    //    HasResumableSession = false;
+    //    IsResumedSession = false;
+    //    SessionRoomId = -1;
+    //    SessionPlayerId = -1;
+    //
+    //    // 同时重置房间状态，避免 RoomId 残留导致再次加入房间时不跳转场景
+    //    ResetRoomState();
+    //}
+    //#endregion
 
     #region 接受消息
     private void ReceiveLoop(object obj)
@@ -503,8 +507,8 @@ public class NetworkManager : SingletonMono<NetworkManager>
 
         EnqueueOnMainThread(() =>
         {
-            // 被动断线：在 PlayerID 重置前缓存局内会话，供重连认领使用
-            CacheResumableSession();
+            // 被动断线：在 PlayerID 重置前缓存局内会话，供重连认领使用——断线重连（D7）已暂时禁用
+            //CacheResumableSession();
 
             IsConnected = false;
             PlayerID = -1;
@@ -570,7 +574,8 @@ public class NetworkManager : SingletonMono<NetworkManager>
 
         if (_type == MessageType.GameOver)
         {
-            EventManager.Invoke<GameOver>(new GameOver());
+            var score = NetworkMessage.Parse_GameOver(_body);
+            EventManager.Invoke<OnGameOver>(new OnGameOver(score));
             return;
         }
 
@@ -611,6 +616,12 @@ public class NetworkManager : SingletonMono<NetworkManager>
             EventManager.Invoke<OnFullSync>(new OnFullSync(players, counters));
             EventManager.Invoke<OnRecipeFullSync>(new OnRecipeFullSync(recipes));
             return;
+        }
+
+        if(_type == MessageType.BackRoom)
+        {
+            //TODO:切换房间
+            YooAssetsLoad.Instance.LoadSceneAsync("GameRoom","GameRoomScene");
         }
         #endregion
 
@@ -693,9 +704,9 @@ public class NetworkManager : SingletonMono<NetworkManager>
         if (_type == MessageType.RoomCreated)
         {
             var (roomId, name, maxPlayer) = NetworkMessage.Parse_CreateRoom(_body);
-            IsRoomOwner = true; 
+            IsRoomOwner = true;
             RoomId = roomId;
-            RoomMaxPlayer = maxPlayer;  
+            RoomMaxPlayer = maxPlayer;
 
             Debug.Log($"[NetworkManager] 房间创建成功: {roomId}");
 
@@ -722,7 +733,7 @@ public class NetworkManager : SingletonMono<NetworkManager>
                 YooAssetsLoad.Instance.LoadSceneAsync("GameRoom", "GameRoomScene");
             }
 
-            if(RoomPlayers.FindIndex(p => p.playerId == playerId) == -1)
+            if (RoomPlayers.FindIndex(p => p.playerId == playerId) == -1)
             {
                 RoomPlayers.Add(new PlayeInfo(playerId, seatId, name, false));
             }
@@ -806,29 +817,30 @@ public class NetworkManager : SingletonMono<NetworkManager>
             return;
         }
 
-        if (_type == MessageType.ResumeGameResult)
-        {
-            var (ok, playerId, x, y, z, rotY, heldItemIndex) = NetworkMessage.Parse_ResumeGameResult(_body);
-
-            if (!ok)
-            {
-                Debug.LogWarning("[NetworkManager] 重连认领失败（窗口过期/房间已销毁）");
-                ClearResumableSession();
-                EventManager.Invoke<OnResumeGameFailed>(new OnResumeGameFailed());
-                return;
-            }
-
-            // 认领成功：身份回到旧 PlayerId（服务器此后以旧 id 收发本连接的消息）
-            PlayerID = playerId;
-            RoomId = SessionRoomId;
-            HasResumableSession = false;
-            IsResumedSession = false;
-
-            Debug.Log($"[NetworkManager] 重连认领成功: playerId={playerId}, room={RoomId}");
-
-            EventManager.Invoke<OnResumeGameSucceeded>(new OnResumeGameSucceeded(x, y, z, rotY, heldItemIndex));
-            return;
-        }
+        // 断线重连（D7）已暂时禁用
+        //if (_type == MessageType.ResumeGameResult)
+        //{
+        //    var (ok, playerId, x, y, z, rotY, heldItemIndex) = NetworkMessage.Parse_ResumeGameResult(_body);
+        //
+        //    if (!ok)
+        //    {
+        //        Debug.LogWarning("[NetworkManager] 重连认领失败（窗口过期/房间已销毁）");
+        //        ClearResumableSession();
+        //        EventManager.Invoke<OnResumeGameFailed>(new OnResumeGameFailed());
+        //        return;
+        //    }
+        //
+        //    // 认领成功：身份回到旧 PlayerId（服务器此后以旧 id 收发本连接的消息）
+        //    PlayerID = playerId;
+        //    RoomId = SessionRoomId;
+        //    HasResumableSession = false;
+        //    IsResumedSession = false;
+        //
+        //    Debug.Log($"[NetworkManager] 重连认领成功: playerId={playerId}, room={RoomId}");
+        //
+        //    EventManager.Invoke<OnResumeGameSucceeded>(new OnResumeGameSucceeded(x, y, z, rotY, heldItemIndex));
+        //    return;
+        //}
         #endregion
 
         Debug.LogWarning($"[NetworkManager] 未处理的消息类型: {_type}");

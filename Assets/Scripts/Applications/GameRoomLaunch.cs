@@ -13,6 +13,7 @@ public class GameRoomLaunch : MonoBehaviour
     IEnumerator Init()
     {
         UIManager.Instance.HideAll();
+        
         yield return UIManager.Instance.PreLoadPanel(EUIType.PlayerReadyPanel);
         UIManager.Instance.OpenPanel<PlayerReadyPanel>(EUIType.PlayerReadyPanel);
     }

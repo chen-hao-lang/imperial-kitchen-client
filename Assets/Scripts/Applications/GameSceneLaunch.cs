@@ -13,18 +13,7 @@ public class GameSceneLaunch : MonoBehaviour
 
     IEnumerator Init()
     {
-        // 1) 若处于“重连恢复”流程（D7）：不重新注册台子、不重报加载完成，
-        //    直接走 UI 预加载，快照由 ResumeGameResult/FullSync 恢复。
-        if (!NetworkManager.Instance.IsResumedSession)
-        {
-            // 台子是世界静态配置，只由房主注册（服务器只接受房主注册）。
-            if (NetworkManager.Instance.IsRoomOwner)
-            {
-                NetworkCountersManager.Instance.RegisterAllCounters();
-            }
-
-            UIManager.Instance.HideAll();
-        }
+        UIManager.Instance.HideAll();
 
         List<EUIType> loadPanels = new List<EUIType>()
         {
@@ -43,9 +32,16 @@ public class GameSceneLaunch : MonoBehaviour
         UIManager.Instance.OpenPanel<GamePlayingClockUI>(EUIType.GamePlayingClockUI);
 
         // 2) 每个客户端都在场景/UI 就绪后上报一次，服务器收齐后才开局（D5）。
-        if (!NetworkManager.Instance.IsResumedSession)
-        {
-            NetworkManager.Instance.SendSucessEnterGameScene();
-        }
+        // 断线重连（D7）已暂时禁用，恢复为无条件上报
+        // if (!NetworkManager.Instance.IsResumedSession)
+        // {
+
+        // }
+
+        // 注册操作台
+        NetworkCountersManager.Instance?.RegisterAllCounters();
+
+        // 上报加载完成
+        NetworkManager.Instance?.SendSucessEnterGameScene();
     }
 }
