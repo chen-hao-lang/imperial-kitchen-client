@@ -52,6 +52,11 @@ public class GameOverPanel : BasePanel
     private void OnGameOver(OnGameOver _arg)
     {
         recipesDeliveredText.text = $"Score:{_arg.Score}";
+
+        // 非房主不允许重启游戏
+        if(!NetworkManager.Instance.IsRoomOwner)
+            reStartBtn.gameObject.SetActive(false);
+
         UIManager.Instance.OpenPanel<GameOverPanel>(EUIType.GameOverPanel);
     }
 

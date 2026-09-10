@@ -1,4 +1,3 @@
-using DG.Tweening;
 using KitchenChaos;
 using LiteGameFramework;
 using System;
@@ -54,6 +53,9 @@ public class KitchenGameManager : SingletonMono<KitchenGameManager>
 
     private void Update()
     {
+        if(NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
+            return;
+
         switch (state)
         {
             case EGameState.WaitingToStart:

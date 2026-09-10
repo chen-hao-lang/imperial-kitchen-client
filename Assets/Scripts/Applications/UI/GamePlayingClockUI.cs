@@ -31,7 +31,9 @@ public class GamePlayingClockUI : BasePanel
         }
         else
         {
-            EventManager.RemoveAllListener();
+            // ⚠️ 必须传 this：仅移除本面板的订阅。
+            // 无参重载 EventManager.RemoveAllListener() 会清空全局所有订阅。
+            EventManager.RemoveAllListener(this);
         }
     }
 

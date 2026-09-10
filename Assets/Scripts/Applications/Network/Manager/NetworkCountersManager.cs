@@ -20,18 +20,30 @@ public class NetworkCountersManager : SingletonMono<NetworkCountersManager>
     {
         base.Awake();
 
+        RefreshCounterMap();
+    }
+
+    /// <summary>
+    /// 重新扫描当前场景的操作台并刷新网络ID映射。
+    /// ⚠️ 本单例 DontDestroyOnLoad 跨场景存活，第二次进入 GameScene 时
+    /// counterMap/counterTypeMapping 仍指向上一个场景里已被销毁的台子，
+    /// 直接遍历会抛 MissingReferenceException，导致台子数据（容器物品/配方等）注册失败。
+    /// 因此每次进入 GameScene 都必须在注册前重新扫描。
+    /// 排序规则（按名称）必须保持稳定，以保证每次场景的 counterId 分配一致。
+    /// </summary>
+    public void RefreshCounterMap()
+    {
         BaseCounter[] allCounters = GameObject.FindObjectsByType<BaseCounter>(FindObjectsSortMode.None);
         Array.Sort(allCounters, (a, b) =>
             string.Compare(a.name, b.name, StringComparison.Ordinal)
         );
 
-        // 先构建类型映射数组
+        counterMap.Clear();
         counterTypeMapping = new (int counterId, byte counterType)[allCounters.Length];
 
         for (int i = 0; i < allCounters.Length; i++)
         {
             allCounters[i].SetNetworkId(i);
-
             counterTypeMapping[i] = (i, allCounters[i].CounterType);
             counterMap[i] = allCounters[i];
         }
@@ -179,6 +191,11 @@ public class NetworkCountersManager : SingletonMono<NetworkCountersManager>
     /// </summary>
     public void RegisterAllCounters()
     {
+        // 跨场景后 counterMap/counterTypeMapping 仍指向上一个场景的台子（已销毁），
+        // 必须先重新扫描当前场景，否则遍历旧引用抛异常会导致台子数据注册全部失败
+        // （表现为：重开一局后只能与部分操作台交互）。
+        RefreshCounterMap();
+
         if (counterTypeMapping == null || counterTypeMapping.Length == 0) return;
 
         // 注册表必须可用：后续所有 SO→索引 转换（容器物品/切煮蒸配方/盘子类型）都依赖它。
