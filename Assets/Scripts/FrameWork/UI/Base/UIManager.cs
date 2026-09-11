@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Analytics;
 using UnityEngine.EventSystems;
 using YooAsset;
 
@@ -94,7 +95,8 @@ namespace LiteGameFramework
                         cfg.packageName,
                         cfg.panelName,
                         uiRoot.GetLayersTransform(cfg.uiLayer),
-                        cfg.isWindow
+                        cfg.isWindow,
+                        cfg.isPersistent
                     ));
                 }
             }, "UI");
@@ -182,6 +184,7 @@ namespace LiteGameFramework
             foreach (var uiType in openedPanels)
             {
                 if (_ignoreType == uiType) continue;
+                if(panelControllers.TryGetValue(uiType,out var ctrl) && ctrl.isPersistent) continue;
 
                 if (panelControllers.ContainsKey(uiType))
                 {

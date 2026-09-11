@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Threading;
 using LiteGameFramework;
 using UnityEngine;
+using YooAsset;
 
 public class NetworkManager : SingletonMono<NetworkManager>
 {
@@ -711,7 +712,8 @@ public class NetworkManager : SingletonMono<NetworkManager>
             Debug.Log($"[NetworkManager] 房间创建成功: {roomId}");
 
             // 切换到房间场景
-            YooAssetsLoad.Instance.LoadSceneAsync("GameRoom", "GameRoomScene");
+            // YooAssetsLoad.Instance.LoadSceneAsync("GameRoom", "GameRoomScene");
+            SceneLoader.Instance.LoadScene("GameRoom","GameRoomScene","LoadingToRoom");
             EventManager.Invoke<OnReceiveRoomCreated>(new OnReceiveRoomCreated(roomId));
             return;
         }
@@ -801,8 +803,8 @@ public class NetworkManager : SingletonMono<NetworkManager>
             var roomId = NetworkMessage.Parse_StartGame(_body);
 
             // 切换房间到游戏场景
-            YooAssetsLoad.Instance.LoadSceneAsync("GameScene", "GameScene");
-
+            // YooAssetsLoad.Instance.LoadSceneAsync("GameScene", "GameScene");
+            SceneLoader.Instance.LoadScene("GameScene","GameScene","LoadingToGameScene...");
             // 发送事件
             EventManager.Invoke<OnReceiveStartGame>(new OnReceiveStartGame(roomId));
             return;

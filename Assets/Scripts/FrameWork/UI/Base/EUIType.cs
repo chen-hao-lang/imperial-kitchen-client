@@ -11,5 +11,6 @@ public enum EUIType
     RoomPanel,
     PlayerReadyPanel,
     DisconnectPanel,
+    ProgressPanel,
     Max
 }

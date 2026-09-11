@@ -11,6 +11,7 @@ namespace LiteGameFramework
         public string panelName;
         public UILayerController layer;
         public bool isWindow;
+        public bool isPersistent;
         public GameObject panelGo;
 
         private bool isloaded;
@@ -26,13 +27,19 @@ namespace LiteGameFramework
         public Canvas canvas;
         public IPanel panel;
 
-        public UIPanelController(EUIType _type, string _packageName, string _panelName, UILayerController _layer, bool _isWindow)
+        public UIPanelController(EUIType _type,
+            string _packageName,
+            string _panelName,
+            UILayerController _layer,
+            bool _isWindow,
+            bool _isPersitent = false)
         {
             uiType = _type;
             packageName = _packageName;
             panelName = _panelName;
             layer = _layer;
             isWindow = _isWindow;
+            isPersistent = _isPersitent;
 
             isloaded = false;
             isOpen = false;
@@ -124,7 +131,7 @@ namespace LiteGameFramework
         public void ResumePanel()
         {
             isOpen = true;
-            isPause = false;    
+            isPause = false;
 
             panel.ResumePanel();
         }

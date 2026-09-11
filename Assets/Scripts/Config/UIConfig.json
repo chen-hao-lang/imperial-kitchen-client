@@ -4,76 +4,95 @@
     "packageName": "UI",
     "panelName": "DeliveryManagerUI",
     "layer": "Normal",
-    "isWindow": false
+    "isWindow": false,
+    "isPersistent": false
   },
   {
     "type": "MainMenuPanel",
     "packageName": "UI",
     "panelName": "MainMenuPanel",
     "layer": "Normal",
-    "isWindow": false
+    "isWindow": false,
+    "isPersistent": false
   },
   {
     "type": "GameOverPanel",
     "packageName": "UI",
     "panelName": "GameOverPanel",
     "layer": "Normal",
-    "isWindow": false
+    "isWindow": false,
+    "isPersistent": false
   },
   {
     "type": "OptionPanel",
     "packageName": "UI",
     "panelName": "OptionPanel",
     "layer": "Normal",
-    "isWindow": false
+    "isWindow": false,
+    "isPersistent": false
   },
   {
     "type": "GameStartCDUI",
     "packageName": "UI",
     "panelName": "GameStartCDUI",
     "layer": "Popup",
-    "isWindow": false
+    "isWindow": false,
+    "isPersistent": false
   },
   {
     "type": "GamePlayingClockUI",
     "packageName": "UI",
     "panelName": "GamePlayingClockUI",
     "layer": "Normal",
-    "isWindow": false
+    "isWindow": false,
+    "isPersistent": false
   },
   {
     "type": "GamePausePanel",
     "packageName": null,
     "panelName": "GamePausePanel",
     "layer": "Normal",
-    "isWindow": false
+    "isWindow": false,
+    "isPersistent": false
   },
   {
     "type": "ChatPanel",
     "packageName": "UI",
     "panelName": "ChatPanel",
     "layer": "Normal",
-    "isWindow": false
+    "isWindow": false,
+    "isPersistent": false
   },
   {
     "type": "RoomPanel",
     "packageName": "UI",
     "panelName": "RoomPanel",
     "layer": "Normal",
-    "isWindow": true
+    "isWindow": true,
+    "isPersistent": false
   },
   {
     "type": "PlayerReadyPanel",
     "packageName": "UI",
     "panelName": "PlayerReadyPanel",
     "layer": "Normal",
-    "isWindow": false
+    "isWindow": false,
+    "isPersistent": false
   },
   {
     "type": "DisconnectPanel",
     "packageName": "UI",
     "panelName": "DisconnectPanel",
     "layer": "Info",
-    "isWindow": false
+    "isWindow": false,
+    "isPersistent": false
+  },
+  {
+    "type": "ProgressPanel",
+    "packageName": "UI",
+    "panelName": "ProgressPanel",
+    "layer": "Info",
+    "isWindow": false,
+    "isPersistent": true
   }
 ]

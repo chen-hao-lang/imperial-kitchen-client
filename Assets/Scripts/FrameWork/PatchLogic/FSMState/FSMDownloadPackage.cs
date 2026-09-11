@@ -30,17 +30,26 @@ namespace LiteGameFramework
         var packageName = (string)stateMachine.GetBlackboardData("PackageName");
         var options = new ResourceDownloaderOptions(10, 3);
 
-        yield return YooAssetsLoad.Instance.DownloadPackageResources(
-            packageName,
-            options,
-            _sucess: () =>
-            {
-                stateMachine.AddBlackboardData("DownloadComplete", true);
-            },
-            _fail: () =>
-            {
-                stateMachine.MarkFailed("下载资源", "下载过程中出现错误");
-            });
+        yield break;
+
+        //TODO:
+        // var step = stateMachine.GetBlackboardData("DownloadStep") as DownloadStep;
+
+        // yield return YooAssetsLoad.Instance.DownloadPackageResources(
+        //     packageName,
+        //     options,
+        //     _sucess: () =>
+        //     {
+        //         stateMachine.AddBlackboardData("DownloadComplete", true);
+        //     },
+        //     _fail: () =>
+        //     {
+        //         stateMachine.MarkFailed("下载资源", "下载过程中出现错误");
+        //     },
+        //     _onProgress: (downloader) =>
+        //     {
+        //         step?.Update(downloader);
+        //     });
     }
 }
 }

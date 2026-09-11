@@ -8,5 +8,6 @@ namespace LiteGameFramework
         public string panelName;
         public string layer;
         public bool isWindow;
+        public bool isPersistent;
     }
 }

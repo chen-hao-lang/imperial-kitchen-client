@@ -12,6 +12,7 @@ namespace LiteGameFramework
         public string panelName;
         public EUILayer uiLayer;
         public bool isWindow;
+        public bool isPersistent;
 
         public static List<UIConfig> GetAllConfigs(string _jsonString)
         {
@@ -37,7 +38,8 @@ namespace LiteGameFramework
                     packageName = cfg.packageName,
                     panelName = cfg.panelName,
                     uiLayer = layer,
-                    isWindow = cfg.isWindow
+                    isWindow = cfg.isWindow,
+                    isPersistent = cfg.isPersistent
                 });
             }
 

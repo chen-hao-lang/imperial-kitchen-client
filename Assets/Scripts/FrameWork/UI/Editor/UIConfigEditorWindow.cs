@@ -277,6 +277,10 @@ namespace LiteGameFramework
                 // Is Window
                 cfg.isWindow = EditorGUILayout.Toggle("Is Window", cfg.isWindow);
 
+                EditorGUILayout.Space(4);
+
+                cfg.isPersistent = EditorGUILayout.Toggle("Is Persitent",cfg.isPersistent);
+
                 EditorGUILayout.Space(8);
 
                 // 当前配置的 JSON 预览
@@ -284,7 +288,7 @@ namespace LiteGameFramework
                 try
                 {
                     string previewJson = JsonConvert.SerializeObject(cfg, Formatting.Indented);
-                    EditorGUILayout.TextArea(previewJson, GUILayout.Height(100));
+                    EditorGUILayout.TextArea(previewJson, GUILayout.Height(150));
                 }
                 catch { }
 
