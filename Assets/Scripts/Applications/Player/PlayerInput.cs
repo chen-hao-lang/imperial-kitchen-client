@@ -1,11 +1,14 @@
 using System;
 using KitchenChaos;
 using LiteGameFramework;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UIElements;
 
-public class PlayerInput : SingletonMono<PlayerInput>
+public class PlayerInput : MonoBehaviour
 {
+    public static PlayerInput Instance;
     private const string PLAYER_PREFS_BINDINGS = "InputBindings";
 
     public enum Binding
@@ -36,9 +39,9 @@ public class PlayerInput : SingletonMono<PlayerInput>
 
     private bool openChatPanel = false;
 
-    protected override void Awake()
+    void Awake()
     {
-        base.Awake();
+        Instance = this;
 
         _playerAction = new PlayerAction();
         _playerAction.Player.Enable();
@@ -57,6 +60,18 @@ public class PlayerInput : SingletonMono<PlayerInput>
             openChatPanel = !openChatPanel;
             EventManager.Invoke(new OnOpenChatPanelEvent { IsOpen = openChatPanel });
         };
+    }
+
+    void OnDestroy()
+    {
+        if(Instance == this) Instance = null;
+
+        if(_playerAction != null)
+        {
+            _playerAction.Player.Disable();
+            _playerAction.Dispose();
+            _playerAction = null;
+        }
     }
 
     private void Move(InputAction.CallbackContext context)

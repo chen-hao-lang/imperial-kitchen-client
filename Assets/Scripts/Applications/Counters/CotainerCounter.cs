@@ -10,6 +10,11 @@ public class CotainerCounter : BaseCounter
 
     public override void Interact(PlayerController _player)
     {
+        if(NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
+        {
+            return;
+        }
+        
         if (!_player.HasKitchenObject())//如果角色手里没东西
         {
             KitchenObject.SpawnKitchenObject(kitchenObjectSO, _player);

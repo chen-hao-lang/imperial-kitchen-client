@@ -40,6 +40,7 @@ public class GameSceneLaunch : MonoBehaviour
 
         // 注册操作台
         NetworkCountersManager.Instance?.RegisterAllCounters();
+        GameScenePlayerManager.Instance.InitForNewGame();
 
         // 上报加载完成
         NetworkManager.Instance?.SendSucessEnterGameScene();

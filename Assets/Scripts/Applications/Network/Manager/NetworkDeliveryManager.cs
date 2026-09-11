@@ -12,7 +12,7 @@ using YooAsset;
 /// - 校验结果通过 RecipeCompleted / RecipeFailed / ScoreUpdate 广播驱动本地状态
 /// - 中途加入时通过 OnRecipeFullSync 恢复当前等待订单
 /// </summary>
-class DeliveryManager : SingletonMono<DeliveryManager>
+public class NetworkDeliveryManager : SingletonMono<NetworkDeliveryManager>
 {
     public event EventHandler OnRecipeSpawned;
     public event EventHandler OnRecipeSuccess;

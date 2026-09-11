@@ -15,6 +15,12 @@ public static class NetworkMessage
 {
     public const int HEADER_SIZE = 5;
 
+    /// <summary>
+    /// 心跳标志位：bit0 = 1 表示"调试客户端"（编辑器 / 开发版）。
+    /// 断点调试或编辑器失去焦点时心跳会长时间停发，服务端据此放宽保活超时，避免误断开。
+    /// </summary>
+    public const byte HeartbeatFlag_DebugClient = 1 << 0;
+
     #region 辅助工具
     /// <summary>
     /// 从缓冲区读取消息头：(消息体长度, 消息类型)
@@ -635,10 +641,15 @@ public static class NetworkMessage
         return roomId;
     }
 
-    /// <summary>心跳（D2）：无消息体</summary>
-    public static byte[] Create_Heartbeat()
+    /// <summary>
+    /// 心跳（D2）：消息体 = flags(byte)，见 <see cref="HeartbeatFlag_DebugClient"/>。
+    /// 旧版服务端会忽略消息体，因此该扩展向后兼容。
+    /// </summary>
+    /// <param name="_debugClient">是否为调试客户端（编辑器/开发版），true 时服务端放宽保活超时</param>
+    public static byte[] Create_Heartbeat(bool _debugClient = false)
     {
-        return Pack(MessageType.C2S_HeartBeat, Array.Empty<byte>());
+        byte flags = _debugClient ? HeartbeatFlag_DebugClient : (byte)0;
+        return Pack(MessageType.C2S_HeartBeat, new[] { flags });
     }
 
     ///// <summary>重连认领请求（D7）：roomId + 旧 PlayerId</summary>

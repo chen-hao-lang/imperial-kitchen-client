@@ -15,12 +15,12 @@ public class DeliveryCounter : BaseCounter
             {
                 if (IsNetworkMode)
                 {
-                    DeliveryManager.Instance.DeliveRecipe(plateKitchenObject);
+                    NetworkDeliveryManager.Instance.DeliveRecipe(plateKitchenObject);
                     return;
                 }
 
                 // 提交交付请求：服务器权威校验订单，成功后由服务器广播并销毁盘子
-                DeliveryManager.Instance.DeliveRecipe(plateKitchenObject);
+                NetworkDeliveryManager.Instance.DeliveRecipe(plateKitchenObject);
                 _player.GetKitchenObject().DestroySlef();
             }
         }

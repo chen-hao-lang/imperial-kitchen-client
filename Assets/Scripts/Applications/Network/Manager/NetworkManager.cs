@@ -52,6 +52,13 @@ public class NetworkManager : SingletonMono<NetworkManager>
     private float heartbeatTimer = 0f;
     private const float HEARTBEAT_INTERVAL = 3f; // 每3秒发送一次心跳包
 
+    /// <summary>
+    /// 是否为调试客户端（编辑器 / 开发版）。
+    /// 随心跳上报给服务端，服务端据此放宽保活超时，
+    /// 使断点调试（主线程被调试器挂起、心跳停发）或编辑器失去焦点时不会掉线。
+    /// </summary>
+    private static bool IsDebugClient => Application.isEditor || Debug.isDebugBuild;
+
     // ===== 断线重连（D7）已暂时禁用 =====
     ///// <summary>服务器 IP/端口（重连用）</summary>
     //private string serverIp;
@@ -76,13 +83,40 @@ public class NetworkManager : SingletonMono<NetworkManager>
             action?.Invoke();
         }
 
-        // 更新心跳计时器
-        heartbeatTimer += Time.deltaTime;
+        // 更新心跳计时器：用非缩放时间，避免 Time.timeScale=0（暂停/重连）时停发心跳
+        heartbeatTimer += Time.unscaledDeltaTime;
         if (heartbeatTimer >= HEARTBEAT_INTERVAL)
         {
-            Send(NetworkMessage.Create_Heartbeat());
-            heartbeatTimer = 0f;
+            SendHeartbeat();
         }
+    }
+
+    /// <summary>
+    /// 发送一次心跳并重置计时。
+    /// 心跳携带"调试客户端"标志，服务端据此放宽保活超时。
+    /// </summary>
+    private void SendHeartbeat()
+    {
+        heartbeatTimer = 0f;
+        if (!IsConnected) return;
+
+        Send(NetworkMessage.Create_Heartbeat(IsDebugClient));
+    }
+
+    /// <summary>
+    /// 从暂停/切后台恢复时立即补发一次心跳（如调试暂停后回到前台）。
+    /// </summary>
+    private void OnApplicationPause(bool _pause)
+    {
+        if (!_pause) SendHeartbeat();
+    }
+
+    /// <summary>
+    /// 重新获得焦点时立即补发一次心跳，让服务端尽快确认本客户端存活。
+    /// </summary>
+    private void OnApplicationFocus(bool _focus)
+    {
+        if (_focus) SendHeartbeat();
     }
 
     protected override void OnDestroy()
@@ -140,6 +174,9 @@ public class NetworkManager : SingletonMono<NetworkManager>
             receiveThread.Start();
 
             PlayerName = _playerName;
+
+            // 立即上报一次心跳：确保服务端在进入断点前就获知本客户端是"调试客户端"
+            SendHeartbeat();
         }
         catch (Exception ex)
         {
@@ -555,6 +592,7 @@ public class NetworkManager : SingletonMono<NetworkManager>
         {
             var (counterId, counterItem, playerId, playerItem) = NetworkMessage.Parse_InteractionSync(_body);
             EventManager.Invoke<OnInteractionSync>(new OnInteractionSync(counterId, counterItem, playerId, playerItem));
+            return;
         }
         #endregion
 

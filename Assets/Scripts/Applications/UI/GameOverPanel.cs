@@ -41,7 +41,7 @@ public class GameOverPanel : BasePanel
         {
             UIManager.Instance.OpenPanel<GameOverPanel>(EUIType.GameOverPanel);
 
-            recipesDeliveredText.text = DeliveryManager.Instance.GetSuccessfulRecipesAmount().ToString();
+            recipesDeliveredText.text = NetworkDeliveryManager.Instance.GetSuccessfulRecipesAmount().ToString();
         }
         else
         {

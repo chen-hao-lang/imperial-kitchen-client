@@ -1,9 +1,12 @@
 using System.Collections.Generic;
 using UnityEngine;
 using LiteGameFramework;
+using Unity.VisualScripting;
 
-public class GameScenePlayerManager : SingletonMono<GameScenePlayerManager>
+public class GameScenePlayerManager : MonoBehaviour
 {
+    public static GameScenePlayerManager Instance;
+
     [Header("玩家配置")]
     [SerializeField] private string localPlayerPrefabName = "LocalPlayer";
     [SerializeField] private string networkPlayerPrefabName = "RemotePlayer";
@@ -23,22 +26,32 @@ public class GameScenePlayerManager : SingletonMono<GameScenePlayerManager>
     /// </summary>
     public PlayerController LocalPlayer { get; private set; }
 
-    void Start()
+    void Awake()
     {
-        OnGameStart();
-
-        EventManager.AddListener<OnNetworkPlayerLeft>(this, OnPlayerLeft);
-        EventManager.AddListener<OnFullSync>(this, OnFullSyncReceived);
+        Instance = this;
+        Debug.Log("Awake");
     }
 
-    protected override void OnDestroy()
+    void OnEnable()
     {
-        base.OnDestroy();
+        EventManager.AddListener<OnNetworkPlayerLeft>(this, OnPlayerLeft);
+        EventManager.AddListener<OnFullSync>(this, OnFullSyncReceived);
+        Debug.Log("OnEnable");
+    }
 
+    void Start()
+    {
+        Debug.Log("Start");
+    }
+
+    void OnDisable()
+    {
         if (NetworkManager.Instance != null)
         {
             EventManager.RemoveAllListener(this);
         }
+
+        Debug.Log("OnDisable");
     }
 
     public bool IsLocalPlayer(int _playerId)
@@ -58,7 +71,7 @@ public class GameScenePlayerManager : SingletonMono<GameScenePlayerManager>
         }
     }
 
-    private void OnGameStart()
+    public void InitForNewGame()
     {
         List<PlayeInfo> info = NetworkManager.Instance.RoomPlayers;
 
@@ -83,6 +96,8 @@ public class GameScenePlayerManager : SingletonMono<GameScenePlayerManager>
                 SpawnRemotePlayer(info[i].seadId, info[i].playerId);
             }
         }
+
+        Debug.Log("InitForNewGame");
     }
 
     /// <summary>

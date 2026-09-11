@@ -22,14 +22,14 @@ public class DeliveryManagerUI : BasePanel
 
     public override void OnAddListener()
     {
-        DeliveryManager.Instance.OnRecipeSpawned += Instance_OnRecipeSpawned;
-        DeliveryManager.Instance.OnRecipeCompleted += Instance_OnRecipeCompleted;
+        NetworkDeliveryManager.Instance.OnRecipeSpawned += Instance_OnRecipeSpawned;
+        NetworkDeliveryManager.Instance.OnRecipeCompleted += Instance_OnRecipeCompleted;
     }
 
     public override void OnRemoveListener()
     {
-        DeliveryManager.Instance.OnRecipeSpawned -= Instance_OnRecipeSpawned;
-        DeliveryManager.Instance.OnRecipeCompleted -= Instance_OnRecipeCompleted;
+        NetworkDeliveryManager.Instance.OnRecipeSpawned -= Instance_OnRecipeSpawned;
+        NetworkDeliveryManager.Instance.OnRecipeCompleted -= Instance_OnRecipeCompleted;
     }
 
     private void UpdateVisual()
@@ -40,7 +40,7 @@ public class DeliveryManagerUI : BasePanel
             Destroy(child.gameObject);
         }
 
-        foreach(RecipeSO recipeSO in DeliveryManager.Instance.GetWaitingRecipeSOList())
+        foreach(RecipeSO recipeSO in NetworkDeliveryManager.Instance.GetWaitingRecipeSOList())
         {
             Transform recipeTransform = Instantiate(recipeTemplete, container);
             recipeTransform.gameObject.SetActive(true);

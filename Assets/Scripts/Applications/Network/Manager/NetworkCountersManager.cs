@@ -3,8 +3,9 @@ using UnityEngine;
 using System;
 using LiteGameFramework;
 
-public class NetworkCountersManager : SingletonMono<NetworkCountersManager>
+public class NetworkCountersManager : MonoBehaviour
 {
+    public static NetworkCountersManager Instance;
 
     /// <summary>
     /// 存储当前场景中所有的操作台，key为操作台的网络ID，value为操作台对象
@@ -16,9 +17,9 @@ public class NetworkCountersManager : SingletonMono<NetworkCountersManager>
     /// </summary>
     private (int counterId, byte counterType)[] counterTypeMapping;
 
-    protected override void Awake()
+    void Awake()
     {
-        base.Awake();
+        Instance = this;
 
         RefreshCounterMap();
     }
@@ -70,11 +71,17 @@ public class NetworkCountersManager : SingletonMono<NetworkCountersManager>
     }
 
     #region 事件处理
+    /// <summary>
+    /// 处理来自服务器的交互同步
+    /// </summary>
+    /// <param name="_arg"></param>
     private void OnInteractionSync(OnInteractionSync _arg)
     {
+        Debug.Log($"[CounterManager] 交互同步 操作台：{_arg.counterId} 操作台上物品：{_arg.counterIetmId} 玩家手里物品：{_arg.playerHeldId}");
+
         // 台子状态
         if (_arg.counterId >= 0 && counterMap.TryGetValue(_arg.counterId, out var counter))
-            ApplyCounterState(_arg.counterId, _arg.counterIetmId);
+            AsyncCounterIngredients(_arg.counterId, _arg.counterIetmId);
 
         // 玩家手持状态
         if (_arg.playerId == NetworkManager.Instance.PlayerID)
@@ -179,7 +186,7 @@ public class NetworkCountersManager : SingletonMono<NetworkCountersManager>
         // 2) 按快照重建
         foreach (var counterState in _counters)
         {
-            ApplyCounterState(counterState.counterId, counterState.itemIndex);
+            AsyncCounterIngredients(counterState.counterId, counterState.itemIndex);
         }
 
         Debug.Log($"[CountersManager] FullSync 台面重建完成，共 {_counters.Length} 个台子");
@@ -251,7 +258,7 @@ public class NetworkCountersManager : SingletonMono<NetworkCountersManager>
     /// <summary>
     /// 将操作台同步到目标状态（去重检查，避免重复创建/销毁）
     /// </summary>
-    private void ApplyCounterState(int _counterId, int _ingredientsId)
+    private void AsyncCounterIngredients(int _counterId, int _ingredientsId)
     {
         // 查找操作台，找不到直接忽略本次同步
         if (!counterMap.TryGetValue(_counterId, out var baseCounter))
@@ -292,7 +299,7 @@ public class NetworkCountersManager : SingletonMono<NetworkCountersManager>
             return;
         }
 
-        // ── BoilingCounter 特殊处理：配料进入锅的内部列表，不生成独立实体 ──
+        // BoilingCounter 加入配料
         if (baseCounter is BoilingCounter boilingPot)
         {
             // 可接收配料 → 进锅内部列表（渲染配料图标）
@@ -307,12 +314,12 @@ public class NetworkCountersManager : SingletonMono<NetworkCountersManager>
             // 否则是"成品"（output 不在可接收列表）→ 落到下面普通实体生成
         }
 
-        // ── 普通台子：若已有实体且类型相同，跳过重建（避免无意义销毁/实例化）──
+        // 普通操作台
         if (baseCounter.HasKitchenObject())
         {
             KitchenObject oldObj = baseCounter.GetKitchenObject();
 
-            // 目标类型与当前类型一致时无需更新
+            // 操作台上的配料与玩家手里的一致时，不更新
             if (oldObj.GetKitchenObjectSO() == targetSO)
             {
                 return;

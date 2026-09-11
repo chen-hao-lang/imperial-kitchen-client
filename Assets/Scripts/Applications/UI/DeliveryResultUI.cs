@@ -30,8 +30,8 @@ public class DeliveryResultUI : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        DeliveryManager.Instance.OnRecipeSuccess += DeliveryManager_OnRecipeSuccess;
-        DeliveryManager.Instance.OnRecipeFailed += DeliveryManager_OnRecipeFailed;
+        NetworkDeliveryManager.Instance.OnRecipeSuccess += DeliveryManager_OnRecipeSuccess;
+        NetworkDeliveryManager.Instance.OnRecipeFailed += DeliveryManager_OnRecipeFailed;
 
         Debug.Log("DeliveryResultUI subscribed to DeliveryManager events");
         // Keep root active to avoid activation edge cases; child UIs are controlled explicitly
