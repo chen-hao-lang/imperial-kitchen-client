@@ -33,10 +33,6 @@ public class PlateManager : MonoBehaviour
         EventManager.AddListener<OnPlateIngredientSync>(this, OnPlateIngredientSyncReceived);
         EventManager.AddListener<OnPlateIngredientRemoved>(this, OnPlateIngredientRemovedReceived);
         EventManager.AddListener<OnPlateDestroy>(this, OnPlateDestroyReceived);
-        EventManager.AddListener<OnFullSync>(this, OnFullSyncReceived);
-
-        // 防错过：场景晚加载时用 NetworkManager 缓存补一次
-        ApplyCachedFullSync();
     }
 
     void OnDisable()
@@ -157,21 +153,6 @@ public class PlateManager : MonoBehaviour
             if (so != null) soList.Add(so);
         }
         _plate.ResetIngredient(soList);
-    }
-
-    /// <summary>FullSync：盘子在 FullSync 事件里未携带，从 NetworkManager 缓存取（解析时已缓存）</summary>
-    private void OnFullSyncReceived(OnFullSync _arg)
-    {
-        if (NetworkManager.Instance == null) return;
-        RebuildFromFullSync(NetworkManager.Instance.FullSyncPlates);
-    }
-
-    /// <summary>防错过：场景晚加载时用 NetworkManager 缓存补一次</summary>
-    private void ApplyCachedFullSync()
-    {
-        if (NetworkManager.Instance == null) return;
-        if (NetworkManager.Instance.FullSyncPlates.Length > 0)
-            RebuildFromFullSync(NetworkManager.Instance.FullSyncPlates);
     }
 
     /// <summary>

@@ -76,6 +76,16 @@ public class BoilingCounter : BaseCounter, IHasPrograss
         }
     }
 
+    public void ResetForSnapshot()
+    {
+        activeRecipe = null;
+        isBoiling = false;
+        boilingTimer = 0f;
+        currentIngredients.Clear();
+        ClearKitchenObject();
+        OnProgressChanged?.Invoke(this, new IHasPrograss.OnPrograssChangeEventArgs { prograssNormalized = 0f });
+    }
+
     /// <summary>
     /// 查看当前操作台上的配料是否满足某个配方的要求
     /// </summary>
@@ -149,7 +159,7 @@ public class BoilingCounter : BaseCounter, IHasPrograss
                 break;
             case 3:
                 Debug.Log($"[BoilingCounter] 煮锅状态：煮食完成");
-                currentIngredients.Clear(); 
+                currentIngredients.Clear();
                 activeRecipe = null;
                 isBoiling = false;
                 boilingTimer = 0f;

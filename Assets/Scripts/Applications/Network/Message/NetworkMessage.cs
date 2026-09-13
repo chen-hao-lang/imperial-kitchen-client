@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
+using Unity.VisualScripting;
 using UnityEngine;
 
 /// <summary>
@@ -136,7 +137,7 @@ public static class NetworkMessage
     public static byte[] Create_RequestBackRoom()
     {
         using var ms = new MemoryStream();
-        return Pack(MessageType.C2S_RequestBackRoom,ms.ToArray());
+        return Pack(MessageType.C2S_RequestBackRoom, ms.ToArray());
     }
 
     public static int Parse_GameOver(byte[] _data)
@@ -299,7 +300,11 @@ public static class NetworkMessage
         out (int id, string name, float x, float y, float z, float rotY)[] players,
         out (int counterId, int itemIndex)[] counters,
         out (int plateId, byte ownerType, int ownerId, int soIndex, int[] ingredients)[] plates,
-        out int[] recipes)
+        out int[] recipes,
+        out CounterSnapshot[] counterSnapshots,
+        out int score,
+        out float remaining,
+        out byte gameState)
     {
         using var ms = new MemoryStream(body);
         using var reader = new BinaryReader(ms);
@@ -368,6 +373,42 @@ public static class NetworkMessage
                 recipes[i] = reader.ReadInt32();
             }
         }
+
+
+        // ── v2 段：台子详细状态（counterId + type + itemIndex + state + progress + ingredients）──
+        counterSnapshots = new CounterSnapshot[0];
+        score = 0;
+        remaining = 0f;
+        gameState = 0;
+
+        if (ms.Position < ms.Length)
+        {
+            int counterSnapshotCount = reader.ReadInt32();
+            counterSnapshots = new CounterSnapshot[counterSnapshotCount];
+            for (int i = 0; i < counterSnapshotCount; i++)
+            {
+                int counterId = reader.ReadInt32();
+                byte counterType = reader.ReadByte();
+                int itemIndex = reader.ReadInt32();
+                byte state = reader.ReadByte();
+                float progress = reader.ReadSingle();
+
+                int ingCount = reader.ReadInt32();
+                int[] ingredients = new int[ingCount];
+                for (int j = 0; j < ingCount; j++)
+                {
+                    ingredients[j] = reader.ReadInt32();
+                }
+
+                counterSnapshots[i] = new CounterSnapshot(
+                    counterId, counterType, itemIndex, state, progress, ingredients);
+            }
+        }
+
+        // ── v2 段：对局状态（分数 / 剩余时间 / 对局状态）──
+        if (ms.Position < ms.Length) score = reader.ReadInt32();
+        if (ms.Position < ms.Length) remaining = reader.ReadSingle();
+        if (ms.Position < ms.Length) gameState = reader.ReadByte();
     }
 
     public static (int counterId, int plateId) Parse_RemotePlate(byte[] body)
@@ -652,15 +693,17 @@ public static class NetworkMessage
         return Pack(MessageType.C2S_HeartBeat, new[] { flags });
     }
 
-    ///// <summary>重连认领请求（D7）：roomId + 旧 PlayerId</summary>
-    //public static byte[] Create_ResumeGame(int _roomId, int _oldPlayerId)
-    //{
-    //    using var ms = new MemoryStream();
-    //    using var writer = new BinaryWriter(ms);
-    //    writer.Write(_roomId);
-    //    writer.Write(_oldPlayerId);
-    //    return Pack(MessageType.C2S_ResumeGame, ms.ToArray());
-    //}
+    ///// <summary>
+    /// 重连认领请求（D7）：roomId + 旧 PlayerId
+    /// </summary>
+    public static byte[] Create_ResumeGame(int _roomId, int _oldPlayerId)
+    {
+        using var ms = new MemoryStream();
+        using var writer = new BinaryWriter(ms);
+        writer.Write(_roomId);
+        writer.Write(_oldPlayerId);
+        return Pack(MessageType.C2S_ResumeGame, ms.ToArray());
+    }
 
     /// <summary>解析房主变更（D4）：新房主 PlayerId</summary>
     public static int Parse_RoomOwnerChanged(byte[] _body)
@@ -671,20 +714,21 @@ public static class NetworkMessage
     }
 
     ///// <summary>解析重连认领结果（D7）</summary>
-    //public static (bool ok, int playerId, float x, float y, float z, float rotY, int heldItemIndex)
-    //    Parse_ResumeGameResult(byte[] _body)
-    //{
-    //    using var ms = new MemoryStream(_body);
-    //    using var reader = new BinaryReader(ms);
-    //    bool ok = reader.ReadByte() == 1;
-    //    int playerId = reader.ReadInt32();
-    //    float x = reader.ReadSingle();
-    //    float y = reader.ReadSingle();
-    //    float z = reader.ReadSingle();
-    //    float rotY = reader.ReadSingle();
-    //    int heldItemIndex = reader.ReadInt32();
-    //    return (ok, playerId, x, y, z, rotY, heldItemIndex);
-    //}
+    public static (bool ok, int playerId, int seadId, float x, float y, float z, float rotY, int heldItemIndex)
+       Parse_ResumeGameResult(byte[] _body)
+    {
+        using var ms = new MemoryStream(_body);
+        using var reader = new BinaryReader(ms);
+        bool ok = reader.ReadByte() == 1;
+        int playerId = reader.ReadInt32();
+        int seatId = reader.ReadInt32();
+        float x = reader.ReadSingle();
+        float y = reader.ReadSingle();
+        float z = reader.ReadSingle();
+        float rotY = reader.ReadSingle();
+        int heldItemIndex = reader.ReadInt32();
+        return (ok, playerId, seatId, x, y, z, rotY, heldItemIndex);
+    }
     #endregion
     #endregion
 

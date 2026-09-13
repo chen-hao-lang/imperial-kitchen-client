@@ -40,6 +40,9 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
         // 1. 连接服务器
         NetworkManager.Instance.Connect(_serverIp, _serverPort, _playerName);
 
+        // 1.1 记录服务器地址，供断线重连时重新发起连接
+        SessionTracker.Instance.SetEndPoint(_serverIp, _serverPort, _playerName);
+
         // 2. 初始化 UI 面板配置（内部已做幂等保护）
         yield return UIManager.Instance.InitUIConfig(_playMode);
 

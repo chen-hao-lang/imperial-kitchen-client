@@ -35,7 +35,6 @@ public class GameScenePlayerManager : MonoBehaviour
     void OnEnable()
     {
         EventManager.AddListener<OnNetworkPlayerLeft>(this, OnPlayerLeft);
-        EventManager.AddListener<OnFullSync>(this, OnFullSyncReceived);
         Debug.Log("OnEnable");
     }
 
@@ -100,6 +99,39 @@ public class GameScenePlayerManager : MonoBehaviour
         Debug.Log("InitForNewGame");
     }
 
+    public void ReconcilePlayersFromSnapshot(
+    (int id, string name, float x, float y, float z, float rotY)[] _players)
+    {
+        if (_players == null) return;
+
+        var ids = new HashSet<int>();
+        foreach (var p in _players) ids.Add(p.id);
+
+        // 1) 移除快照中已不在的远程玩家
+        var toRemove = new List<int>();
+        foreach (var kv in remotePlayers) if (!ids.Contains(kv.Key)) toRemove.Add(kv.Key);
+        foreach (int id in toRemove)
+        {
+            if (remotePlayers.TryGetValue(id, out var pc))
+            {
+                remotePlayers.Remove(id);
+                EventManager.Invoke<OnRemotePlayerDestroyed>(new OnRemotePlayerDestroyed(id));
+                if (pc != null) Destroy(pc.gameObject);
+            }
+            spawningPlayers.Remove(id);
+        }
+
+        // 2) 补齐 / 刷新
+        foreach (var p in _players)
+        {
+            if (p.id == NetworkManager.Instance.PlayerID) continue;   // 跳过自己
+            if (remotePlayers.TryGetValue(p.id, out var np) && np != null)
+                np.ApplySnapshotPosition(p.x, p.y, p.z, p.rotY);
+            else
+                SpawnRemotePlayer(0, p.id, p.x, p.y, p.z, p.rotY);
+        }
+    }
+
     /// <summary>
     /// 有玩家离开。
     /// </summary>
@@ -121,56 +153,6 @@ public class GameScenePlayerManager : MonoBehaviour
 
         // 若离开者仍在异步生成中，移除标记，避免回调把它重新加回来
         spawningPlayers.Remove(_arg.playerId);
-    }
-
-    private void OnFullSyncReceived(OnFullSync _arg)
-    {
-        if (NetworkManager.Instance == null) return;
-        if (_arg.players == null) return;
-
-        Debug.Log($"[PlayerSpawner] 收到全量同步: {_arg.players.Length} 个已有玩家");
-
-        // 1) 移除快照里已不在场的远程玩家（双保险；正常情况已由 PlayerLeft 移除）
-        HashSet<int> snapshotIds = new HashSet<int>();
-        foreach (var p in _arg.players)
-        {
-            snapshotIds.Add(p.id);
-        }
-
-        List<int> toRemove = new List<int>();
-        foreach (var kv in remotePlayers)
-        {
-            if (!snapshotIds.Contains(kv.Key))
-            {
-                toRemove.Add(kv.Key);
-            }
-        }
-        foreach (int id in toRemove)
-        {
-            if (remotePlayers.TryGetValue(id, out var pc))
-            {
-                remotePlayers.Remove(id);
-                EventManager.Invoke<OnRemotePlayerDestroyed>(new OnRemotePlayerDestroyed(id));
-                if (pc != null) Destroy(pc.gameObject);
-            }
-        }
-
-        // 2) 对快照中的每个其他玩家：不存在则生成，存在则刷位置
-        foreach (var p in _arg.players)
-        {
-            if (p.id == NetworkManager.Instance.PlayerID) continue;   // 跳过自己
-
-            if (remotePlayers.TryGetValue(p.id, out var networkPlayer)
-                && networkPlayer != null)
-            {
-                networkPlayer.ApplySnapshotPosition(p.x, p.y, p.z, p.rotY);
-            }
-            else
-            {
-                // 重新加入的玩家/重连玩家：用 SeatId 0 占位生成，随后以快照坐标定位
-                SpawnRemotePlayer(0, p.id, p.x, p.y, p.z, p.rotY);
-            }
-        }
     }
 
     private void SpawnLocalPlayer(int _seadId)

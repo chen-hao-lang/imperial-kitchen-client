@@ -56,10 +56,6 @@ public class NetworkCountersManager : MonoBehaviour
         EventManager.AddListener<OnCounterProgressSync>(this, OnCounterProgressSync);
         EventManager.AddListener<OnCounterStateSync>(this, OnCounterStateSync);
         EventManager.AddListener<OnCounterIngredientSync>(this, OnCounterIngredientSync);   // ★ 新增
-        EventManager.AddListener<OnFullSync>(this, OnFullSyncReceived);
-
-        // 防错过：场景晚加载时用 NetworkManager 缓存补一次
-        ApplyCachedFullSync();
     }
 
     void OnDisable()
@@ -67,6 +63,55 @@ public class NetworkCountersManager : MonoBehaviour
         if (NetworkManager.Instance != null)
         {
             EventManager.RemoveAllListener(this);
+        }
+    }
+
+    public void ApplySnapshot(CounterSnapshot[] _snapshot)
+    {
+        if (_snapshot == null || _snapshot.Length == 0) return;
+
+        // 1) 全清（盘子实体由 PlateManager 管，不在此销毁）
+        foreach (var pair in counterMap)
+        {
+            var counter = pair.Value;
+            if (counter.HasKitchenObject() && !counter.GetKitchenObject().TryGetPlate(out _))
+            {
+                var old = counter.GetKitchenObject();
+                counter.ClearKitchenObject();
+                Destroy(old.gameObject);
+            }
+        }
+
+        // 2) 逐台重建
+        foreach (var cs in _snapshot)
+        {
+            if (!counterMap.TryGetValue(cs.CounterId, out var counter)) continue;
+
+            switch (counter)
+            {
+                case BoilingCounter boiling:
+                    boiling.ResetForSnapshot();                        // 清内部配料/状态
+                    foreach (var ing in cs.Ingredients) boiling.ApplyServerIngredient(ing);
+                    boiling.OnBoilingStateChanged(cs.State);           // 0/1/2/3
+                    boiling.ApplyServerBoilingProgress(cs.Progress);
+                    if (cs.ItemIndex >= 0) AsyncCounterIngredients(cs.CounterId, cs.ItemIndex); // 成品上台
+                    break;
+
+                case CuttingCounuter cutting:
+                    AsyncCounterIngredients(cs.CounterId, cs.ItemIndex);  // 正在切的物品上台
+                    cutting.ApplyServerCutProgress(cs.Progress);
+                    break;
+
+                case StreamingCounter streaming:
+                    streaming.OnStreamingStateChanged(cs.State);        // 0/1/3
+                    streaming.ApplyServerStreamingProgress(cs.Progress);
+                    if (cs.ItemIndex >= 0) AsyncCounterIngredients(cs.CounterId, cs.ItemIndex);
+                    break;
+
+                default:
+                    AsyncCounterIngredients(cs.CounterId, cs.ItemIndex);
+                    break;
+            }
         }
     }
 
@@ -150,46 +195,6 @@ public class NetworkCountersManager : MonoBehaviour
         {
             streamingCounter.StartSteamingFromServer();
         }
-    }
-
-    /// <summary>FullSync：台面物品按服务器快照重建（幂等，重复 FullSync 会先清后建）</summary>
-    private void OnFullSyncReceived(OnFullSync _arg)
-    {
-        if (_arg.counters == null) return;
-        ApplyCounterSnapshot(_arg.counters);
-    }
-
-    /// <summary>防错过：场景晚加载时用 NetworkManager 缓存补一次</summary>
-    private void ApplyCachedFullSync()
-    {
-        if (NetworkManager.Instance == null) return;
-        ApplyCounterSnapshot(NetworkManager.Instance.FullSyncCounters);
-    }
-
-    /// <summary>把全部台面清空后按快照重建（重连/开局恢复共用）</summary>
-    private void ApplyCounterSnapshot((int counterId, int itemIndex)[] _counters)
-    {
-        if (_counters == null || _counters.Length == 0) return;
-
-        // 1) 全清：所有台子的实体都拆掉（盘子实体由 PlateManager 管，这里不动盘）
-        foreach (var pair in counterMap)
-        {
-            var counter = pair.Value;
-            if (counter.HasKitchenObject() && !counter.GetKitchenObject().TryGetPlate(out _))
-            {
-                var old = counter.GetKitchenObject();
-                counter.ClearKitchenObject();
-                Destroy(old.gameObject);
-            }
-        }
-
-        // 2) 按快照重建
-        foreach (var counterState in _counters)
-        {
-            AsyncCounterIngredients(counterState.counterId, counterState.itemIndex);
-        }
-
-        Debug.Log($"[CountersManager] FullSync 台面重建完成，共 {_counters.Length} 个台子");
     }
     #endregion
 

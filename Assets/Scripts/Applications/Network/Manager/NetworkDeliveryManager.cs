@@ -10,7 +10,6 @@ using YooAsset;
 /// - 订单由服务器生成并广播（RecipeSpawned），本地不再自行刷单
 /// - 交付时只把 plateId 上报服务器，由服务器用自己维护的盘子配料数据校验
 /// - 校验结果通过 RecipeCompleted / RecipeFailed / ScoreUpdate 广播驱动本地状态
-/// - 中途加入时通过 OnRecipeFullSync 恢复当前等待订单
 /// </summary>
 public class NetworkDeliveryManager : SingletonMono<NetworkDeliveryManager>
 {
@@ -56,7 +55,6 @@ public class NetworkDeliveryManager : SingletonMono<NetworkDeliveryManager>
         EventManager.AddListener<OnRecipeCompleted>(this, OnNetworkRecipeCompleted);
         EventManager.AddListener<OnRecipeFailed>(this, OnNetworkRecipeFailed);
         EventManager.AddListener<OnScoreUpdate>(this, OnNetworkScoreUpdate);
-        EventManager.AddListener<OnRecipeFullSync>(this, OnNetworkRecipeFullSync);
 
         // 防错过：如果已经处于连接状态（如切换场景后重连、面板晚加载），立即补齐
         if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
@@ -65,10 +63,10 @@ public class NetworkDeliveryManager : SingletonMono<NetworkDeliveryManager>
             SendRegisterRecipes();
 
             // FullSync 订单缓存补齐
-            if (NetworkManager.Instance.FullSyncRecipes.Length > 0)
-            {
-                RestoreWaitingRecipes(NetworkManager.Instance.FullSyncRecipes);
-            }
+            // if (NetworkManager.Instance.FullSyncRecipes.Length > 0)
+            // {
+            //     RestoreWaitingRecipes(NetworkManager.Instance.FullSyncRecipes);
+            // }
         }
     }
 
@@ -157,14 +155,8 @@ public class NetworkDeliveryManager : SingletonMono<NetworkDeliveryManager>
         successfulRecipesAmount = _arg.score;
     }
 
-    /// <summary> 中途加入：服务器全量下发当前等待订单 </summary>
-    private void OnNetworkRecipeFullSync(OnRecipeFullSync _arg)
-    {
-        RestoreWaitingRecipes(_arg.recipeIndexes);
-    }
-
     /// <summary> 用服务器下发的订单索引重建等待列表 </summary>
-    private void RestoreWaitingRecipes(int[] _recipeIndexes)
+    public void RestoreWaitingRecipes(int[] _recipeIndexes)
     {
         waitingRecipeSOList.Clear();
 

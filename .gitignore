@@ -15,6 +15,10 @@
 # 4. 忽略 Assets 下的所有其他内容（场景、Prefab、材质、贴图等）
 /Assets/*
 
-# 5. 放行 Scripts 文件夹及其全部内容（含 .meta，Unity 必需）
+# 5. 放行 Scripts 文件夹及其全部内容
 !/Assets/Scripts/
 !/Assets/Scripts/**
+
+# 6. 忽略所有 .meta 文件（Unity 元数据文件不需要上传）
+#    该规则位于放行规则之后，优先级更高，会覆盖上面的 ! 放行
+*.meta

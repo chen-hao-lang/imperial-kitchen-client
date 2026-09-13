@@ -32,6 +32,15 @@ public struct OnNetworkConnected : IEvent
 /// <summary> 与服务器断开连接 </summary>
 public struct OnNetworkDisconnected : IEvent { }
 
+public struct OnRoomSnapshot : IEvent
+{
+    public RoomSnapshot roomSnapshots;
+    public OnRoomSnapshot(RoomSnapshot _snapshots)
+    {
+        roomSnapshots = _snapshots;
+    }
+}
+
 #endregion
 
 #region 玩家生命周期事件

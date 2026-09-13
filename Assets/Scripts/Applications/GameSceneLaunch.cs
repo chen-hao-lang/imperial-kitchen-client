@@ -15,6 +15,11 @@ public class GameSceneLaunch : MonoBehaviour
     {
         UIManager.Instance.HideAll();
 
+        // 确保重连 / 快照模块在进入对局时就已创建并订阅事件。
+        // 两者都不在场景中，必须主动触发 SingletonMono 的惰性创建，否则永远不会 Awake/OnEnable。
+        _ = ReconnectService.Instance;
+        _ = SnapshotDispatcher.Instance;
+
         List<EUIType> loadPanels = new List<EUIType>()
         {
             EUIType.DeliveryManagerUI,
