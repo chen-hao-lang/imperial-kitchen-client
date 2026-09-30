@@ -12,5 +12,6 @@ public enum EUIType
     PlayerReadyPanel,
     DisconnectPanel,
     ProgressPanel,
+    LevelSeelctPanel,
     Max
 }

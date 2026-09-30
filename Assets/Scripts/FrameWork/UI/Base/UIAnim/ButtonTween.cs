@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using DG.Tweening;
+using LiteGameFramework;
+using Unity.VisualScripting;
 
 namespace LiteGameFramework
 {
@@ -182,6 +184,8 @@ namespace LiteGameFramework
             _isHovering = true;
             if (!_isPressed && ShouldAnimateHover())
                 PlayAnim(hoverConfig);
+
+            EventManager.Invoke<OnMouseEnter>(new OnMouseEnter(this));
         }
 
         public void OnPointerExit(PointerEventData eventData)
@@ -189,6 +193,8 @@ namespace LiteGameFramework
             _isHovering = false;
             if (!_isPressed && ShouldAnimateUnhover())
                 PlayAnim(unhoverConfig);
+
+            EventManager.Invoke<OnMouseExit>(new OnMouseExit(this));
         }
 
         public void OnPointerDown(PointerEventData eventData)
@@ -196,6 +202,8 @@ namespace LiteGameFramework
             _isPressed = true;
             if (ShouldAnimateClick())
                 PlayAnim(clickConfig);
+
+            EventManager.Invoke<OnMouseClick>(new OnMouseClick(this));
         }
 
         public void OnPointerUp(PointerEventData eventData)
@@ -205,11 +213,52 @@ namespace LiteGameFramework
                 PlayAnim(hoverConfig);
             else if (!_isHovering && ShouldAnimateUnhover())
                 PlayAnim(unhoverConfig);
+
+            EventManager.Invoke<OnMouseUp>(new OnMouseUp(this));
         }
 
         private void OnDestroy()
         {
             KillAllTweens();
         }
+    }
+}
+
+public struct OnMouseEnter : IEvent
+{
+    public ITween TweenObj { get; }
+
+    public OnMouseEnter(ITween _obj)
+    {
+        TweenObj = _obj;
+    }
+}
+
+public struct OnMouseExit : IEvent
+{
+    public ITween TweenObj { get; }
+
+    public OnMouseExit(ITween _obj)
+    {
+        TweenObj = _obj;
+    }
+}
+
+public struct OnMouseClick : IEvent
+{
+    public ITween TweenObj { get; }
+
+    public OnMouseClick(ITween _obj)
+    {
+        TweenObj = _obj;
+    }
+}
+public struct OnMouseUp : IEvent
+{
+    public ITween TweenObj { get; }
+
+    public OnMouseUp(ITween _obj)
+    {
+        TweenObj = _obj;
     }
 }

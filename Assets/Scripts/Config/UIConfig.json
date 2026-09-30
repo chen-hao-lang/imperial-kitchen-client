@@ -94,5 +94,13 @@
     "layer": "Info",
     "isWindow": false,
     "isPersistent": true
+  },
+  {
+    "type": "LevelSeelctPanel",
+    "packageName": "UI",
+    "panelName": "LevelSeelctPanel",
+    "layer": "Normal",
+    "isWindow": false,
+    "isPersistent": false
   }
 ]

@@ -132,11 +132,15 @@ public class OptionPanel : BasePanel
 
     private void ShowPressToRebindKey()
     {
+        if(pressToRebindKeyTransform == null)
+            return;
         pressToRebindKeyTransform.gameObject.SetActive(true);
     }
 
     private void HidePressToRebindKey()
     {
+        if(pressToRebindKeyTransform == null)
+            return;
         pressToRebindKeyTransform.gameObject.SetActive(false);
     }
 

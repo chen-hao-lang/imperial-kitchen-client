@@ -29,7 +29,7 @@ public class PlayerReadyPanel : BasePanel
         readyButton.onClick.AddListener(OnReadyButtonClick);
         startGameButton.onClick.AddListener(OnStartGameBtnOnClick);
 
-        roomIdText.text = $"RoomId:{NetworkManager.Instance.RoomId}";
+        roomIdText.text = $"房间ID:{NetworkManager.Instance.RoomId}";
 
         EventManager.AddListener<OnReceivePlayerReadyStatusUpdate>(this, OnReceivePlayerReadyStatusUpdate);
         EventManager.AddListener<OnRoomOwnerChanged>(this, OnRoomOwnerChanged);
@@ -134,12 +134,12 @@ public class PlayerReadyPanel : BasePanel
         bool ready = IsSelfReady();
         if (ready)
         {
-            readyText.text = "Un Ready";     // 当前已准备，点击将取消准备
+            readyText.text = "未准备";     // 当前已准备，点击将取消准备
             readyButton.image.color = Color.red;
         }
         else
         {
-            readyText.text = "Ready";        // 当前未准备，点击将准备
+            readyText.text = "准备";        // 当前未准备，点击将准备
             readyButton.image.color = Color.green;
         }
     }
