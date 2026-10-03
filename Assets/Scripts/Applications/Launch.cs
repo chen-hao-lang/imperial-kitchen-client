@@ -11,10 +11,14 @@ public class Launch : MonoBehaviour
     public int serverPort = 7777;
     public string playerName = "chf";
 
+    [SerializeField] private AudioClip bgm;
+
     // Start is called before the first frame update
     void Start()
     {
         StartCoroutine(Init());
+
+        AudioManager.Instance.PlayBGM(bgm,true);  
     }
 
     IEnumerator Init()

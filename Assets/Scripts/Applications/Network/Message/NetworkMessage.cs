@@ -558,11 +558,18 @@ public static class NetworkMessage
         return Pack(MessageType.C2S_RequestRoomList, ms.ToArray());
     }
 
-    public static byte[] Create_RequestEnterGameScene(int _roomId)
+    /// <summary>
+    /// 房主上报开始游戏：房间号 + 房主选择的关卡索引（见 <see cref="LevelSceneCatalog"/>）。
+    /// 服务器据此裁决并广播 StartGame（携带同一关卡索引），保证全房进入同一关卡。
+    /// </summary>
+    /// <param name="_roomId">房间号</param>
+    /// <param name="_levelIndex">房主选择的关卡索引（从 1 开始）</param>
+    public static byte[] Create_RequestEnterGameScene(int _roomId, int _levelIndex)
     {
         var ms = new MemoryStream();
         var writer = new BinaryWriter(ms);
         writer.Write(_roomId);
+        writer.Write(_levelIndex);
         return Pack(MessageType.C2S_RequestEnterGameScene, ms.ToArray());
     }
 
@@ -674,12 +681,21 @@ public static class NetworkMessage
         return roomId;
     }
 
-    public static int Parse_StartGame(byte[] _data)
+    /// <summary>
+    /// 解析开始游戏消息（服务器 → 客户端）：房间号 + 关卡索引。
+    /// 关卡索引为协议扩展字段，缺省时回落到关卡 1（向后兼容旧服务端）。
+    /// </summary>
+    /// <param name="_data">消息体</param>
+    /// <returns>(房间号, 关卡索引)</returns>
+    public static (int roomId, int levelIndex) Parse_StartGame(byte[] _data)
     {
         using var ms = new MemoryStream(_data);
         using var reader = new BinaryReader(ms);
         int roomId = reader.ReadInt32();
-        return roomId;
+        int levelIndex = ms.Position < ms.Length
+            ? reader.ReadInt32()
+            : LevelSceneCatalog.MIN_LEVEL_INDEX;
+        return (roomId, levelIndex);
     }
 
     /// <summary>

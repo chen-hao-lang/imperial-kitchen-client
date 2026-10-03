@@ -198,8 +198,12 @@ public sealed class ReconnectService : SingletonMono<ReconnectService>
         SessionTracker.Instance.SetIdentity(playerId, session.RoomId);
     }
 
+    /// <summary>
+    /// 当前是否处于对局中（任一关卡场景）。场景名与 LevelSceneCatalog 的登记表保持一致，
+    /// 避免新增关卡后此处漏判导致掉线不进入重连流程。
+    /// </summary>
     private static bool IsInGameScene() =>
-        UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "GameScene";
+        LevelSceneCatalog.IsGameScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
 
     private void SetState(EReconnectState _state)
     {

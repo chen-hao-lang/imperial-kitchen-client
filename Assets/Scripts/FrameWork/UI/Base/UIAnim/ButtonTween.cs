@@ -2,7 +2,6 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using DG.Tweening;
 using LiteGameFramework;
-using Unity.VisualScripting;
 
 namespace LiteGameFramework
 {
@@ -91,6 +90,12 @@ namespace LiteGameFramework
             enableRotation = false
         };
 
+        [Header("音效")]
+        [Tooltip("悬停音效；留空则不播放")]
+        [SerializeField] private AudioClip hoverSound;
+        [Tooltip("点击（按下）音效；留空则不播放")]
+        [SerializeField] private AudioClip clickSound;
+
         private RectTransform _rectTransform;
         private Vector3 _originalScale;
         private bool _isHovering;
@@ -159,6 +164,16 @@ namespace LiteGameFramework
             }
         }
 
+        /// <summary>
+        /// 播放按钮音效（未配置音效时静默跳过）
+        /// </summary>
+        private void PlaySound(AudioClip clip)
+        {
+            if (clip == null) return;
+
+            AudioManager.Instance.PlaySFX(clip);
+        }
+
         private bool ShouldAnimateHover()
         {
             return animaWhen == AnimaWhen.All
@@ -185,6 +200,7 @@ namespace LiteGameFramework
             if (!_isPressed && ShouldAnimateHover())
                 PlayAnim(hoverConfig);
 
+            PlaySound(hoverSound);
             EventManager.Invoke<OnMouseEnter>(new OnMouseEnter(this));
         }
 
@@ -203,6 +219,7 @@ namespace LiteGameFramework
             if (ShouldAnimateClick())
                 PlayAnim(clickConfig);
 
+            PlaySound(clickSound);
             EventManager.Invoke<OnMouseClick>(new OnMouseClick(this));
         }
 

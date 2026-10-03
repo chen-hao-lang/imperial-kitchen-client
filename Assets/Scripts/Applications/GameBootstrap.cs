@@ -46,14 +46,17 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
         // 2. 初始化 UI 面板配置（内部已做幂等保护）
         yield return UIManager.Instance.InitUIConfig(_playMode);
 
-        // 3. 初始化热更资源包：房间场景包 + 玩家预制体包
+        // 3. 初始化热更资源包：房间场景包 + 玩家预制体包 + 各关卡场景包
+        //    关卡包需提前全部初始化，否则房主选择关卡 2 时无法加载 GameScene2
         yield return InitializeScenePackage("GameRoomScene", _playMode);
         yield return InitializeScenePackage("PlayerPrefab", _playMode);
         yield return InitializeScenePackage("GameScene",_playMode);
+        yield return InitializeScenePackage("GameScene2",_playMode);
 
         // 4. 预加载主菜单相关面板
         yield return UIManager.Instance.PreLoadPanel(EUIType.MainMenuPanel);
         yield return UIManager.Instance.PreLoadPanel(EUIType.RoomPanel);
+        yield return UIManager.Instance.PreLoadPanel(EUIType.OptionPanel);
 
         Debug.Log("[GameBootstrap] 全局初始化完成");
     }

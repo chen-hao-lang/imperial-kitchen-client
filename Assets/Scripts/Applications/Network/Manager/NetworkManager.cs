@@ -375,11 +375,13 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
     }
 
     /// <summary>
-    /// 上报开始游戏
+    /// 上报开始游戏（房主选定关卡后调用）：携带房间号与关卡索引，
+    /// 由服务器裁决并广播给全房，客户端收到 StartGame 后再统一切换场景。
     /// </summary>
-    public void SendRequestEnterGameScene()
+    /// <param name="_levelIndex">房主选择的关卡索引（从 1 开始，见 <see cref="LevelSceneCatalog"/>）</param>
+    public void SendRequestEnterGameScene(int _levelIndex)
     {
-        SendRaW(NetworkMessage.Create_RequestEnterGameScene(RoomId));
+        SendRaW(NetworkMessage.Create_RequestEnterGameScene(RoomId, _levelIndex));
     }
 
     /// <summary>
@@ -772,13 +774,14 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
 
         if (_type == MessageType.StartGame)
         {
-            var roomId = NetworkMessage.Parse_StartGame(_body);
+            var (roomId, levelIndex) = NetworkMessage.Parse_StartGame(_body);
 
-            // 切换房间到游戏场景
-            // YooAssetsLoad.Instance.LoadSceneAsync("GameScene", "GameScene");
-            SceneLoader.Instance.LoadScene("GameScene", "GameScene", "LoadingToGameScene...");
+            // 切换房间到游戏场景：关卡由服务器广播的索引决定（全房一致），
+            // 场景加载统一走 LiteGameFramework 的 SceneLoader（带进度条）。
+            LevelSceneCatalog.LoadLevel(levelIndex);
+
             // 发送事件
-            EventManager.Invoke<OnReceiveStartGame>(new OnReceiveStartGame(roomId));
+            EventManager.Invoke<OnReceiveStartGame>(new OnReceiveStartGame(roomId, levelIndex));
             return;
         }
 

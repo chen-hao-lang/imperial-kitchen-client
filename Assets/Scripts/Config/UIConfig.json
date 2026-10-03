@@ -96,9 +96,9 @@
     "isPersistent": true
   },
   {
-    "type": "LevelSeelctPanel",
+    "type": "LevelSelectPanel",
     "packageName": "UI",
-    "panelName": "LevelSeelctPanel",
+    "panelName": "LevelSelectPanel",
     "layer": "Normal",
     "isWindow": false,
     "isPersistent": false

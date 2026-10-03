@@ -146,7 +146,7 @@ public class MainMenuPanelAnim : MonoBehaviour
     /// <summary> 事件是否来自开始按钮 </summary>
     private bool IsStartButton(ITween _tween)
     {
-        return startButton != null && _tween != null && _tween == startButton;
+        return startButton != null && _tween != null && _tween as ButtonTween == startButton;
     }
 
     private void OnMouseEnter(OnMouseEnter _arg)
@@ -160,7 +160,6 @@ public class MainMenuPanelAnim : MonoBehaviour
     private void OnMouseExit(OnMouseExit _arg)
     {
         if (!IsStartButton(_arg.TweenObj)) return;
-
         // 已经主动复位过，这次移出事件是多余的
         if (isRestPoseRestored)
         {

@@ -145,12 +145,12 @@ public class PlayerReadyPanel : BasePanel
     }
 
     /// <summary>
-    /// 开始游戏
+    /// 点击"开始游戏"：打开关卡选择面板，由房主选择关卡后再向服务器上报。
+    /// 这里不再直接上报请求，避免未选关卡就开局。
     /// </summary>
     private void OnStartGameBtnOnClick()
     {
-        // 上报请求开始游戏,由服务器判断能否开始游戏
-        NetworkManager.Instance.SendRequestEnterGameScene();
+        UIManager.Instance.OpenPanel<LevelSelectPanel>(EUIType.LevelSelectPanel);
     }
 
     private void RefreshStartButtonState()
@@ -179,7 +179,7 @@ public class PlayerReadyPanel : BasePanel
     {
         if (currentRoomPlayerNums != null)
         {
-            currentRoomPlayerNums.text = $"CurrentPlayeNums:{NetworkManager.Instance.RoomPlayers.Count} / {NetworkManager.Instance.RoomMaxPlayer}";
+            currentRoomPlayerNums.text = $"当前人数:{NetworkManager.Instance.RoomPlayers.Count} / {NetworkManager.Instance.RoomMaxPlayer}";
         }
     }
 }

@@ -408,9 +408,14 @@ public struct OnReceiveRoomDestroyed : IEvent
 public struct OnReceiveStartGame : IEvent
 {
     public int roomId;
-    public OnReceiveStartGame(int _roomId)
+
+    /// <summary>服务器下发的关卡索引（全房一致，见 <see cref="LevelSceneCatalog"/>）</summary>
+    public int levelIndex;
+
+    public OnReceiveStartGame(int _roomId, int _levelIndex)
     {
         roomId = _roomId;
+        levelIndex = _levelIndex;
     }
 }
 
