@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using KitchenChaos;
 using LiteGameFramework;
 using TMPro;
 using UnityEngine;
