@@ -43,7 +43,7 @@ public class KitchenObjectRegistry : ScriptableObject
 
     [SerializeField] private List<KitchenObjectSO> objectList = new List<KitchenObjectSO>();
 
-    public KitchenObjectSO GetByIndex(int _index)
+    public KitchenObjectSO GetSOByIndex(int _index)
     {
         if (_index < 0 || _index >= objectList.Count)
         {

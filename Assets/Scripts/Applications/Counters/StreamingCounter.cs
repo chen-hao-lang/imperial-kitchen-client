@@ -21,6 +21,10 @@ public class StreamingCounter : BaseCounter, IHasPrograss
 
     [SerializeField] private List<StreamingRecipeSO> steamingRecipeSOArray;
 
+    [Header("蒸台音效")]
+    [SerializeField] private AudioClip steamStartSound;  // 入笼开始蒸
+    [SerializeField] private AudioClip steamDoneSound;   // 蒸制完成（装盘/取走沿用基类 takeItemSound）
+
     private State state;
     private float steamingTimer;
     private StreamingRecipeSO steamingRecipeSO;
@@ -64,6 +68,9 @@ public class StreamingCounter : BaseCounter, IHasPrograss
                         {
                             state = state
                         });
+
+                        // ★ 表现：蒸制完成
+                        PlaySound(steamDoneSound, true);
                     }
                     break;
                 case State.Steamed:
@@ -109,6 +116,9 @@ public class StreamingCounter : BaseCounter, IHasPrograss
                     {
                         prograssNormalized = steamingTimer / steamingRecipeSO.steamingTimerMax
                     });
+
+                    // ★ 表现：入笼开始蒸
+                    PlaySound(steamStartSound, true);
                 }
             }
         }
@@ -133,6 +143,9 @@ public class StreamingCounter : BaseCounter, IHasPrograss
                         {
                             prograssNormalized = 0f
                         });
+
+                        // ★ 表现：成品装盘
+                        PlaySound(takeItemSound, true);
                     }
                 }
             }
@@ -151,6 +164,9 @@ public class StreamingCounter : BaseCounter, IHasPrograss
                 {
                     prograssNormalized = 0f
                 });
+
+                // ★ 表现：玩家取走成品
+                PlaySound(takeItemSound, true);
             }
         }
     }
@@ -198,6 +214,9 @@ public class StreamingCounter : BaseCounter, IHasPrograss
 
         OnStateChanged?.Invoke(this, new OnStateChangedEventArgs { state = state });
         OnProgressChanged?.Invoke(this, new IHasPrograss.OnPrograssChangeEventArgs { prograssNormalized = 0f });
+
+        // ★ 表现：入笼开始蒸（服务器消息不带 playerId，用最近交互记忆近似）
+        PlayCraftSound(steamStartSound);
     }
 
     /// <summary>
@@ -206,7 +225,7 @@ public class StreamingCounter : BaseCounter, IHasPrograss
     /// 中途加入的客户端收不到“入笼”消息，靠这里首次收到 0~1 进度时补一次“蒸制中”视觉。
     /// </summary>
     /// <param name="_progressNormalized">进度 0~1</param>
-    public void ApplyServerStreamingProgress(float _progressNormalized)
+    public override void ApplyServerProgress(float _progressNormalized)
     {
         if (state != State.Steaming && _progressNormalized > 0f && _progressNormalized < 1f)
         {
@@ -236,6 +255,8 @@ public class StreamingCounter : BaseCounter, IHasPrograss
                 break;
             case 3:
                 SetState(State.Steamed);
+                // ★ 表现：蒸制完成（服务器消息不带 playerId，用最近交互记忆近似）
+                PlayCraftSound(steamDoneSound);
                 break;
             default:
                 Debug.LogWarning($"[StreamingCounter] 未知服务器状态: {_state}");
@@ -249,6 +270,34 @@ public class StreamingCounter : BaseCounter, IHasPrograss
 
         state = _newState;
         OnStateChanged?.Invoke(this, new OnStateChangedEventArgs { state = state });
+    }
+
+    /// <summary>【网络】服务器广播状态机（CounterStateSync）路由入口。</summary>
+    public override void ApplyServerState(byte _state)
+    {
+        OnStreamingStateChanged(_state);
+    }
+
+    /// <summary>【网络】服务器下发配料入笼（CounterAddIngredient）→ 开始蒸制。</summary>
+    public override void ApplyServerIngredient(int _ingredientIndex)
+    {
+        StartSteamingFromServer();
+    }
+
+    /// <summary>
+    /// 断线重连 / 中途加入：按快照重建蒸台状态与台面物品。
+    /// </summary>
+    public override void ApplySnapshotState(CounterSnapshot _cs)
+    {
+        OnStreamingStateChanged(_cs.State);        // 0/1/3
+        ApplyServerProgress(_cs.Progress);
+        if (_cs.ItemIndex >= 0) ApplyServerItem(_cs.ItemIndex);
+    }
+
+    /// <summary>上报本台子的蒸制配方表（供服务器权威推进蒸制进度）。</summary>
+    public override void RegisterSelfToServer()
+    {
+        NetworkManager.Instance.SendRegisterStreamingRecipes(NetworkCounterId, GetSteamingRecipeSO());
     }
 
     #endregion

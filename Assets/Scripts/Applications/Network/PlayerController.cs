@@ -126,7 +126,7 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
         // 2) 不清空/不销毁当前手持的盘子（其生命周期由 PlateManager 负责）
         if (_soIndex >= 0)
         {
-            KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetByIndex(_soIndex);
+            KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetSOByIndex(_soIndex);
             if (so != null && so.prefab != null && so.prefab.GetComponent<PlateKitchenObject>() != null)
             {
                 return;
@@ -143,7 +143,7 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
         // 生成新物品
         if (_soIndex >= 0)
         {
-            KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetByIndex(_soIndex);
+            KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetSOByIndex(_soIndex);
             if (so != null)
             {
                 Transform kitchenObjectTransform = Instantiate(so.prefab, kitchenObjectHoldPoint);
@@ -184,11 +184,14 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
         // 联网
         if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
         {
+            LocalInteractionMemory.Mark(_selectedCounter.NetworkCounterId);
+            
             // 网络模式：只发意图，不本地执行（含取盘/放盘/装料/交付）
             if (_isMain)
                 NetworkManager.Instance.SendPlayerInteract(_selectedCounter.NetworkCounterId);
             else
                 NetworkManager.Instance.SendInteractAlternate(_selectedCounter.NetworkCounterId);
+                
             return;
         }
 

@@ -18,6 +18,9 @@ public class ClearCounter : BaseCounter
             {
                 //将玩家手上的东西放置到操作台上
                 _player.GetKitchenObject().SetKitchenObjectParent(this);
+
+                // ★ 表现：放下物品（盘子单独用 PlatePut）
+                PlaySound(GetKitchenObject().TryGetPlate(out _) ? platePutSound : putItemSound, true);
             }
         }
         else// 如果台子上有东西
@@ -34,6 +37,8 @@ public class ClearCounter : BaseCounter
                         if (PlateManager.Instance.PlateAddIngredient(plate, so))
                         {
                             GetKitchenObject().DestroySlef();
+                            // ★ 表现：台面食材装进盘子
+                            PlaySound(putItemSound, true);
                         }
                     }
                     else
@@ -42,6 +47,8 @@ public class ClearCounter : BaseCounter
                         if (plate.TryAddIngredient(GetKitchenObject().GetKitchenObjectSO()))
                         {
                             GetKitchenObject().DestroySlef();
+                            // ★ 表现：台面食材装进盘子
+                            PlaySound(putItemSound, true);
                         }
                     }
                 }
@@ -55,6 +62,8 @@ public class ClearCounter : BaseCounter
                             if (PlateManager.Instance.PlateAddIngredient(plate, so))
                             {
                                 _player.GetKitchenObject().DestroySlef();
+                                // ★ 表现：手上食材装进盘子
+                                PlaySound(putItemSound, true);
                             }
                         }
                         else
@@ -62,6 +71,8 @@ public class ClearCounter : BaseCounter
                             if (plate.TryAddIngredient(so))
                             {
                                 _player.GetKitchenObject().DestroySlef();
+                                // ★ 表现：手上食材装进盘子
+                                PlaySound(putItemSound, true);
                             }
                         }
                     }
@@ -71,6 +82,9 @@ public class ClearCounter : BaseCounter
             {
                 //将操作台上的东西给玩家拿着
                 GetKitchenObject().SetKitchenObjectParent(_player);
+
+                // ★ 表现：玩家取走台面物品
+                PlaySound(takeItemSound, true);
             }
         }
     }

@@ -230,6 +230,7 @@ namespace LiteGameFramework
             string _packageName,
             EPlayMode _ePlayMode = EPlayMode.EditorSimulateMode,
             string _hostServer = null,
+            string _fallbackHostServer = null,
             bool useBuiltin = false,
             Action _sucess = null,
             Action _fail = null)
@@ -282,7 +283,7 @@ namespace LiteGameFramework
                     initOperation = InitializeOfflinePackageOperation(_packageName);
                     break;
                 case EPlayMode.HostPlayMode:
-                    initOperation = InitializeRemotePackageOperation(_packageName, _hostServer, useBuiltin);
+                    initOperation = InitializeRemotePackageOperation(_packageName, _hostServer, _fallbackHostServer, useBuiltin);
                     break;
                 default:
                     Debug.LogError($"暂时不支持这种初始化包的模型：{_ePlayMode}");
@@ -428,7 +429,7 @@ namespace LiteGameFramework
             Action _fail = null)
         {
             // 初始化资源包
-            var initOperation = InitializeRemotePackageOperation(_packageName, _hostServer, _useBuiltin);
+            var initOperation = InitializeRemotePackageOperation(_packageName, _hostServer, null,_useBuiltin);
             if (initOperation == null)
             {
                 Debug.LogError($"[{nameof(YooAssetsLoad)}] Remote package '{_packageName}' initialize failed: init operation is null.");
@@ -450,7 +451,7 @@ namespace LiteGameFramework
             }
         }
 
-        public InitializePackageOperation InitializeRemotePackageOperation(string _packageName, string _hostServer, bool _useBuiltin = true)
+        public InitializePackageOperation InitializeRemotePackageOperation(string _packageName, string _hostServer, string _fallbackHostServer = null, bool _useBuiltin = true)
         {
             // 远端地址无效时直接返回 null
             if (string.IsNullOrEmpty(_hostServer))
@@ -461,7 +462,8 @@ namespace LiteGameFramework
                 return null;
 
             // 配置远端资源服务器和文件系统参数
-            var remoteServices = new RmoteServices(_hostServer, null);
+            // 备用地址为空时 RmoteServices 会自动跳过 fallback（见 RmoteServices.GetRemoteUrls）
+            var remoteServices = new RmoteServices(_hostServer, string.IsNullOrEmpty(_fallbackHostServer) ? null : _fallbackHostServer);
             // 创建缓存文件系统参数
             var cacheFileSystemParams = FileSystemParameters.CreateDefaultSandboxFileSystemParameters(remoteServices);
             // 创建远端模式初始化参数
@@ -516,6 +518,9 @@ namespace LiteGameFramework
 
             if (downloader.TotalDownloadCount == 0)
             {
+                // 没有需要下载的内容也算成功，否则上层无法区分“无需下载”与“下载失败”。
+                Debug.Log($"[YooAssetsLoad] 包 {_packageName} 无新增内容，跳过下载。");
+                _sucess?.Invoke();
                 yield break;
             }
 
@@ -798,6 +803,8 @@ namespace LiteGameFramework
 
             var option = new ClearCacheOptions(ClearCacheMethods.ClearUnusedBundleFiles);
             var operation = package.ClearCacheAsync(option);
+
+            yield return operation;
 
             if (operation.Status == EOperationStatus.Succeeded)
             {

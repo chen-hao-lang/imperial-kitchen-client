@@ -18,4 +18,10 @@ public class PlateCounter : BaseCounter
         // 单机模式：盘子实体由服务器（PlateOwnerSync）驱动生成，本地不再直接分配
         // TODO: 如需单机模式，可在此直接生成一个空盘子挂到玩家手上
     }
+
+    /// <summary>上报本台子生成的盘子 SO 类型（供服务器权威分配盘子实体）。</summary>
+    public override void RegisterSelfToServer()
+    {
+        NetworkManager.Instance.SendRegisterPlateSpawnId(NetworkCounterId, plateKitchenObjectSO);
+    }
 }

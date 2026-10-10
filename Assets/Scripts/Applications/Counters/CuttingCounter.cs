@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class CuttingCounuter : BaseCounter, IHasPrograss
+public class CuttingCounter : BaseCounter, IHasPrograss
 {
     public event EventHandler<IHasPrograss.OnPrograssChangeEventArgs> OnProgressChanged;
 
@@ -11,12 +11,11 @@ public class CuttingCounuter : BaseCounter, IHasPrograss
     /// </summary>
     [SerializeField] private List<CuttingRecipeSO> cuttingRecipeSOArray;
 
-    private int cuttingPrograss;
+    [Header("切台音效")]
+    [SerializeField] private AudioClip cuttingSound;   // 每切一刀
+    [SerializeField] private AudioClip cutDoneSound;  // 切制完成
 
-    /// <summary>
-    /// 是否处于网络模式
-    /// </summary>
-    // private bool IsNetworkMode => NetworkManager.Instance != null && NetworkManager.Instance.IsConnected;
+    private int cuttingPrograss;
 
     /// <summary>
     /// 进度类操作台：InteractAlternate 的进度由服务器驱动
@@ -40,6 +39,9 @@ public class CuttingCounuter : BaseCounter, IHasPrograss
 
                     cuttingPrograss = 0;
 
+                    // ★ 表现：把可切的食材放到切台上
+                    PlaySound(putItemSound, true);
+
                     CuttingRecipeSO cuttingRecipeSO = GetCuttingRecipeSOWithInput(GetKitchenObject().GetKitchenObjectSO());
 
                     OnProgressChanged?.Invoke(this, new IHasPrograss.OnPrograssChangeEventArgs
@@ -62,6 +64,9 @@ public class CuttingCounuter : BaseCounter, IHasPrograss
                 {
                     if (plate.TryAddIngredient(so))
                     {
+                        // ★ 表现：台面上的食材被装进盘子
+                        PlaySound(takeItemSound, true);
+
                         // ★ 在销毁前缓存数据，避免 DestroySlef 后 GetKitchenObject() 返回 null
                         GetKitchenObject().DestroySlef();
                     }
@@ -71,6 +76,9 @@ public class CuttingCounuter : BaseCounter, IHasPrograss
             {
                 //玩家拿起桌子上的东西
                 GetKitchenObject().SetKitchenObjectParent(_player);
+
+                // ★ 表现：玩家从切台拿走食材
+                PlaySound(takeItemSound, true);
             }
         }
     }
@@ -95,6 +103,9 @@ public class CuttingCounuter : BaseCounter, IHasPrograss
 
             OnPlayerInteractAlternate?.Invoke();
 
+            // ★ 表现：每一刀
+            PlaySound(cuttingSound, true);
+
             CuttingRecipeSO cuttingRecipeSO = GetCuttingRecipeSOWithInput(GetKitchenObject().GetKitchenObjectSO());
 
             // 向UI发送进度更新事件
@@ -110,6 +121,9 @@ public class CuttingCounuter : BaseCounter, IHasPrograss
                 GetKitchenObject().DestroySlef();
 
                 KitchenObject.SpawnKitchenObject(outputKitchenObjectSO, this);
+
+                // ★ 表现：切制完成
+                PlaySound(cutDoneSound, true);
             }
         }
     }
@@ -150,11 +164,11 @@ public class CuttingCounuter : BaseCounter, IHasPrograss
     }
 
     /// <summary>
-    /// 由服务器下发切菜进度时调用（ItemSyncManager 触发）。
+    /// 【网络】服务器下发切菜进度时调用（NetworkCountersManager 路由 CounterProgressSync）。
     /// 更新进度条，并在进度达到 1.0 时执行物品转换。
     /// </summary>
     /// <param name="_progressNormalized">归一化进度 0~1，1 表示切完</param>
-    public void ApplyServerCutProgress(float _progressNormalized)
+    public override void ApplyServerProgress(float _progressNormalized)
     {
         // 对其他客户端的 UI 发送进度更新事件
         OnProgressChanged?.Invoke(this, new IHasPrograss.OnPrograssChangeEventArgs
@@ -164,7 +178,11 @@ public class CuttingCounuter : BaseCounter, IHasPrograss
 
         // 触发动画
         OnPlayerInteractAlternate?.Invoke();
-        
+
+        // ★ 表现：切制中 / 切制完成。
+        // 服务器进度消息不带 playerId，用“最近交互记忆”近似判定是否本机玩家触发。
+        PlayCraftSound(_progressNormalized >= 1f ? cutDoneSound : cuttingSound);
+
         if (!HasKitchenObject()) return;
 
         CuttingRecipeSO recipe = GetCuttingRecipeSOWithInput(GetKitchenObject().GetKitchenObjectSO());
@@ -172,5 +190,20 @@ public class CuttingCounuter : BaseCounter, IHasPrograss
 
         // 更新本地进度（用于 UI 显示）
         cuttingPrograss = Mathf.RoundToInt(_progressNormalized * recipe.cuttingPrograssMax);
+    }
+
+    /// <summary>
+    /// 断线重连 / 中途加入：按快照重建切台（正在切的物品上台 + 进度条）。
+    /// </summary>
+    public override void ApplySnapshotState(CounterSnapshot _cs)
+    {
+        ApplyServerItem(_cs.ItemIndex);   // 正在切的物品上台
+        ApplyServerProgress(_cs.Progress);
+    }
+
+    /// <summary>上报本台子的切菜配方表（供服务器权威推进切制进度）。</summary>
+    public override void RegisterSelfToServer()
+    {
+        NetworkManager.Instance.SendRegisterCuttingRecipes(NetworkCounterId, GetCuttingRecipeSOs());
     }
 }

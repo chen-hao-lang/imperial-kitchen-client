@@ -142,7 +142,7 @@ public class NetworkPlayer : MonoBehaviour, IKitchenObjectParent
         // 2) 不清空/不销毁当前手持的盘子（其生命周期由 PlateManager 负责）
         if (_soIndex >= 0)
         {
-            KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetByIndex(_soIndex);
+            KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetSOByIndex(_soIndex);
             if (so != null && so.prefab != null && so.prefab.GetComponent<PlateKitchenObject>() != null)
             {
                 return;
@@ -159,7 +159,7 @@ public class NetworkPlayer : MonoBehaviour, IKitchenObjectParent
         // 生成新物品
         if (_soIndex >= 0)
         {
-            KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetByIndex(_soIndex);
+            KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetSOByIndex(_soIndex);
             if (so != null)
             {
                 Transform kitchenObjectTransform = Instantiate(so.prefab, kitchenObjectHoldPoint);

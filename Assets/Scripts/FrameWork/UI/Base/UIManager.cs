@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -57,28 +57,77 @@ namespace LiteGameFramework
         }
 
         /// <summary>
-        /// 初始化所有UI面板的配置信息
+        /// 初始化所有UI面板的配置信息。
         /// </summary>
-        /// <returns></returns>
-        public IEnumerator InitUIConfig(EPlayMode _playMode)
+        /// <param name="_playMode">YooAsset 播放模式。</param>
+        /// <param name="_hostServer">远端主地址。<b>HostPlayMode 下必传</b>，否则 UI 资源包会初始化失败（YooAssetsLoad 在 host 为空时直接返回 null）。</param>
+        /// <param name="_fallbackHostServer">远端备用地址，可为空。</param>
+        /// <param name="_useBuiltin">是否挂载 StreamingAssets 内置资源作为兜底（首装无网可用）。</param>
+        public IEnumerator InitUIConfig(EPlayMode _playMode, string _hostServer = null,
+                                        string _fallbackHostServer = null, bool _useBuiltin = true)
         {
-            // UIManager 为常驻单例，场景切换后再次调用会重复添加面板配置，此处做幂等保护
+            // UIManager 为常驻单例，场景切换后再次调用会重复添加面板配置，此处做幂等保护。
+            // 注意：_uiConfigInitialized 只在真正注册完面板后才置位（见方法末尾），
+            // 否则中途失败会永久卡住、无法重试。
             if (_uiConfigInitialized)
             {
                 Debug.LogWarning("[UIManager] UIConfig 已初始化，跳过重复加载");
                 yield break;
             }
-            _uiConfigInitialized = true;
 
-            yield return YooAssetsLoad.Instance.InitializePackageCoroutine("UI", _playMode);
-            string packageVersion = null;
-            yield return YooAssetsLoad.Instance.RequestPackageVersionCoroutine("UI", (version) =>
+            // ① 准备 UI 资源包（创建包 → 请求版本 → 更新清单）。真正的下载由热更流程负责。
+            bool initOk = false;
+            yield return YooAssetsLoad.Instance.InitializePackageCoroutine(
+                "UI", _playMode, _hostServer, _fallbackHostServer, _useBuiltin,
+                _sucess: () => initOk = true,
+                _fail: () => initOk = false);
+
+            if (!initOk)
             {
-                packageVersion = version;
-            });
-            yield return YooAssetsLoad.Instance.UpdatePackageMainFest("UI", packageVersion);
+                Debug.LogError("[UIManager] UI 资源包初始化失败，后续 UIConfig 加载必然失败。" +
+                               (_playMode == EPlayMode.HostPlayMode && string.IsNullOrEmpty(_hostServer)
+                                   ? " 原因：HostPlayMode 下没有传入 CDN 地址（_hostServer 为空）。"
+                                   : string.Empty));
+                yield break;
+            }
+
+            // ② 请求版本 + 更新清单。
+            //    这两步失败时**降级处理**：不直接返回，继续尝试用 StreamingAssets 内置清单读取 UIConfig，
+            //    保证 CDN 不可用时首次启动至少还能进游戏（严格来说这会读到旧配置）。
+            string packageVersion = null;
+            string versionError = null;
+            yield return YooAssetsLoad.Instance.RequestPackageVersionCoroutine("UI",
+                (version) => packageVersion = version,
+                (err) => versionError = err);
+
+            if (string.IsNullOrEmpty(packageVersion))
+            {
+                Debug.LogWarning($"[UIManager] 获取 UI 资源包版本失败：{versionError}。将尝试使用内置清单继续。");
+            }
+            else
+            {
+                bool manifestOk = false;
+                yield return YooAssetsLoad.Instance.UpdatePackageMainFest("UI", packageVersion,
+                    _sucess: () => manifestOk = true,
+                    _fail: () => manifestOk = false);
+
+                if (!manifestOk)
+                    Debug.LogWarning("[UIManager] 更新 UI 资源包清单失败。将尝试使用内置清单继续。");
+            }
+
+            // ③ 读取 UIConfig.json 并注册所有面板
+            bool configOk = false;
             yield return YooAssetsLoad.Instance.ELoadResources<TextAsset>("UIConfig", (textAssets) =>
             {
+                // ⚠️ ELoadResources 失败时也会以 null 回调（而不是不回调），
+                // 这里必须先判空，否则 textAssets.text 直接抛 NullReferenceException。
+                if (textAssets == null || string.IsNullOrEmpty(textAssets.text))
+                {
+                    Debug.LogError("[UIManager] UIConfig.json 加载失败或内容为空（包：" + "UI" + "）。");
+                    configOk = false;
+                    return;
+                }
+
                 var lists = UIConfig.GetAllConfigs(textAssets.text);
 
                 foreach (var cfg in lists)
@@ -99,7 +148,19 @@ namespace LiteGameFramework
                         cfg.isPersistent
                     ));
                 }
+
+                configOk = panelControllers.Count > 0;
             }, "UI");
+
+            if (!configOk)
+            {
+                Debug.LogError("[UIManager] UIConfig 初始化失败：没有注册到任何面板，_uiConfigInitialized 保持 false（可重试）。");
+                yield break;
+            }
+
+            // 全部成功后才置位幂等标记：前面的步骤（包初始化 / 清单 / 读取）任何一步失败时
+            // 都保持 false，调用方可以重试。
+            _uiConfigInitialized = true;
         }
 
         /// <summary>

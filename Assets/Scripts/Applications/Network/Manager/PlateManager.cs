@@ -50,17 +50,52 @@ public class PlateManager : MonoBehaviour
     private void OnPlateOwnerSync(OnPlateOwnerSync _arg)
     {
         // 1. 确保盘子实体存在（不存在则按事件参数生成）
-        if (!plates.TryGetValue(_arg.plateId, out PlateKitchenObject plate))
+        bool isNewEntity = !plates.TryGetValue(_arg.plateId, out PlateKitchenObject plate);
+        if (isNewEntity)
         {
-            plate = CreatePlateEntity(_arg.plateId,_arg.plateKitchenObjectId);
+            plate = CreatePlateEntity(_arg.plateId, _arg.plateKitchenObjectId);
             if (plate == null) return;
         }
+
+        // 记录移动前的持有者，用于判定“上/下操作台”并触发表现事件
+        int prevOwnerType = plate.OwnerType;
+        int prevOwnerId = plate.OwnerId;
 
         // 2. 挂到新持有者（玩家手 / 操作台）
         MovePlateToOwner(plate, _arg.ownerType, _arg.ownerId);
 
         // 3. 应用下发属性（持有者 + 配料）
         ApplyOwnerSyncData(plate, _arg.ownerType, _arg.ownerId, _arg.ingredients);
+
+        // 4. 触发表现事件（新建实体的首次落位不触发，避免开局盘子台自动生成时齐响）
+        RaisePlateCue(isNewEntity, prevOwnerType, prevOwnerId, _arg.ownerType, _arg.ownerId);
+    }
+
+    /// <summary>
+    /// 盘子上下操作台的表现事件：玩家 → 台面 = PlatePut；台面 → 玩家 = TakeItem。
+    /// 事件不带 playerId，因此用移动前的持有者 id 判定是否本机玩家触发（“只播自己”）。
+    /// </summary>
+    private void RaisePlateCue(bool _isNewEntity, int _prevOwnerType, int _prevOwnerId, int _newOwnerType, int _newOwnerId)
+    {
+        if (_isNewEntity) return;
+
+        bool isLocal;
+        BaseCounter counter;
+
+        if (_newOwnerType == 1 && _prevOwnerType == 0)          // 玩家 → 操作台
+        {
+            counter = NetworkCountersManager.Instance?.GetCounter(_newOwnerId);
+            if (counter == null) return;
+            isLocal = NetworkManager.Instance != null && _prevOwnerId == NetworkManager.Instance.PlayerID;
+            counter.PlayPlatePutSound(isLocal);
+        }
+        else if (_newOwnerType == 0 && _prevOwnerType == 1)     // 操作台 → 玩家
+        {
+            counter = NetworkCountersManager.Instance?.GetCounter(_prevOwnerId);
+            if (counter == null) return;
+            isLocal = NetworkManager.Instance != null && _newOwnerId == NetworkManager.Instance.PlayerID;
+            counter.PlayPlateTakeSound(isLocal);
+        }
     }
 
     /// <summary>生成一个新的盘子唯一实体并登记（不设父对象，由调用方挂载）。</summary>
@@ -72,7 +107,7 @@ public class PlateManager : MonoBehaviour
             return null;
         }
 
-        Transform prefab = KitchenObjectRegistry.Instance?.GetByIndex(_plateKitchenObjectId)?.prefab;
+        Transform prefab = KitchenObjectRegistry.Instance?.GetSOByIndex(_plateKitchenObjectId)?.prefab;
         PlateKitchenObject plate = Instantiate(prefab, transform).GetComponent<PlateKitchenObject>();
         if (plate == null)
         {
@@ -149,7 +184,7 @@ public class PlateManager : MonoBehaviour
         List<KitchenObjectSO> soList = new List<KitchenObjectSO>();
         foreach (var id in _ingredients)
         {
-            KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetByIndex(id);
+            KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetSOByIndex(id);
             if (so != null) soList.Add(so);
         }
         _plate.ResetIngredient(soList);
@@ -216,7 +251,7 @@ public class PlateManager : MonoBehaviour
     private void OnPlateIngredientSyncReceived(OnPlateIngredientSync _arg)
     {
         if (!plates.TryGetValue(_arg.plateId, out var plate)) return;
-        KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetByIndex(_arg.ingredientIndex);
+        KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetSOByIndex(_arg.ingredientIndex);
         if (so != null) plate.TryAddIngredient(so);
     }
 
@@ -238,7 +273,7 @@ public class PlateManager : MonoBehaviour
     private void OnPlateIngredientRemovedReceived(OnPlateIngredientRemoved _arg)
     {
         if (!plates.TryGetValue(_arg.plateId, out var plate)) return;
-        KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetByIndex(_arg.ingredientIndex);
+        KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetSOByIndex(_arg.ingredientIndex);
         if (so != null) plate.RemoveIngredient(so);
     }
 

@@ -11,6 +11,7 @@ namespace LiteGameFramework
     {
         // 背景音乐音频源（唯一）
         private AudioSource _bgmSource;
+
         // 单个SFX音频源（使用 PlayOneShot 播放，可靠且无需额外GameObject）
         private AudioSource _sfxSource;
 
@@ -24,6 +25,10 @@ namespace LiteGameFramework
         // 音量配置（默认最大值）
         [Range(0f, 1f)] public float defaultBgmVolume = 1f;
         [Range(0f, 1f)] public float defaultSfxVolume = 1f;
+
+        [SerializeField] private int sfx3DPoolSize = 8;
+        private readonly List<AudioSource> sfx3DPool = new();
+        private int sfx3DCursor;
 
         // 是否正在退出（用于防止在退出时重新创建单例导致场景残留）
         private static bool applicationIsQuitting = false;
@@ -58,6 +63,7 @@ namespace LiteGameFramework
         }
 
         #region 背景音乐（BGM）控制
+
         /// <summary>
         /// 播放背景音乐
         /// </summary>
@@ -150,9 +156,11 @@ namespace LiteGameFramework
         {
             return _bgmSource != null && _bgmSource.isPlaying;
         }
+
         #endregion
 
         #region 音效（SFX）控制
+
         /// <summary>
         /// 播放音效
         /// </summary>
@@ -184,6 +192,38 @@ namespace LiteGameFramework
             Debug.Log($"播放音效：{sfxClip.name}，音量：{vol}");
         }
 
+        /// <summary>在指定世界坐标播放 3D 音效（池化 AudioSource，支持快速连续播放）。</summary>
+        public void PlaySFXAt(AudioClip _clip, Vector3 _pos, float _volume = -1f)
+        {
+            if (_clip == null) return;
+
+            EnsureSFX3DPool();
+            AudioSource src = sfx3DPool[sfx3DCursor];
+            sfx3DCursor = (sfx3DCursor + 1) % sfx3DPool.Count;
+
+            src.transform.position = _pos;
+            src.PlayOneShot(_clip, _volume < 0 ? defaultSfxVolume : Mathf.Clamp01(_volume));
+        }
+
+        private void EnsureSFX3DPool()
+        {
+            if (sfx3DPool.Count > 0) return;
+
+            for (int i = 0; i < sfx3DPoolSize; i++)
+            {
+                var go = new GameObject($"SFX3D_{i}");
+                go.transform.SetParent(transform);
+                var src = go.AddComponent<AudioSource>();
+                src.playOnAwake = false;
+                src.loop = false;
+                src.spatialBlend = 1f;
+                src.rolloffMode = AudioRolloffMode.Linear;
+                src.minDistance = 2f;
+                src.maxDistance = 20f;
+                sfx3DPool.Add(src);
+            }
+        }
+
         /// <summary>
         /// 设置所有音效的默认音量（后续播放的SFX生效）
         /// </summary>
@@ -203,6 +243,7 @@ namespace LiteGameFramework
             {
                 _sfxSource.Stop();
             }
+
             Debug.Log("停止所有音效");
         }
 
@@ -237,6 +278,7 @@ namespace LiteGameFramework
                     _voiceCoroutine = null;
                     _voiceQueue.Clear();
                 }
+
                 _voiceSource.clip = clip;
                 _voiceSource.volume = vol;
                 _voiceSource.Play();
@@ -250,6 +292,7 @@ namespace LiteGameFramework
                 {
                     _voiceCoroutine = StartCoroutine(ProcessVoiceQueue());
                 }
+
                 Debug.Log($"加入配音队列：{clip.name}，音量：{vol}");
             }
         }
@@ -266,11 +309,13 @@ namespace LiteGameFramework
                     _voiceSource.loop = false;
                     _voiceSource.volume = defaultVoiceVolume;
                 }
+
                 _voiceSource.clip = item.clip;
                 _voiceSource.volume = item.volume;
                 _voiceSource.Play();
                 yield return new WaitForSeconds(item.clip.length + 0.05f);
             }
+
             _voiceCoroutine = null;
         }
 
@@ -287,6 +332,7 @@ namespace LiteGameFramework
                 StopCoroutine(_voiceCoroutine);
                 _voiceCoroutine = null;
             }
+
             Debug.Log("停止配音");
         }
 
@@ -309,14 +355,22 @@ namespace LiteGameFramework
         }
 
         // 小的辅助类型
-        private class VoiceItem { public AudioClip clip; public float volume; }
+        private class VoiceItem
+        {
+            public AudioClip clip;
+            public float volume;
+        }
+
         #endregion
 
         #region 内部辅助方法
+
         // （已使用 PlayOneShot，无需额外协程管理临时音源）
+
         #endregion
 
         #region 生命周期清理
+
         protected override void OnDestroy()
         {
             base.OnDestroy();
@@ -335,6 +389,7 @@ namespace LiteGameFramework
             // 标记正在退出，防止其他对象的 OnDestroy/OnDisable 在退出时触发 Instance 创建
             applicationIsQuitting = true;
         }
+
         #endregion
     }
 }

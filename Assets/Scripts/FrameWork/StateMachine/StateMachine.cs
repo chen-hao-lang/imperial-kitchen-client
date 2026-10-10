@@ -8,8 +8,16 @@ namespace LiteGameFramework
 {
     private IState currentState;
 
+    /// <summary>
+    /// 黑板，用于存储状态机之间的各种数据
+    /// </summary>
     private Dictionary<string, System.Object> blackboard;
+    
+    /// <summary>
+    /// 各个状态之间的装换条件
+    /// </summary>
     private Dictionary<Type, List<Transition>> transitions;
+    
     private List<Transition> currentTransitions;
     private List<Transition> anyTransitions;
     private static List<Transition> EmptyTransitions;
@@ -135,8 +143,8 @@ namespace LiteGameFramework
     }
 
     /// <summary>
-    /// 标记热更新流程失败，同时记录失败步骤和错误信息。
-    /// 配合 AddAnyTransition + FSMPatchFailed 使用。
+    /// 标记流程失败，同时记录失败步骤和错误信息。
+    /// 配合 AddAnyTransition 使用，可让状态机立刻跳到统一的失败状态。
     /// </summary>
     public void MarkFailed(string step, string message)
     {

@@ -17,6 +17,8 @@ public class NetworkCountersManager : MonoBehaviour
     /// </summary>
     private (int counterId, byte counterType)[] counterTypeMapping;
 
+    public static bool IsApplyingSnapshot { get; private set; }
+
     void Awake()
     {
         Instance = this;
@@ -55,7 +57,7 @@ public class NetworkCountersManager : MonoBehaviour
         EventManager.AddListener<OnInteractionSync>(this, OnInteractionSync);
         EventManager.AddListener<OnCounterProgressSync>(this, OnCounterProgressSync);
         EventManager.AddListener<OnCounterStateSync>(this, OnCounterStateSync);
-        EventManager.AddListener<OnCounterIngredientSync>(this, OnCounterIngredientSync);   // ★ 新增
+        EventManager.AddListener<OnCounterIngredientSync>(this, OnCounterIngredientSync); // ★ 新增
     }
 
     void OnDisable()
@@ -66,56 +68,45 @@ public class NetworkCountersManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 应用快照
+    /// </summary>
+    /// <param name="_snapshot"></param>
     public void ApplySnapshot(CounterSnapshot[] _snapshot)
     {
-        if (_snapshot == null || _snapshot.Length == 0) return;
+        IsApplyingSnapshot = true;
 
-        // 1) 全清（盘子实体由 PlateManager 管，不在此销毁）
-        foreach (var pair in counterMap)
+        try
         {
-            var counter = pair.Value;
-            if (counter.HasKitchenObject() && !counter.GetKitchenObject().TryGetPlate(out _))
+            if (_snapshot == null || _snapshot.Length == 0) return;
+
+            // 1) 全清（盘子实体由 PlateManager 管，不在此销毁）
+            foreach (var pair in counterMap)
             {
-                var old = counter.GetKitchenObject();
-                counter.ClearKitchenObject();
-                Destroy(old.gameObject);
+                var counter = pair.Value;
+                if (counter.HasKitchenObject() && !counter.GetKitchenObject().TryGetPlate(out _))
+                {
+                    var old = counter.GetKitchenObject();
+                    counter.ClearKitchenObject();
+                    Destroy(old.gameObject);
+                }
+            }
+
+            // 2) 逐台重建：内部状态如何恢复由各操作台自己决定（模板方法）
+            foreach (var cs in _snapshot)
+            {
+                if (counterMap.TryGetValue(cs.CounterId, out var counter))
+                    counter.ApplySnapshotState(cs);
             }
         }
-
-        // 2) 逐台重建
-        foreach (var cs in _snapshot)
+        finally
         {
-            if (!counterMap.TryGetValue(cs.CounterId, out var counter)) continue;
-
-            switch (counter)
-            {
-                case BoilingCounter boiling:
-                    boiling.ResetForSnapshot();                        // 清内部配料/状态
-                    foreach (var ing in cs.Ingredients) boiling.ApplyServerIngredient(ing);
-                    boiling.OnBoilingStateChanged(cs.State);           // 0/1/2/3
-                    boiling.ApplyServerBoilingProgress(cs.Progress);
-                    if (cs.ItemIndex >= 0) AsyncCounterIngredients(cs.CounterId, cs.ItemIndex); // 成品上台
-                    break;
-
-                case CuttingCounuter cutting:
-                    AsyncCounterIngredients(cs.CounterId, cs.ItemIndex);  // 正在切的物品上台
-                    cutting.ApplyServerCutProgress(cs.Progress);
-                    break;
-
-                case StreamingCounter streaming:
-                    streaming.OnStreamingStateChanged(cs.State);        // 0/1/3
-                    streaming.ApplyServerStreamingProgress(cs.Progress);
-                    if (cs.ItemIndex >= 0) AsyncCounterIngredients(cs.CounterId, cs.ItemIndex);
-                    break;
-
-                default:
-                    AsyncCounterIngredients(cs.CounterId, cs.ItemIndex);
-                    break;
-            }
+            IsApplyingSnapshot = false;
         }
     }
 
     #region 事件处理
+
     /// <summary>
     /// 处理来自服务器的交互同步
     /// </summary>
@@ -124,77 +115,72 @@ public class NetworkCountersManager : MonoBehaviour
     {
         Debug.Log($"[CounterManager] 交互同步 操作台：{_arg.counterId} 操作台上物品：{_arg.counterIetmId} 玩家手里物品：{_arg.playerHeldId}");
 
-        // 台子状态
-        if (_arg.counterId >= 0 && counterMap.TryGetValue(_arg.counterId, out var counter))
-            AsyncCounterIngredients(_arg.counterId, _arg.counterIetmId);
+        // 交互前：记录台面物品与触发者手持状态，用于交互后判定“放 / 取”
+        counterMap.TryGetValue(_arg.counterId, out var counter);
+        KitchenObjectSO soBefore = counter != null && counter.HasKitchenObject()
+            ? counter.GetKitchenObject().GetKitchenObjectSO()
+            : null;
+
+        IKitchenObjectParent actor = GetActorParent(_arg.playerId);
+        bool handHadBefore = actor != null && actor.HasKitchenObject();
+
+        // 台子状态：如何应用由该台子自己决定（模板方法）
+        counter?.ApplyServerItem(_arg.counterIetmId);
 
         // 玩家手持状态
-        if (_arg.playerId == NetworkManager.Instance.PlayerID)
+        if (_arg.playerId == NetworkManager.Instance.PlayerID) // 本地玩家
             PlayerController.Inatance?.ApplyHeldItem(_arg.playerHeldId);
-        else
+        else // 其他玩家
             GameScenePlayerManager.Instance?.GetNetworkPlayer(_arg.playerId)?.ApplyHeldItem(_arg.playerHeldId);
+
+        // 交互表现（放 / 取 / 丢弃）：如何判别由该台子自己决定（模板方法）
+        counter?.ApplyInteractionCue(new InteractionCueContext
+        {
+            PlayerId = _arg.playerId,
+            IsLocal = _arg.playerId == NetworkManager.Instance.PlayerID,
+            SoBefore = soBefore,
+            HandHadBefore = handHadBefore,
+            HandHasAfter = actor != null && actor.HasKitchenObject(),
+            HeldItemIdAfter = _arg.playerHeldId,
+        });
     }
 
     /// <summary>
-    /// 处理服务器下发的操作台进度同步（切菜/煎/煮的进度条）
+    /// 取本次交互触发者的持有者接口（本地玩家 / 远程玩家），用于对比交互前后手持。
+    /// </summary>
+    private IKitchenObjectParent GetActorParent(int _playerId)
+    {
+        if (NetworkManager.Instance != null && _playerId == NetworkManager.Instance.PlayerID)
+            return PlayerController.Inatance;
+
+        return GameScenePlayerManager.Instance?.GetNetworkPlayer(_playerId);
+    }
+
+    /// <summary>
+    /// 处理服务器下发的操作台进度同步（切/煮/蒸的进度条）——按 counterId 路由，细节由各台子实现。
     /// </summary>
     private void OnCounterProgressSync(OnCounterProgressSync _arg)
     {
-        int _counterId = _arg.counterId;
-        float _progress = _arg.progress;
-        {
-            if (!counterMap.TryGetValue(_counterId, out var baseCounter))
-                return;
-
-            // 根据操作台类型分发
-            if (baseCounter.CounterType == (byte)CounterType.CuttingCounter && baseCounter is CuttingCounuter)
-            {
-                (baseCounter as CuttingCounuter)?.ApplyServerCutProgress(_progress);
-            }
-
-            if (baseCounter.CounterType == (byte)CounterType.BoilingCounter && baseCounter is BoilingCounter)
-            {
-                (baseCounter as BoilingCounter)?.ApplyServerBoilingProgress(_progress);
-            }
-
-            if (baseCounter.CounterType == (byte)CounterType.StreamingCounter && baseCounter is StreamingCounter)
-            {
-                (baseCounter as StreamingCounter)?.ApplyServerStreamingProgress(_progress);
-            }
-        }
-    }
-
-    private void OnCounterStateSync(OnCounterStateSync _arg)
-    {
-        if (!counterMap.TryGetValue(_arg.counterId, out var counter)) return;
-
-        // 如果是煮锅
-        if (counter is BoilingCounter boilingCounter)
-        {
-            boilingCounter.OnBoilingStateChanged(_arg.state);
-        }
-
-        if (counter is StreamingCounter streamingCounter)
-        {
-            streamingCounter.OnStreamingStateChanged(_arg.state);
-        }
+        if (counterMap.TryGetValue(_arg.counterId, out var counter))
+            counter.ApplyServerProgress(_arg.progress);
     }
 
     /// <summary>
-    /// 煮锅配料变化 → BoilingCounter
+    /// 处理服务器下发的操作台状态同步（煮/蒸状态机）——按 counterId 路由，细节由各台子实现。
+    /// </summary>
+    private void OnCounterStateSync(OnCounterStateSync _arg)
+    {
+        if (counterMap.TryGetValue(_arg.counterId, out var counter))
+            counter.ApplyServerState(_arg.state);
+    }
+
+    /// <summary>
+    /// 处理服务器下发的操作台配料变化（煮锅加料 / 蒸台入笼）——按 counterId 路由。
     /// </summary>
     private void OnCounterIngredientSync(OnCounterIngredientSync _arg)
     {
-        if (!counterMap.TryGetValue(_arg.counterId, out var counter)) return;
-        if (counter is BoilingCounter boilingCounter)
-        {
-            boilingCounter.ApplyServerIngredient(_arg.ingredientIndex);
-        }
-
-        if (counter is StreamingCounter streamingCounter)
-        {
-            streamingCounter.StartSteamingFromServer();
-        }
+        if (counterMap.TryGetValue(_arg.counterId, out var counter))
+            counter.ApplyServerIngredient(_arg.ingredientIndex);
     }
     #endregion
 
@@ -219,135 +205,16 @@ public class NetworkCountersManager : MonoBehaviour
             return;
         }
 
-        // 注册操作台
+        // 注册操作台：counterId → 类型 的映射数组必须先于各台业务数据上报（服务器按此建表）
         NetworkManager.Instance.SendCounterRegister(counterTypeMapping);
 
-        // 注册操作台信息
+        // 注册各台子的业务数据（容器物品 / 各类配方 / 盘子类型）——上报内容由各台子自己决定
         foreach (var counter in counterMap.Values)
         {
-            if (counter.CounterType == (byte)CounterType.ContainerCounter)
-            {
-                int soIndex = KitchenObjectRegistry.Instance.GetIndexBySO((counter as CotainerCounter).kitchenObjectSO);
-                NetworkManager.Instance.SendRegisterContainerItem(counter.NetworkCounterId, soIndex);
-                continue;
-            }
-
-            if (counter.CounterType == (byte)CounterType.BoilingCounter)
-            {
-                NetworkManager.Instance.SendRegisterBoilingRecipe(counter.NetworkCounterId, (counter as BoilingCounter).GetBoilingRecipeSOs());
-                continue;
-            }
-
-            if (counter.CounterType == (byte)CounterType.CuttingCounter)
-            {
-                NetworkManager.Instance.SendRegisterCuttingRecipes(counter.NetworkCounterId, (counter as CuttingCounuter).GetCuttingRecipeSOs());
-                continue;
-            }
-
-            if (counter.CounterType == (byte)CounterType.PlateCounter)
-            {
-                NetworkManager.Instance.SendRegisterPlateSpawnId(counter.NetworkCounterId, (counter as PlateCounter).PlateKitchenObjectSO);
-                continue;
-            }
-
-            if (counter.CounterType == (byte)CounterType.StreamingCounter)
-            {
-                NetworkManager.Instance.SendRegisterStreamingRecipes(counter.NetworkCounterId, (counter as StreamingCounter).GetSteamingRecipeSO());
-                continue;
-            }
+            counter.RegisterSelfToServer();
         }
 
         Debug.Log($"[CountersManager] 已上报 {counterTypeMapping.Length} 个操作台类型映射");
-    }
-
-    /// <summary>
-    /// 将操作台同步到目标状态（去重检查，避免重复创建/销毁）
-    /// </summary>
-    private void AsyncCounterIngredients(int _counterId, int _ingredientsId)
-    {
-        // 查找操作台，找不到直接忽略本次同步
-        if (!counterMap.TryGetValue(_counterId, out var baseCounter))
-        {
-            return;
-        }
-
-        // ── 服务器约定：byte.MaxValue(255) 表示“无物品” ──
-        // 原代码写成 _ingredientsId < 0，但 byte 是无符号类型，该条件永远为 false，
-        // 导致清空逻辑从未执行。这里修正为与协议一致的判断。
-        const byte emptyMarker = byte.MaxValue;
-
-        // ── 清空操作台 ──
-        if (_ingredientsId == emptyMarker || _ingredientsId < 0)
-        {
-            // 先清理台面上的实体（盘子例外）
-            if (baseCounter.HasKitchenObject())
-            {
-                KitchenObject oldObj = baseCounter.GetKitchenObject();
-
-                // 盘子由 PlateManager.OnPlateOwnerSync 移动，这里不能销毁
-                if (!oldObj.TryGetPlate(out _))
-                {
-                    baseCounter.ClearKitchenObject();
-                    Destroy(oldObj.gameObject);
-                }
-            }
-
-            return;
-        }
-
-        // ── 放置物品 ──
-        KitchenObjectRegistry registry = KitchenObjectRegistry.Instance;
-        KitchenObjectSO targetSO = registry?.GetByIndex(_ingredientsId);
-        if (targetSO == null)
-        {
-            Debug.LogWarning($"[CountersManager] 台子{_counterId} 收到无效物品索引: {_ingredientsId}");
-            return;
-        }
-
-        // BoilingCounter 加入配料
-        if (baseCounter is BoilingCounter boilingPot)
-        {
-            // 可接收配料 → 进锅内部列表（渲染配料图标）
-            if (boilingPot.CanAcceptIngredient(targetSO))
-            {
-                if (boilingPot.TryAddIngredients(targetSO))
-                {
-                    boilingPot.OnInteracted?.Invoke(new OnInteractedEventArgs { kitchenObjectSO = targetSO });
-                }
-                return;
-            }
-            // 否则是"成品"（output 不在可接收列表）→ 落到下面普通实体生成
-        }
-
-        // 普通操作台
-        if (baseCounter.HasKitchenObject())
-        {
-            KitchenObject oldObj = baseCounter.GetKitchenObject();
-
-            // 操作台上的配料与玩家手里的一致时，不更新
-            if (oldObj.GetKitchenObjectSO() == targetSO)
-            {
-                return;
-            }
-
-            // 盘子同样由 PlateManager 管理，不在此处销毁
-            if (!oldObj.TryGetPlate(out _))
-            {
-                baseCounter.ClearKitchenObject();
-                Destroy(oldObj.gameObject);
-            }
-        }
-
-        // 盘子不在此处生成——由 PlateManager.OnPlateOwnerSync 移动唯一实体
-        if (targetSO.prefab != null && targetSO.prefab.GetComponent<PlateKitchenObject>() != null)
-        {
-            return;
-        }
-
-        // 生成新实体
-        KitchenObject.SpawnKitchenObject(targetSO, baseCounter);
-        Debug.Log($"[CountersManager] 台子{_counterId} 同步生成: {targetSO.name}");
-
     }
 
     public BaseCounter GetCounter(int _counterId)

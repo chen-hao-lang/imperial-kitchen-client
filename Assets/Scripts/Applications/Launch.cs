@@ -7,7 +7,7 @@ public class Launch : MonoBehaviour
 {
     [Header("启动配置")]
     public EPlayMode ePlayMode = EPlayMode.OfflinePlayMode;
-    public string serverIp = "127.0.0.1";
+    public string serverIp = "106.52.92.221";
     public int serverPort = 7777;
     public string playerName = "chf";
 

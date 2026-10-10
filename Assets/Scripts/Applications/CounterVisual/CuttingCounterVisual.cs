@@ -4,22 +4,22 @@ public class CuttingCounterVisual : MonoBehaviour
 {
     private const string CUT = "Cut";
 
-    private CuttingCounuter _cuttingCounter;
+    private CuttingCounter _cuttingCounter;
     private Animator _animator;
 
     void Awake()
     {
         _animator = GetComponent<Animator>();
-        _cuttingCounter = GetComponentInParent<CuttingCounuter>();
+        _cuttingCounter = GetComponentInParent<CuttingCounter>();
     }
 
     // Start is called before the first frame update
     void Start()
     {
-        _cuttingCounter.OnPlayerInteractAlternate += CuttingCounuter_OnCut;
+        _cuttingCounter.OnPlayerInteractAlternate += CuttingCounter_OnCut;
     }
 
-    private void CuttingCounuter_OnCut()
+    private void CuttingCounter_OnCut()
     {
         _animator.SetTrigger(CUT);
     }

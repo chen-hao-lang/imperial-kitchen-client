@@ -17,6 +17,10 @@ public class BoilingCounter : BaseCounter, IHasPrograss
     /// </summary>
     [SerializeField] private List<BoilingRecipeSO> BoilingRecipeSOArray;
 
+    [Header("煮锅音效")]
+    [SerializeField] private AudioClip boilStartSound;  // 开始煮
+    [SerializeField] private AudioClip boilDoneSound;   // 煮制完成（加料沿用基类 putItemSound，装盘沿用 takeItemSound）
+
     private float boilingTimer;
     private bool isBoiling;
     private BoilingRecipeSO activeRecipe;
@@ -60,7 +64,7 @@ public class BoilingCounter : BaseCounter, IHasPrograss
     /// ★ 新增：服务器下发锅内配料变化（CounterAddIngredient 消息）。
     /// ingredientIndex = 255 表示锅被清空；否则为加入的配料。
     /// </summary>
-    public void ApplyServerIngredient(int _ingredientIndex)
+    public override void ApplyServerIngredient(int _ingredientIndex)
     {
         if (_ingredientIndex == byte.MaxValue)
         {
@@ -68,11 +72,14 @@ public class BoilingCounter : BaseCounter, IHasPrograss
             return;
         }
 
-        KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetByIndex(_ingredientIndex);
+        KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetSOByIndex(_ingredientIndex);
         if (so != null && TryAddIngredients(so))
         {
             // 视觉上更新
             OnInteracted?.Invoke(new OnInteractedEventArgs { kitchenObjectSO = so });
+
+            // ★ 表现：加料（服务器消息不带 playerId，用最近交互记忆近似）
+            PlayCraftSound(putItemSound);
         }
     }
 
@@ -156,6 +163,8 @@ public class BoilingCounter : BaseCounter, IHasPrograss
                 isBoiling = true;
                 boilingTimer = 0f;
                 OnProgressChanged?.Invoke(this, new IHasPrograss.OnPrograssChangeEventArgs { prograssNormalized = 0f });
+                // ★ 表现：开始煮
+                PlayCraftSound(boilStartSound);
                 break;
             case 3:
                 Debug.Log($"[BoilingCounter] 煮锅状态：煮食完成");
@@ -165,6 +174,8 @@ public class BoilingCounter : BaseCounter, IHasPrograss
                 boilingTimer = 0f;
                 OnProgressChanged?.Invoke(this, new IHasPrograss.OnPrograssChangeEventArgs { prograssNormalized = 0f });
                 OnBoilingCompleted?.Invoke();
+                // ★ 表现：煮制完成
+                PlayCraftSound(boilDoneSound);
                 break;
             default:
                 Debug.LogWarning($"[BoilingCounter] 煮锅状态：未知（{_state}）");
@@ -196,12 +207,64 @@ public class BoilingCounter : BaseCounter, IHasPrograss
     /// 联网下煮沸的计时/完成由服务器权威驱动，本地无需按进度折算 boilingTimer。
     /// </summary>
     /// <param name="_progressNormalized"></param>
-    public void ApplyServerBoilingProgress(float _progressNormalized)
+    public override void ApplyServerProgress(float _progressNormalized)
     {
         OnProgressChanged?.Invoke(this, new IHasPrograss.OnPrograssChangeEventArgs
         {
             prograssNormalized = _progressNormalized
         });
+    }
+
+    /// <summary>
+    /// 【网络】服务器广播煮锅状态机（CounterStateSync）：0=空闲 / 1=准备 / 2=煮食中 / 3=煮食完成。
+    /// </summary>
+    public override void ApplyServerState(byte _state)
+    {
+        OnBoilingStateChanged(_state);
+    }
+
+    /// <summary>
+    /// 【网络】服务器下发台面物品同步：可接收的配料进内部列表（渲染配料图标），
+    /// 成品（不在可接收列表中）则落回基类的台面生成/清空逻辑。
+    /// </summary>
+    public override void ApplyServerItem(int _soIndex)
+    {
+        if (!IsEmptyItemId(_soIndex))
+        {
+            KitchenObjectSO targetSO = KitchenObjectRegistry.Instance?.GetSOByIndex(_soIndex);
+            if (targetSO != null && CanAcceptIngredient(targetSO))
+            {
+                if (TryAddIngredients(targetSO))
+                {
+                    OnInteracted?.Invoke(new OnInteractedEventArgs { kitchenObjectSO = targetSO });
+                }
+                return;
+            }
+        }
+
+        // 否则是“成品” → 走基类的普通实体生成/清空
+        base.ApplyServerItem(_soIndex);
+    }
+
+    /// <summary>
+    /// 断线重连 / 中途加入：按快照重建煮锅的内部配料与状态机。
+    /// </summary>
+    public override void ApplySnapshotState(CounterSnapshot _cs)
+    {
+        ResetForSnapshot();
+        if (_cs.Ingredients != null)
+        {
+            foreach (var ing in _cs.Ingredients) ApplyServerIngredient(ing);
+        }
+        OnBoilingStateChanged(_cs.State);                        // 0/1/2/3
+        ApplyServerProgress(_cs.Progress);
+        if (_cs.ItemIndex >= 0) ApplyServerItem(_cs.ItemIndex);  // 成品上台
+    }
+
+    /// <summary>上报本台子的煮菜配方表（供服务器权威匹配并广播状态）。</summary>
+    public override void RegisterSelfToServer()
+    {
+        NetworkManager.Instance.SendRegisterBoilingRecipe(NetworkCounterId, GetBoilingRecipeSOs());
     }
 
     public void ClearCounter()
@@ -242,6 +305,9 @@ public class BoilingCounter : BaseCounter, IHasPrograss
                 OnBoilingCompleted?.Invoke();
                 boilingTimer = 0;
                 isBoiling = false;
+
+                // ★ 表现：煮制完成
+                PlaySound(boilDoneSound, true);
             }
         }
     }
@@ -284,6 +350,8 @@ public class BoilingCounter : BaseCounter, IHasPrograss
 
                                 // 触发交互事件
                                 OnInteracted?.Invoke(new OnInteractedEventArgs { kitchenObjectSO = ingredient });
+                                // ★ 表现：加料
+                                PlaySound(putItemSound, true);
                                 //尝试开始制作
                                 TryStartRecipeIfPossible();
                             }
@@ -303,6 +371,9 @@ public class BoilingCounter : BaseCounter, IHasPrograss
 
                         // 触发交互事件
                         OnInteracted?.Invoke(new OnInteractedEventArgs { kitchenObjectSO = ingredient });
+
+                        // ★ 表现：加料
+                        PlaySound(putItemSound, true);
 
                         // 查看现在的配料表是否满足某个菜单
                         TryStartRecipeIfPossible();
@@ -326,6 +397,9 @@ public class BoilingCounter : BaseCounter, IHasPrograss
                     activeRecipe = null;
 
                     OnPlateCompleted?.Invoke();
+
+                    // ★ 表现：成品装盘
+                    PlaySound(takeItemSound, true);
                 }
             }
         }
@@ -349,6 +423,9 @@ public class BoilingCounter : BaseCounter, IHasPrograss
                 boilingTimer = 0f;
 
                 isBoiling = true;
+
+                // ★ 表现：开始煮
+                PlaySound(boilStartSound, true);
 
                 return;
             }

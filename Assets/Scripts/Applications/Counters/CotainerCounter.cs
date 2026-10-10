@@ -20,6 +20,16 @@ public class CotainerCounter : BaseCounter
             KitchenObject.SpawnKitchenObject(kitchenObjectSO, _player);
 
             OnPlayerInteract?.Invoke();
+
+            // ★ 表现：从容器台取走一个物品
+            PlaySound(takeItemSound, true);
         }
+    }
+
+    /// <summary>上报本台子的固定生成物品（供服务器在玩家取物时裁决）。</summary>
+    public override void RegisterSelfToServer()
+    {
+        int soIndex = KitchenObjectRegistry.Instance.GetIndexBySO(kitchenObjectSO);
+        NetworkManager.Instance.SendRegisterContainerItem(NetworkCounterId, soIndex);
     }
 }
