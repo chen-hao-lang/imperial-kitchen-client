@@ -1,10 +1,7 @@
 using System;
-using KitchenChaos;
 using LiteGameFramework;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.UIElements;
 
 public class PlayerInput : MonoBehaviour
 {
@@ -64,9 +61,9 @@ public class PlayerInput : MonoBehaviour
 
     void OnDestroy()
     {
-        if(Instance == this) Instance = null;
+        if (Instance == this) Instance = null;
 
-        if(_playerAction != null)
+        if (_playerAction != null)
         {
             _playerAction.Player.Disable();
             _playerAction.Dispose();
@@ -175,3 +172,32 @@ public class PlayerInput : MonoBehaviour
             .Start();
     }
 }
+
+/// <summary>
+/// 按键绑定被重新绑定事件（无参数）
+/// </summary>
+public struct OnBindingRebindEvent : IEvent { }
+
+/// <summary>
+/// 玩家按下 Interact 键事件（无参数）
+/// </summary>
+public struct OnInteractActionEvent : IEvent { }
+
+/// <summary>
+/// 玩家按下 InteractAlternate 键事件（无参数）
+/// </summary>
+public struct OnInteractAlternateEvent : IEvent { }
+
+/// <summary>
+/// 聊天面板打开/关闭事件
+/// </summary>
+public struct OnOpenChatPanelEvent : IEvent
+{
+    /// <summary>true=打开面板，false=关闭面板</summary>
+    public bool IsOpen;
+}
+
+/// <summary>
+/// 玩家按下 Pause 键事件（无参数）
+/// </summary>
+public struct OnPauseActionEvent : IEvent { }
