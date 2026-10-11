@@ -591,7 +591,23 @@ namespace LiteGameFramework
                 yield break;
             }
 
-            var handle = package.LoadAssetSync<T>(location);
+            // LoadAssetSync 内部会做 CheckInitialized，包没有「已激活的清单」时直接抛
+            // YooPackageInvalidException: Active package manifest not found。
+            // 必须在这里捕获：否则异常会从协程里逃逸，协程当场死亡，
+            // 调用方既拿不到资源、也收不到"失败"信号，只会看到一条未捕获异常日志。
+            AssetHandle handle = null;
+            try
+            {
+                handle = package.LoadAssetSync<T>(location);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError($"[{nameof(YooAssetsLoad)}] 加载 '{location}' 抛出异常（包 '{package.PackageName}'）：" +
+                               $"{exception.GetType().Name}: {exception.Message}");
+                onLoaded?.Invoke(null);
+                yield break;
+            }
+
             yield return handle;
 
             if (handle.Status == EOperationStatus.Succeeded)

@@ -1,4 +1,6 @@
+using System;
 using System.Collections;
+using UnityEngine;
 using YooAsset;
 
 namespace LiteGameFramework
@@ -28,6 +30,12 @@ namespace LiteGameFramework
         /// <summary>是否把 StreamingAssets 里的内置资源作为只读底层一并挂载（首包兜底）。</summary>
         private readonly bool useBuiltin;
 
+        /// <summary>
+        /// HostPlayMode 下远端不可用时，是否整包回退为 OfflinePlayMode（改用内置资源）重试一次。
+        /// 目的是「CDN 挂了也不至于卡在启动页」，而不是「离线也能玩」。
+        /// </summary>
+        private readonly bool allowOfflineFallback;
+
         /// <summary>解析出的资源版本号（如 2026-10-05-1273）。成功后可读。</summary>
         public string ResolvedVersion { get; private set; }
 
@@ -37,9 +45,11 @@ namespace LiteGameFramework
         /// <param name="_fallbackHostServer">远端备用地址，可为空。</param>
         /// <param name="_useBuiltin">是否挂载 StreamingAssets 内置资源作为兜底。</param>
         /// <param name="_title">进度条显示的主文案，留空自动生成。</param>
+        /// <param name="_allowOfflineFallback">HostPlayMode 失败时是否回退 OfflinePlayMode 重试一次，默认 true。</param>
         public PackagePatchStep(string _packageName, EPlayMode _playMode,
                                 string _hostServer = null, string _fallbackHostServer = null,
-                                bool _useBuiltin = true, string _title = null)
+                                bool _useBuiltin = true, string _title = null,
+                                bool _allowOfflineFallback = true)
             : base(string.IsNullOrEmpty(_title) ? $"准备资源：{_packageName}" : _title)
         {
             packageName = _packageName;
@@ -47,30 +57,68 @@ namespace LiteGameFramework
             hostServer = _hostServer;
             fallbackHostServer = _fallbackHostServer;
             useBuiltin = _useBuiltin;
+            allowOfflineFallback = _allowOfflineFallback;
         }
 
         public IEnumerator Run()
+        {
+            bool ok = false;
+            string error = null;
+
+            yield return RunOnce(playMode, hostServer, fallbackHostServer, useBuiltin,
+                                 r => ok = r, e => error = e);
+
+            // 远端失败 → 回退 OfflinePlayMode 再走一次。
+            // 之所以要整包换模式而不是"退回内置清单"：active manifest 只能由
+            // 「请求版本 → 加载清单」产生，而 HostPlayMode 的版本请求只打远端、没有内置降级
+            // （见 SFSRequestPackageVersionOperation），取不到版本就永远没有清单。
+            if (!ok && allowOfflineFallback && playMode == EPlayMode.HostPlayMode)
+            {
+                Debug.LogWarning($"[{packageName}] 远端不可用（{error}），回退 OfflinePlayMode 使用内置资源重试。");
+                SetDetail("远端不可用，改用内置资源");
+
+                // 同一包名不能既挂远端文件系统又重新以离线模式初始化
+                yield return YooAssetsLoad.Instance.DestroyPackage(packageName);
+
+                error = null;
+                yield return RunOnce(EPlayMode.OfflinePlayMode, null, null, true,
+                                     r => ok = r, e => error = e);
+            }
+
+            if (!ok)
+            {
+                Fail($"[{packageName}] {error ?? "准备资源失败"}");
+                yield break;
+            }
+
+            Complete();
+        }
+
+        /// <summary>
+        /// 跑一轮「初始化包 → 请求版本 → 更新清单」。
+        /// 通过回调把结果交给 <see cref="Run"/>，以便失败时换模式重试。
+        /// </summary>
+        private IEnumerator RunOnce(EPlayMode _playMode, string _hostServer, string _fallbackHostServer,
+                                    bool _useBuiltin, Action<bool> _onDone, Action<string> _onError)
         {
             // ---------- ① 初始化资源包 ----------
             SetDetail("初始化资源包");
             Report(0.05f);
 
             bool initOk = false;
-            string initError = null;
-
             yield return YooAssetsLoad.Instance.InitializePackageCoroutine(
                 packageName,
-                playMode,
+                _playMode,
                 // 只有 HostPlayMode 才需要远端地址；其余模式传 null
-                playMode == EPlayMode.HostPlayMode ? hostServer : null,
-                playMode == EPlayMode.HostPlayMode ? fallbackHostServer : null,
-                useBuiltin,
+                _playMode == EPlayMode.HostPlayMode ? _hostServer : null,
+                _playMode == EPlayMode.HostPlayMode ? _fallbackHostServer : null,
+                _useBuiltin,
                 _sucess: () => initOk = true,
-                _fail: () => initError = "初始化资源包失败");
+                _fail: () => { });
 
             if (!initOk)
             {
-                Fail($"[{packageName}] {initError ?? "初始化资源包失败"}");
+                _onError?.Invoke("初始化资源包失败");
                 yield break;
             }
             Report(0.35f);
@@ -88,7 +136,7 @@ namespace LiteGameFramework
 
             if (string.IsNullOrEmpty(version))
             {
-                Fail($"[{packageName}] 获取资源版本失败：{versionError}");
+                _onError?.Invoke($"获取资源版本失败：{versionError}");
                 yield break;
             }
 
@@ -100,22 +148,20 @@ namespace LiteGameFramework
             SetDetail("更新资源清单");
 
             bool manifestOk = false;
-            string manifestError = null;
-
             yield return YooAssetsLoad.Instance.UpdatePackageMainFest(
                 packageName,
                 version,
                 _sucess: () => manifestOk = true,
-                _fail: () => manifestError = "更新资源清单失败");
+                _fail: () => { });
 
             if (!manifestOk)
             {
-                Fail($"[{packageName}] {manifestError ?? "更新资源清单失败"}");
+                _onError?.Invoke("更新资源清单失败");
                 yield break;
             }
 
             SetDetail($"清单就绪（{version}）");
-            Complete();
+            _onDone?.Invoke(true);
         }
     }
 }
