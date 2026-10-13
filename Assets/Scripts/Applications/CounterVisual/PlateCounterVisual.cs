@@ -32,6 +32,11 @@ public class PlateCounterVisual : MonoBehaviour
         if(plateCounter.NetworkCounterId != _arg.counterId)
             return;
 
+        if (plateVisualGameObjectStack.Count == 0 || plateVisualGameObjectStack.Peek() == null)
+        {
+            return;
+        }
+
         GameObject plateGameobject = plateVisualGameObjectStack.Pop();
         Destroy(plateGameobject);
     }

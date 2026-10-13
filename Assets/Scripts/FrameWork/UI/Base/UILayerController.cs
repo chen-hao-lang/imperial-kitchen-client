@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using LiteGameFramework;
 using TMPro;
 using UnityEngine;
@@ -7,6 +8,10 @@ public class UILayerController : MonoBehaviour
 {
     public EUILayer layer = EUILayer.Normal;
     private int sortOrder = 0;
+    
+    /// <summary>
+    /// 存储已经打开的面板
+    /// </summary>
     private Stack<UIPanelController> openedPanels;
 
     public void Init(EUILayer _layer)
@@ -26,7 +31,7 @@ public class UILayerController : MonoBehaviour
             openedPanels.Push(_controller);
         }
 
-        foreach (var controller in openedPanels)
+        foreach (var controller in openedPanels.ToList())
         {
             if (controller != _controller
                 && controller.IsOpen

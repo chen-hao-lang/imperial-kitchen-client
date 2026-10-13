@@ -232,7 +232,8 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
         {
             Debug.LogError($"[NetworkManager] 发送失败: {ex.Message}");
             EnqueueOnMainThread(() => EventManager.Invoke<OnNetworkDisconnected>(new OnNetworkDisconnected()));
-            Close();
+            IsConnected = false;
+            // Close();
         }
     }
 

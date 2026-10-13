@@ -672,10 +672,32 @@ namespace LiteGameFramework
             if (package == null)
             {
                 Debug.LogError($"[{nameof(YooAssetsLoad)}] Package '{ResolvePackageName(packageName)}' not found.");
+                // 🔴 失败**也必须回调（null）**：调用方（如 UIPanelController.LoadPanel）靠这次回调置位"完成"标志；
+                //    不回调的话它的 `yield return new WaitUntil(() => isComplete)` 会**永久等待** ——
+                //    协程静默死锁、且连一条后续日志都不会有（2026-10-13 实测踩坑）。
+                onInstantiated?.Invoke(null);
                 yield break;
             }
 
-            var handle = package.LoadAssetSync<GameObject>(location);
+            AssetHandle handle = null;
+            try
+            {
+                handle = package.LoadAssetSync<GameObject>(location);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[{nameof(YooAssetsLoad)}] '{location}' 加载抛异常：{e.GetType().Name}: {e.Message}");
+                onInstantiated?.Invoke(null);
+                yield break;
+            }
+
+            if (handle == null)
+            {
+                Debug.LogError($"[{nameof(YooAssetsLoad)}] '{location}' 返回了 null 句柄。");
+                onInstantiated?.Invoke(null);
+                yield break;
+            }
+
             yield return handle;
 
             if (handle.Status == EOperationStatus.Succeeded)
@@ -683,8 +705,11 @@ namespace LiteGameFramework
                 GameObject prefab = handle.AssetObject as GameObject;
                 if (prefab == null)
                 {
+                    // ⚠️ LoadAssetSync<T> **不校验 T**：AssetObject 直接返回 Provider 的产物，
+                    //    地址指到了非 GameObject（例如 TextAsset）时也会"成功"，只能在这里判空。
                     Debug.LogError($"[{nameof(YooAssetsLoad)}] Asset at '{location}' is not a GameObject.");
                     handle.Dispose();
+                    onInstantiated?.Invoke(null);
                     yield break;
                 }
 
@@ -694,7 +719,12 @@ namespace LiteGameFramework
             }
             else
             {
-                Debug.LogError($"[{nameof(YooAssetsLoad)}] Load failed: {handle.Status}");
+                Debug.LogError($"[{nameof(YooAssetsLoad)}] Load failed: {handle.Status} —— '{location}'" +
+                               $"（包 '{ResolvePackageName(packageName)}'）。请依次核对：" +
+                               "① 该地址在当前清单里；② 对应 bundle 文件已下载或已随内置副本发布；" +
+                               "③ 『远端 {包名}.version 指向的清单』与『本地 StreamingAssets/yoo/{包名} 的内置副本』是否同一个版本" +
+                               "（重打后没上传 CDN 是最高频成因，见《HybridCLR代码热更新接入指南.md》§7.5）。");
+                onInstantiated?.Invoke(null);
             }
 
             handle.Dispose();

@@ -1,3 +1,4 @@
+using UnityEditor;
 using UnityEngine;
 
 public class BoilingInterateUI : MonoBehaviour
@@ -16,6 +17,7 @@ public class BoilingInterateUI : MonoBehaviour
         foreach (Transform child in transform)
         {
             if (child == null) continue;
+            if(child == iconTemplate) continue;//跳过UI模板
             Destroy(child.gameObject);
         }
     }

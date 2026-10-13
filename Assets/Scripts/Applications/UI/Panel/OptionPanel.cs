@@ -6,8 +6,7 @@ using UnityEngine.UI;
 
 public class OptionPanel : BasePanel
 {
-    [Header("Button")]
-    [SerializeField] private Button soundEffectsButton;
+    [Header("Button")] [SerializeField] private Button soundEffectsButton;
     [SerializeField] private Button musicButton;
     [SerializeField] private Button closeButton;
     [SerializeField] private Button moveUpButton;
@@ -21,8 +20,7 @@ public class OptionPanel : BasePanel
     [SerializeField] private Button gamepadInteractAlternateButton;
     [SerializeField] private Button gamepadPauseButton;
 
-    [Header("Text")]
-    [SerializeField] private TextMeshProUGUI soundEffectsText;
+    [Header("Text")] [SerializeField] private TextMeshProUGUI soundEffectsText;
     [SerializeField] private TextMeshProUGUI musicText;
     [SerializeField] private TextMeshProUGUI moveUpText;
     [SerializeField] private TextMeshProUGUI moveDownText;
@@ -35,8 +33,6 @@ public class OptionPanel : BasePanel
     [SerializeField] private TextMeshProUGUI gamepadInteractAlternateText;
     [SerializeField] private TextMeshProUGUI gamepadPauseText;
     [SerializeField] private RectTransform pressToRebindKeyTransform;
-
-    private Action onCloseButtonAction;
 
     /// <summary> 本地玩家生成事件处理器（保持同一委托实例以便退订） </summary>
     private Action<OnLocalPlayerSpawned> onLocalPlayerSpawnedHandler;
@@ -64,11 +60,8 @@ public class OptionPanel : BasePanel
             //MusicManager.Instance.ChangeVolume();
             UpdateVisual();
         });
-        closeButton.onClick.AddListener(() =>
-        {
-            HidePanel();
-            onCloseButtonAction();
-        });
+
+        closeButton.onClick.AddListener(() => { HidePanel(); });
 
 
         moveUpButton.onClick.AddListener(() => { RebindBinding(PlayerInput.Binding.Move_Up); });
@@ -79,7 +72,10 @@ public class OptionPanel : BasePanel
         interactAlternateButton.onClick.AddListener(() => { RebindBinding(PlayerInput.Binding.InteractAlternate); });
         pauseButton.onClick.AddListener(() => { RebindBinding(PlayerInput.Binding.Pause); });
         gamepadInteractButton.onClick.AddListener(() => { RebindBinding(PlayerInput.Binding.Gamepad_Interact); });
-        gamepadInteractAlternateButton.onClick.AddListener(() => { RebindBinding(PlayerInput.Binding.Gamepad_InteractAlternate); });
+        gamepadInteractAlternateButton.onClick.AddListener(() =>
+        {
+            RebindBinding(PlayerInput.Binding.Gamepad_InteractAlternate);
+        });
         gamepadPauseButton.onClick.AddListener(() => { RebindBinding(PlayerInput.Binding.Gamepad_Pause); });
 
         KitchenGameManager.Instance.OnGameUnpaused += KitchenGameManager_OnGameUnpaused;
@@ -107,7 +103,7 @@ public class OptionPanel : BasePanel
         soundEffectsButton.Select();
     }
 
-    private void KitchenGameManager_OnGameUnpaused(object sender, System.EventArgs e)
+    private void KitchenGameManager_OnGameUnpaused()
     {
         HidePanel();
     }
@@ -126,20 +122,21 @@ public class OptionPanel : BasePanel
         interactAlternateText.text = PlayerInput.Instance.GetBindingText(PlayerInput.Binding.InteractAlternate);
         pauseText.text = PlayerInput.Instance.GetBindingText(PlayerInput.Binding.Pause);
         gamepadInteractText.text = PlayerInput.Instance.GetBindingText(PlayerInput.Binding.Gamepad_Interact);
-        gamepadInteractAlternateText.text = PlayerInput.Instance.GetBindingText(PlayerInput.Binding.Gamepad_InteractAlternate);
+        gamepadInteractAlternateText.text =
+            PlayerInput.Instance.GetBindingText(PlayerInput.Binding.Gamepad_InteractAlternate);
         gamepadPauseText.text = PlayerInput.Instance.GetBindingText(PlayerInput.Binding.Gamepad_Pause);
     }
 
     private void ShowPressToRebindKey()
     {
-        if(pressToRebindKeyTransform == null)
+        if (pressToRebindKeyTransform == null)
             return;
         pressToRebindKeyTransform.gameObject.SetActive(true);
     }
 
     private void HidePressToRebindKey()
     {
-        if(pressToRebindKeyTransform == null)
+        if (pressToRebindKeyTransform == null)
             return;
         pressToRebindKeyTransform.gameObject.SetActive(false);
     }

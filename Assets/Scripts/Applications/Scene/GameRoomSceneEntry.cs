@@ -2,7 +2,7 @@ using System.Collections;
 using LiteGameFramework;
 using UnityEngine;
 
-public class GameRoomLaunch : MonoBehaviour
+public class GameRoomSceneEntry : MonoBehaviour
 {
     // Start is called before the first frame update
     void Start()

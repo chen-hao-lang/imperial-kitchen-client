@@ -24,6 +24,7 @@ public class PlateIconsUI : MonoBehaviour
         foreach (Transform child in transform)
         {
             if (child == null) continue;
+            if(child == iconTemplate)  continue;// 跳过UI图标
             Destroy(child.gameObject);
         }
     }

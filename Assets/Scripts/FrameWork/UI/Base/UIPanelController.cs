@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Text;
 using UnityEngine;
 
 namespace LiteGameFramework
@@ -15,11 +16,11 @@ namespace LiteGameFramework
         public GameObject panelGo;
 
         private bool isloaded;
-        private bool isOpen;
+        private bool isOpen; /**/
         private bool isPause;
         private bool isLoading;
 
-        public bool IsLoad => isloaded;
+        public bool IsLoaded => isloaded;
         public bool IsOpen => isOpen;
         public bool IsPause => isPause;
         public bool IsLoading => isLoading;
@@ -48,6 +49,7 @@ namespace LiteGameFramework
 
         public IEnumerator LoadPanel(Action<GameObject> _callBack = null)
         {
+            // 如果已经加载完成
             if (isloaded)
             {
                 _callBack?.Invoke(panelGo);
@@ -55,12 +57,19 @@ namespace LiteGameFramework
             }
 
             bool isComplete = false;
+            isloaded = true;
 
             YooAsset.InstantiateOptions options = new YooAsset.InstantiateOptions(false, layer.transform, false);
             YooAssetsLoad.Instance.LoadPrefab(panelName, options, (go) =>
             {
                 panelGo = go;
-                if (go == null) return;
+                if (go == null)
+                {
+                    Debug.LogError($"[UIPanelController] 面板预制体 '{panelName}' 加载失败（回调返回 null）。" +
+                                   $"请检查：资源包 '{packageName}' 是否已就绪、地址 '{panelName}' 是否已被收集器收集。");
+                    isComplete = true;
+                    return;
+                }
 
                 // 确保GameObject处于激活状态
                 go.SetActive(true);
@@ -77,31 +86,56 @@ namespace LiteGameFramework
                     rectTransform.localScale = Vector3.one;
                 }
 
-                // 获取面板上的IPanel组件
-                panel = go.GetComponent<IPanel>();
+                // 获取面板上的面板脚本（所有面板都派生自 BasePanel，它实现了 IPanel）
+                panel = go.GetComponent<BasePanel>();
                 if (panel == null)
                 {
-                    Debug.LogError($"[UIPanelController] 预制体 '{panelName}' 上未找到 IPanel 组件！");
+                    var components = go.GetComponents<Component>();
+                    var types = new StringBuilder();
+                    for (int i = 0; i < components.Length; i++)
+                    {
+                        types.Append(components[i] == null ? "<Missing Script>" : components[i].GetType().FullName);
+                        if (i < components.Length - 1) types.Append(", ");
+                    }
+
+                    Debug.LogError($"[UIPanelController] 预制体 '{panelName}' 上未找到 BasePanel 组件" +
+                                   $"（预制体已加载成功，属脚本绑定失败 → 资源包 '{packageName}' 很可能是 asmdef 拆分前构建的旧包，需重打）。" +
+                                   $"该预制体上实际组件：[{types}]");
+                    isComplete = true; // 不置位会让 WaitUntil 永久等待
+                    return; // 不再继续调用 panel.LoadPanel()，避免在回调里先抛 NRE
                 }
+
                 panel.LoadPanel();
 
                 canvas = go.GetComponent<Canvas>();
 
                 isComplete = true;
+
+                isLoading = false;
+                isloaded = true;
             }, packageName);
 
             // 等待异步加载完成
             yield return new WaitUntil(() => isComplete);
-
-            isLoading = false;
-            isloaded = true;
-
+            
             // 加载完成后调用回调
             _callBack?.Invoke(panelGo);
         }
 
+        /// <summary>
+        /// 打开面板
+        /// </summary>
+        /// <param name="_callBack"></param>
         public void OpenPanel(Action _callBack = null)
         {
+            if (panel == null)
+            {
+                Debug.LogError($"[UIPanelController] 面板 '{panelName}' 尚未加载完成（panelGo=" +
+                               $"{(panelGo == null ? "null" : panelGo.name)}），已跳过 OpenPanel。" +
+                               "请先 PreLoadPanel，或改用 UIManager.OpecPanelAsync 现场加载。");
+                return;
+            }
+
             isOpen = true;
             panel.OpenPanel();
 
@@ -110,6 +144,10 @@ namespace LiteGameFramework
             _callBack?.Invoke();
         }
 
+        /// <summary>
+        /// 隐藏面板
+        /// </summary>
+        /// <param name="_callBack"></param>
         public void HidePanel(Action _callBack = null)
         {
             isOpen = false;
@@ -120,6 +158,9 @@ namespace LiteGameFramework
             _callBack?.Invoke();
         }
 
+        /// <summary>
+        /// 暂停面板
+        /// </summary>
         public void PausePanel()
         {
             isOpen = true;
@@ -128,6 +169,9 @@ namespace LiteGameFramework
             panel.PausePanel();
         }
 
+        /// <summary>
+        /// 恢复面板
+        /// </summary>
         public void ResumePanel()
         {
             isOpen = true;
@@ -136,6 +180,9 @@ namespace LiteGameFramework
             panel.ResumePanel();
         }
 
+        /// <summary>
+        /// 关闭面板
+        /// </summary>
         public void ClosePanel()
         {
             isloaded = false;

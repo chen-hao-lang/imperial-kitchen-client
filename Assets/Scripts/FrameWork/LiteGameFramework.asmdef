@@ -1,0 +1,21 @@
+{
+    "name": "LiteGameFramework",
+    "rootNamespace": "",
+    "references": [
+        "YooAsset",
+        "UnityEngine.UI",
+        "Unity.TextMeshPro",
+        "Unity.VisualScripting.Core",
+        "DOTween.Modules",
+        "HybridCLR.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

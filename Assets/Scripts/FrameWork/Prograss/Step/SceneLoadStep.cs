@@ -12,6 +12,9 @@ namespace LiteGameFramework
 
         public float MinHoldSeconds = 0.3f;
         public float ReadyTimeout = 15f;
+        /// <summary>
+        /// 允许超时的最长时间
+        /// </summary>
         public float LoadTimeout = 120f;
 
         public SceneHandle Handle { get; private set; }
@@ -56,7 +59,8 @@ namespace LiteGameFramework
                     Fail(Handle.Error);
                     yield break;
                 }
-
+                
+                // 加载时间超过 限制
                 if (Time.unscaledDeltaTime - startTime > LoadTimeout)
                 {
                     Fail($"场景加载超时：{location}");
@@ -93,6 +97,7 @@ namespace LiteGameFramework
             {
                 wait += Time.unscaledDeltaTime;
                 Report(0.9f + 0.09f * Mathf.Clamp01(wait / ReadyTimeout));
+                yield return null;  
             }
 
             EventManager.RemoveListener(this, onReady);

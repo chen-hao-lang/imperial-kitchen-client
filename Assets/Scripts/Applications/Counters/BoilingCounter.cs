@@ -152,14 +152,11 @@ public class BoilingCounter : BaseCounter, IHasPrograss
         switch (_state)
         {
             case 0:
-                Debug.Log($"[BoilingCounter] 煮锅状态：空闲");
                 OnPlateCompleted?.Invoke();
                 break;
             case 1:
-                Debug.Log($"[BoilingCounter] 煮锅状态：准备煮食");
                 break;
             case 2:
-                Debug.Log($"[BoilingCounter] 煮锅状态：煮食中");
                 isBoiling = true;
                 boilingTimer = 0f;
                 OnProgressChanged?.Invoke(this, new IHasPrograss.OnPrograssChangeEventArgs { prograssNormalized = 0f });
@@ -167,7 +164,6 @@ public class BoilingCounter : BaseCounter, IHasPrograss
                 PlayCraftSound(boilStartSound);
                 break;
             case 3:
-                Debug.Log($"[BoilingCounter] 煮锅状态：煮食完成");
                 currentIngredients.Clear();
                 activeRecipe = null;
                 isBoiling = false;
@@ -178,7 +174,6 @@ public class BoilingCounter : BaseCounter, IHasPrograss
                 PlayCraftSound(boilDoneSound);
                 break;
             default:
-                Debug.LogWarning($"[BoilingCounter] 煮锅状态：未知（{_state}）");
                 break;
         }
     }

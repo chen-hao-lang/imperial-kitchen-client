@@ -12,29 +12,49 @@ public class GamePausePanel : BasePanel
     {
         base.OnAddListener();
 
-        resumeButton.onClick.AddListener(() => {
+        resumeButton.onClick.AddListener(() =>
+        {
             KitchenGameManager.Instance.TogglePauseGame();
+            NetworkKitchenGameManager.Instance.TogglePauseGame();
         });
-        mainMenuButton.onClick.AddListener(() => {
+        mainMenuButton.onClick.AddListener(() =>
+        {
             //TODO:切换场景
             // SceneManager.Load(SceneManager.Scene.MainMenuScene);
         });
-        optionsButton.onClick.AddListener(() => {
+        optionsButton.onClick.AddListener(() =>
+        {
             HidePanel();
             //TODO:
             // OptionPanel.Instance.Show(Show);
         });
 
-        KitchenGameManager.Instance.OnGamePaused += KitchenGameManager_OnGamePaused;
-        KitchenGameManager.Instance.OnGameUnpaused += KitchenGameManager_OnGameUnpaused;
+        if (NetworkManager.Instance.IsConnect)// 网络模式
+        {
+            NetworkKitchenGameManager.Instance.OnGamePaused += KitchenGameManager_OnGamePaused;
+            NetworkKitchenGameManager.Instance.OnGameUnpaused += KitchenGameManager_OnGameUnpaused;
+        }
+        else// 非网络模式
+        {
+            KitchenGameManager.Instance.OnGamePaused += KitchenGameManager_OnGamePaused;
+            KitchenGameManager.Instance.OnGameUnpaused += KitchenGameManager_OnGameUnpaused;
+        }
     }
 
     public override void OnRemoveListener()
     {
         base.OnRemoveListener();
 
-        KitchenGameManager.Instance.OnGamePaused -= KitchenGameManager_OnGamePaused;
-        KitchenGameManager.Instance.OnGameUnpaused -= KitchenGameManager_OnGameUnpaused;
+        if (NetworkManager.Instance.IsConnect)
+        {
+            NetworkKitchenGameManager.Instance.OnGamePaused -= KitchenGameManager_OnGamePaused;
+            NetworkKitchenGameManager.Instance.OnGameUnpaused -= KitchenGameManager_OnGameUnpaused;
+        }
+        else
+        {
+            KitchenGameManager.Instance.OnGamePaused -= KitchenGameManager_OnGamePaused;
+            KitchenGameManager.Instance.OnGameUnpaused -= KitchenGameManager_OnGameUnpaused;
+        }
     }
 
     public override void OpenPanel()
@@ -44,12 +64,12 @@ public class GamePausePanel : BasePanel
         resumeButton.Select();
     }
 
-    private void KitchenGameManager_OnGameUnpaused(object sender, System.EventArgs e)
+    private void KitchenGameManager_OnGameUnpaused()
     {
         HidePanel();
     }
 
-    private void KitchenGameManager_OnGamePaused(object sender, System.EventArgs e)
+    private void KitchenGameManager_OnGamePaused()
     {
         OpenPanel();
     }

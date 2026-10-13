@@ -79,7 +79,7 @@ public class ProgressHub : SingletonMono<ProgressHub>
 
     private IEnumerator OpenPanelRoutine()
     {
-        yield return UIManager.Instance.OpecPanelAsync<ProgressPanel>(EUIType.ProgressPanel);
+        yield return UIManager.Instance.OpenPanelAsync<ProgressPanel>(EUIType.ProgressPanel);
     }
 }
 

@@ -373,8 +373,6 @@ namespace LiteGameFramework
 
         protected override void OnDestroy()
         {
-            base.OnDestroy();
-
             // 仅在本实例是单例时清理并置空，避免销毁重复实例时错误清理
             if (Instance == this)
             {
@@ -382,10 +380,14 @@ namespace LiteGameFramework
                 StopAllSFX();
                 StopVoice();
             }
+
+            base.OnDestroy();
         }
 
         protected override void OnApplicationQuit()
         {
+            base.OnApplicationQuit();
+
             // 标记正在退出，防止其他对象的 OnDestroy/OnDisable 在退出时触发 Instance 创建
             applicationIsQuitting = true;
         }

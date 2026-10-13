@@ -1,4 +1,5 @@
 using System.Collections;
+using FrameWork.HotUpdate;
 using LiteGameFramework;
 using UnityEngine;
 using YooAsset;
@@ -18,7 +19,13 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
 {
     /// <summary>
     /// 需要提前准备（初始化 + 更新清单 + 下载）的全部资源包。
-    /// 顺序有讲究：<c>UI</c> 必须最先，因为进度面板与 UIConfig.json 都来自它。
+    /// 顺序有讲究：
+    ///   · <c>UI</c> 必须最先 —— 进度面板与 UIConfig.json 都来自它；
+    ///   · <c>Code</c>（热更 DLL）只需排在 <see cref="HotUpdateBootstrap.Initialize"/> 之前即可，
+    ///     放在最后是因为它体积最大、且紧跟代码热更步骤。
+    /// ⚠️ 每个包都必须有内置副本（<c>Assets/StreamingAssets/yoo/{包名}/BuiltinCatalog.bytes</c>），
+    ///    否则 HostPlayMode 下该包初始化直接 404，进而中断整个全局初始化
+    ///    （见《HybridCLR代码热更新接入指南.md》§7.4）。
     /// </summary>
     private static readonly string[] Packages =
     {
@@ -27,6 +34,7 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
         "PlayerPrefab",     // 玩家 / 网络预制体
         "GameScene",        // 关卡 1（含 ScriptableObjects）
         "GameScene2",       // 关卡 2
+        "Code"              // 热更 DLL + AOT 元数据（Assets/HotUpdate）
     };
 
     /// <summary> 全局初始化是否已完成（仅在全部步骤成功后为 true）。 </summary>
@@ -98,6 +106,14 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
             //      · 在 UIConfig 之后 —— 此时进度面板已可用；
             //      · 在 PreLoadPanel 之前 —— 预加载拿到的是刚下载下来的最新预制体。
             yield return RunHotUpdate(_playMode, Packages);
+
+            bool codeReady = false;
+            yield return HotUpdateBootstrap.Initialize(ok => codeReady = ok);
+            if (!codeReady)
+            {
+                Fail("代码热更新失败！");
+                yield break; 
+            }
 
             if (IsFailed)
             {
@@ -181,7 +197,9 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
         }
     }
 
-    /// <summary>按播放模式解析 CDN 主地址：只有 HostPlayMode 需要远端地址，其余模式返回 null。</summary>
+    /// <summary>
+    /// 按播放模式解析 CDN 主地址：只有 HostPlayMode 需要远端地址，其余模式返回 null。
+    /// </summary>
     private static string ResolveHostUrl(EPlayMode _playMode)
         => _playMode == EPlayMode.HostPlayMode ? CdnConfig.PrimaryUrl : null;
 

@@ -13,8 +13,8 @@ public enum EGameState : byte
 public class KitchenGameManager : SingletonMono<KitchenGameManager>
 {
     public event Action<EGameState> OnStateChanged;
-    public event EventHandler OnGamePaused;
-    public event EventHandler OnGameUnpaused;
+    public event Action OnGamePaused;
+    public event Action OnGameUnpaused;
 
     public event Action<float> OnGamePlayingTimerUpdate;
     public event Action OnCDToStart;
@@ -106,12 +106,12 @@ public class KitchenGameManager : SingletonMono<KitchenGameManager>
         if (isGamePaused)
         {
             Time.timeScale = 0f;
-            OnGamePaused?.Invoke(this, EventArgs.Empty);
+            OnGamePaused?.Invoke();
         }
         else
         {
             Time.timeScale = 1f;
-            OnGameUnpaused?.Invoke(this, EventArgs.Empty);
+            OnGameUnpaused?.Invoke();
         }
     }
 

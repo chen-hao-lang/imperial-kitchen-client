@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using LiteGameFramework;
 using UnityEngine;
 
-public class GameSceneLaunch : MonoBehaviour
+public class GameSceneEntry : MonoBehaviour
 {
     // Start is called before the first frame update
     void Start()
@@ -11,8 +11,13 @@ public class GameSceneLaunch : MonoBehaviour
         StartCoroutine(Init());
     }
 
+    /// <summary>
+    /// 初始化游戏场景
+    /// </summary>
+    /// <returns></returns>
     IEnumerator Init()
     {
+        // 先隐藏上一个场景的残留面板
         UIManager.Instance.HideAll();
 
         // 确保重连 / 快照模块在进入对局时就已创建并订阅事件。
@@ -20,6 +25,7 @@ public class GameSceneLaunch : MonoBehaviour
         _ = ReconnectService.Instance;
         _ = SnapshotDispatcher.Instance;
 
+        // 当前游戏场景需要加载的UI面板
         List<EUIType> loadPanels = new List<EUIType>()
         {
             EUIType.DeliveryManagerUI,
@@ -30,24 +36,19 @@ public class GameSceneLaunch : MonoBehaviour
             EUIType.ChatPanel,
             EUIType.DisconnectPanel,
         };
+        // 加载UI面板
         yield return UIManager.Instance.PreLoadPanel(loadPanels);
-
+        
+        // 显示需要用到的UI面板
         UIManager.Instance.OpenPanel<DeliveryResultUI>(EUIType.DeliveryManagerUI);
         UIManager.Instance.OpenPanel<GameStartCDUI>(EUIType.GameStartCDUI);
         UIManager.Instance.OpenPanel<GamePlayingClockUI>(EUIType.GamePlayingClockUI);
 
-        // 2) 每个客户端都在场景/UI 就绪后上报一次，服务器收齐后才开局（D5）。
-        // 断线重连（D7）已暂时禁用，恢复为无条件上报
-        // if (!NetworkManager.Instance.IsResumedSession)
-        // {
-
-        // }
-
         // 注册操作台
         NetworkCountersManager.Instance?.RegisterAllCounters();
-        GameScenePlayerManager.Instance.InitForNewGame();
+        GameScenePlayerManager.Instance?.InitForNewGame();
 
-        // 上报加载完成
+        // 上报加载完成，可以开始游戏
         NetworkManager.Instance?.SendSucessEnterGameScene();
     }
 }

@@ -257,14 +257,14 @@ namespace LiteGameFramework
             return null;
         }
 
-        public IEnumerator OpecPanelAsync<T>(EUIType _type, Action _callBack = null) where T : class
+        public IEnumerator OpenPanelAsync<T>(EUIType _type, Action _callBack = null) where T : class
         {
             if (!panelControllers.ContainsKey(_type)) yield break;
 
             var controller = panelControllers[_type];
 
             // 未加载 → 现场加载（若正在加载则直接等待，避免重复加载）
-            if (!controller.IsLoad && !controller.IsLoading)
+            if (!controller.IsLoaded && !controller.IsLoading)
             {
                 yield return controller.LoadPanel();
             }
@@ -321,6 +321,9 @@ namespace LiteGameFramework
             // 清除所有面板
             foreach (var controller in panelControllers.Values)
             {
+                // 未加载的面板不管他
+                if(!controller.IsLoaded) continue;
+                ;
                 openedPanels.Remove(controller.uiType);
                 controller.ClosePanel();
             }
