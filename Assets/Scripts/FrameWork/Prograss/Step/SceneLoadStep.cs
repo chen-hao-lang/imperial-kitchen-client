@@ -80,13 +80,13 @@ namespace LiteGameFramework
 
             float holdStart = Time.realtimeSinceStartup;
             // 最低停留
-            while (Time.realtimeSinceStartup - startTime < MinHoldSeconds)
+            while (Time.realtimeSinceStartup - holdStart < MinHoldSeconds)
                 yield return null;
 
             // 激活场景
             Handle.AllowSceneActivation();
             while (!Handle.IsDone)
-                yield break;
+                yield return null;
 
             if (Handle.Status == EOperationStatus.Failed)
             {

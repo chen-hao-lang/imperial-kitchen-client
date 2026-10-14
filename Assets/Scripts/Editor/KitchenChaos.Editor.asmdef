@@ -4,7 +4,8 @@
     "references": [
         "GameLogic",
         "YooAsset.Editor",
-        "Unity.ScriptableBuildPipeline"
+        "Unity.ScriptableBuildPipeline",
+        "LiteGameFramework"
     ],
     "includePlatforms": [
         "Editor"

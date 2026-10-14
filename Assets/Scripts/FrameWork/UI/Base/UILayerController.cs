@@ -39,6 +39,7 @@ public class UILayerController : MonoBehaviour
         {
             if (controller != _controller
                 && controller.IsOpen
+                && controller.canvas != null
                 && controller.canvas.sortingOrder < _controller.canvas.sortingOrder
                 && controller.panel != null)
             {
