@@ -283,7 +283,6 @@ public class BoilingCounter : BaseCounter, IHasPrograss
         //如果当前正在制作某个配方，那么就增加计时器
         if (activeRecipe != null && isBoiling)
         {
-            Debug.Log($"开始制作菜品：{activeRecipe.name}");
             boilingTimer += Time.fixedDeltaTime;
 
             OnProgressChanged?.Invoke(this, new IHasPrograss.OnPrograssChangeEventArgs

@@ -47,6 +47,11 @@ namespace LiteGameFramework
             isPause = false;
         }
 
+        /// <summary>
+        /// 加载面板
+        /// </summary>
+        /// <param name="_callBack">面板加载后的回调</param>
+        /// <returns></returns>
         public IEnumerator LoadPanel(Action<GameObject> _callBack = null)
         {
             // 如果已经加载完成
@@ -56,10 +61,21 @@ namespace LiteGameFramework
                 yield break;
             }
 
-            bool isComplete = false;
-            isloaded = true;
+            // 如果正在加载
+            if (isLoading)
+            {
+                yield return new WaitUntil(() => !isLoading);
+                _callBack?.Invoke(panelGo);
+                yield break;
+            }
 
+            isLoading = true;
+            bool isComplete = false;
+            bool succeeded = false;
+
+            // 声明初始化预制体的初始化操作(激活状态、父物体、世界空间)
             YooAsset.InstantiateOptions options = new YooAsset.InstantiateOptions(false, layer.transform, false);
+            // 加载预制体
             YooAssetsLoad.Instance.LoadPrefab(panelName, options, (go) =>
             {
                 panelGo = go;
@@ -110,13 +126,23 @@ namespace LiteGameFramework
                 canvas = go.GetComponent<Canvas>();
 
                 isComplete = true;
-
-                isLoading = false;
-                isloaded = true;
+                succeeded = true;
             }, packageName);
 
             // 等待异步加载完成
             yield return new WaitUntil(() => isComplete);
+
+            isLoading = false;
+            isloaded = succeeded;
+
+            // 只有真正成功才标记为已加载：失败保持 false，允许后续重试；
+            // 同时在赋值前先清掉失败的中间态，避免 panelGo 指向半成品预制体
+            if (!succeeded)
+            {
+                panel = null;
+                panelGo = null;
+                canvas = null;
+            }
             
             // 加载完成后调用回调
             _callBack?.Invoke(panelGo);
@@ -151,6 +177,7 @@ namespace LiteGameFramework
         public void HidePanel(Action _callBack = null)
         {
             isOpen = false;
+            if (panel == null) return;
             panel.HidePanel();
 
             layer.HidePanel(this);
@@ -163,6 +190,7 @@ namespace LiteGameFramework
         /// </summary>
         public void PausePanel()
         {
+            if(panel == null) return;
             isOpen = true;
             isPause = true;
 
@@ -174,6 +202,7 @@ namespace LiteGameFramework
         /// </summary>
         public void ResumePanel()
         {
+            if(panel == null) return;
             isOpen = true;
             isPause = false;
 
@@ -188,8 +217,13 @@ namespace LiteGameFramework
             isloaded = false;
             isOpen = false;
             isPause = false;
+            if(panel == null) return;
 
             panel.ClosePanel();
+
+            panel = null;
+            panelGo = null;
+            canvas = null;
         }
     }
 }

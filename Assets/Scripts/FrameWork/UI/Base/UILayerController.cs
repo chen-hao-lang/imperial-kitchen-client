@@ -8,7 +8,7 @@ public class UILayerController : MonoBehaviour
 {
     public EUILayer layer = EUILayer.Normal;
     private int sortOrder = 0;
-    
+
     /// <summary>
     /// 存储已经打开的面板
     /// </summary>
@@ -23,11 +23,15 @@ public class UILayerController : MonoBehaviour
 
     public void OpenPanel(UIPanelController _controller)
     {
-        // return false;
+        if (_controller == null || _controller.canvas == null)
+        {
+            Debug.LogError($"[UILayerController] 面板或Canvas为空，跳过层级处理：{_controller?.panelName}");
+            return;
+        }
+
         if (_controller.canvas.sortingOrder == 0)
         {
             _controller.canvas.sortingOrder = GetOrder();
-
             openedPanels.Push(_controller);
         }
 
@@ -38,11 +42,11 @@ public class UILayerController : MonoBehaviour
                 && controller.canvas.sortingOrder < _controller.canvas.sortingOrder
                 && controller.panel != null)
             {
-                if(!_controller.isWindow)// 如果要打开的面板并非窗口，则隐藏其下方的所有面板
+                if (!_controller.isWindow) // 如果要打开的面板并非窗口，则隐藏其下方的所有面板
                 {
                     controller.HidePanel();
                 }
-                else// 如果是窗口，则暂停下方的所有面板
+                else // 如果是窗口，则暂停下方的所有面板
                 {
                     controller.PausePanel();
                 }
@@ -52,39 +56,38 @@ public class UILayerController : MonoBehaviour
 
     public void HidePanel(UIPanelController _controller)
     {
-        UIPanelController controller = null;
-        if (openedPanels.Contains(_controller))
-        {
-            controller = openedPanels.Pop();
-            controller.canvas.sortingOrder = 0;
-            if (controller != _controller)
-            {
-                Debug.LogError($"当前面板并非在栈顶");
-                return;
-            }
-        }
+        if (_controller == null || _controller.canvas == null) return;
+        if (!openedPanels.Contains(_controller)) return;
 
-        if (controller != null && controller.isWindow)
+        if (openedPanels.Peek() != _controller)
         {
-            //恢复下方的所有面板
-            foreach (var panel in openedPanels)
+            Debug.LogWarning($"[UILayerController] 非栈顶面板被隐藏：{_controller.panelName}，已按值移除。");
+
+            var kept = new List<UIPanelController>(openedPanels.Count);
+            while (openedPanels.Count > 0)
             {
-                if (panel.canvas.sortingOrder < sortOrder)
-                {
-                    panel.ResumePanel();
-                }
+                var c = openedPanels.Pop();
+                if (c != _controller) kept.Add(c);
             }
+
+            for (int i = kept.Count - 1; i >= 0; i--) openedPanels.Push(kept[i]);
         }
         else
         {
-            //显示下方的所有面板
-            foreach (var panel in openedPanels)
-            {
-                if (panel.canvas.sortingOrder < sortOrder)
-                {
-                    panel.OpenPanel();
-                }
-            }
+            openedPanels.Pop();
+        }
+
+        _controller.canvas.sortingOrder = 0;
+
+        foreach (var controller in openedPanels.ToList())
+        {
+            if (controller == null || controller.canvas == null) continue;
+            if (controller.canvas.sortingOrder >= sortOrder) continue;
+
+            if (_controller.isWindow)
+                controller.ResumePanel();
+            else
+                controller.OpenPanel();
         }
     }
 

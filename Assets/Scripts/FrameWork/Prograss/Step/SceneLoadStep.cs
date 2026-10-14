@@ -12,6 +12,7 @@ namespace LiteGameFramework
 
         public float MinHoldSeconds = 0.3f;
         public float ReadyTimeout = 15f;
+
         /// <summary>
         /// 允许超时的最长时间
         /// </summary>
@@ -51,39 +52,46 @@ namespace LiteGameFramework
             }
 
             // 真实加载
-            float startTime = Time.unscaledDeltaTime;
+            float startTime = Time.realtimeSinceStartup;
             while (Handle.Progress < ProgressCeiling - 0.001f)
             {
+                // 操作失败
                 if (Handle.Status == EOperationStatus.Failed)
                 {
                     Fail(Handle.Error);
+                    Handle.Release();
                     yield break;
                 }
-                
+
                 // 加载时间超过 限制
-                if (Time.unscaledDeltaTime - startTime > LoadTimeout)
+                if (Time.realtimeSinceStartup - startTime > LoadTimeout)
                 {
                     Fail($"场景加载超时：{location}");
+                    // 释放句柄
+                    Handle.Release();
                     yield break;
                 }
 
                 Report(Handle.Progress / ProgressCeiling * 0.9f);
                 yield return null;
             }
+
             Report(0.9f);
 
+            float holdStart = Time.realtimeSinceStartup;
             // 最低停留
-            while (Time.unscaledTime - startTime < MinHoldSeconds)
+            while (Time.realtimeSinceStartup - startTime < MinHoldSeconds)
                 yield return null;
 
             // 激活场景
             Handle.AllowSceneActivation();
             while (!Handle.IsDone)
-                yield return null;
+                yield break;
 
             if (Handle.Status == EOperationStatus.Failed)
             {
                 Fail(Handle.Error);
+                Handle.Release();
                 yield break;
             }
 
@@ -97,7 +105,7 @@ namespace LiteGameFramework
             {
                 wait += Time.unscaledDeltaTime;
                 Report(0.9f + 0.09f * Mathf.Clamp01(wait / ReadyTimeout));
-                yield return null;  
+                yield return null;
             }
 
             EventManager.RemoveListener(this, onReady);
@@ -108,5 +116,7 @@ namespace LiteGameFramework
         }
     }
 
-    public struct OnSceneReady : IEvent { }
+    public struct OnSceneReady : IEvent
+    {
+    }
 }

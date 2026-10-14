@@ -158,15 +158,37 @@ namespace FrameWork.HotUpdate
                 Debug.LogWarning($"[HotUpdate] EntryTypeName 与实际入口类型不一致：期望 '{EntryTypeName}'，" +
                                  $"实际按短名兜底匹配到 '{entryType.FullName}'；请把 EntryTypeName 更新为该完整名。");
 
-            if (Activator.CreateInstance(entryType) is not IHotUpdateEntry entry)
+            IHotUpdateEntry entryInstance;
+            try
             {
-                Debug.LogError($"[HotUpdate] 入口 '{EntryTypeName}' 未实现 IHotUpdateEntry");
+                entryInstance =Activator.CreateInstance(entryType) as IHotUpdateEntry;
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[HotUpdate] 实例化入口'{EntryTypeName}'抛异常：{e}");
                 onDone?.Invoke(false);
                 yield break;
             }
 
-            s_entry = entry;
-            entry.Start();
+            if (entryInstance == null)
+            {
+                Debug.LogError($"[HotUpdate] 入口'{EntryTypeName}' 未实现IHotUpdateEntry");
+                onDone?.Invoke(false);
+                yield break;
+            }
+
+            s_entry = entryInstance;
+            try
+            {
+                entryInstance.Start();
+            }
+            catch (Exception e)
+            {
+                Debug.Log($"[HotUpdate] 入口 ‘{EntryTypeName}’ 的Start()抛异常：{e}");
+                s_entry = null;
+                onDone?.Invoke(false);
+                yield break;
+            }
 
             Debug.Log("[HotUpdate] 代码热更引导完成");
             onDone?.Invoke(true);

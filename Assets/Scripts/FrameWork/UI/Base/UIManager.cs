@@ -242,7 +242,14 @@ namespace LiteGameFramework
                 yield return PreLoadPanel(uiType);
             }
         }
-
+        
+        /// <summary>
+        /// 打开面板
+        /// </summary>
+        /// <param name="_type"></param>
+        /// <param name="_callBack"></param>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
         public T OpenPanel<T>(EUIType _type, Action _callBack = null) where T : class
         {
             if (panelControllers.ContainsKey(_type))
@@ -251,12 +258,19 @@ namespace LiteGameFramework
                     panelControllers[_type].OpenPanel(_callBack);
 
                 openedPanels.Add(_type);
-                return panelControllers[_type] as T;
+                return panelControllers[_type].panel as T;
             }
 
             return null;
         }
 
+        /// <summary>
+        /// 异步打开面板
+        /// </summary>
+        /// <param name="_type"></param>
+        /// <param name="_callBack"></param>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
         public IEnumerator OpenPanelAsync<T>(EUIType _type, Action _callBack = null) where T : class
         {
             if (!panelControllers.ContainsKey(_type)) yield break;

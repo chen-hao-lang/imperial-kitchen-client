@@ -219,7 +219,8 @@ public static class NetworkMessage
         using var ms = new MemoryStream();
         using var writer = new BinaryWriter(ms);
         writer.Write(_playerId);
-        writer.Write(_message);
+        // writer.Write(_message);
+        WriteString(writer,_message);
         return Pack(MessageType.C2S_SendMessage, ms.ToArray());
     }
     #endregion

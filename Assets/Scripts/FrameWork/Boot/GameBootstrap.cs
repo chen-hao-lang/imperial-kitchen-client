@@ -5,15 +5,29 @@ using UnityEngine;
 using YooAsset;
 
 /// <summary>
-/// 全局启动引导器 —— 常驻单例（DontDestroyOnLoad）。
-/// 负责整个游戏生命周期内【只执行一次】的全局初始化：网络连接、UI 配置、YooAsset 热更资源包等。
-/// 
+/// 全局启动引导器 —— 常驻单例（DontDestroyOnLoad），属于 **AOT 程序集 LiteGameFramework**。
+///
+/// 负责整个游戏生命周期内【只执行一次】的全局初始化：UI 配置、YooAsset 热更资源包、代码热更、面板预加载。
+///
+/// 🔴 为什么它现在在 FrameWork/Boot 而不是 Applications/Boot（2026-10-14 出包事故整改）：
+///    1. 主包资源**只能挂 AOT 脚本**：本类原来在热更程序集 GameLogic 里，却被主包场景
+///       MainMenuScene 以组件形式引用 → 出包时 GameLogic 被 IFilterBuildAssemblies 剔除
+///       → 运行期 "The referenced script (GameBootstrap) on this Behaviour is missing!"；
+///    2. 自举悖论：本类的核心职责就是「触发代码热更」，但它自己却位于热更程序集里 → 循环依赖。
+///    因此上移到 AOT，同时**剥掉对网络层的直接依赖**（NetworkManager / SessionTracker 均为热更类型），
+///    那部分改由热更侧 Applications.GameEntry 接管（见类尾的「职责分界」）。
+///
 /// 特性：
 /// 1. 继承 <see cref="SingletonMono{T}"/>，跨场景不销毁，重复实例自动销毁；
 /// 2. <see cref="EnsureInitialized"/> 幂等，任意场景入口（Launch / GameRoomLaunch / GameSceneLaunch）
 ///    重复调用都不会重复初始化，避免场景切换（如 GameRoom 回 MainMenuScene）时产生冲突；
 /// 3. 各场景只负责自己的场景级 UI（打开/关闭面板），全局初始化统一在此完成；
 /// 4. <see cref="IsInitialized"/> **只在全部步骤成功后置位**：失败时保持 false，调用方可再次调用重试。
+///
+/// 职责分界（AOT ↔ 热更）：
+///   · AOT（本类）：InitUIConfig → RunHotUpdate(6 个包) → HotUpdateBootstrap.Initialize → PreLoadPanel ×3
+///   · 热更（Applications.GameEntry）：等待 IsInitialized → Connect → SessionTracker.SetEndPoint
+///                                   → UIManager.HideAll → OpenPanelAsync&lt;MainMenuPanel&gt;
 /// </summary>
 public class GameBootstrap : SingletonMono<GameBootstrap>
 {
@@ -55,14 +69,28 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
     /// </summary>
     public bool clearUnusedCacheAfterUpdate = true;
 
+    // ── 启动参数透传（AOT → 热更）────────────────────────────────────────────
+    // 这几个值来自场景上的 SceneEntryBase（AOT）。连接动作本身在热更侧执行
+    // （Applications.GameEntry），但热更程序集不该反过来持有场景序列化配置，
+    // 所以由 AOT 侧在这里存一份、热更侧只读。
+
+    /// <summary> 服务器 IP（由场景入口传入，供热更侧 <c>NetworkManager.Connect</c> 使用）。 </summary>
+    public string ServerIp { get; private set; }
+
+    /// <summary> 服务器端口。 </summary>
+    public int ServerPort { get; private set; }
+
+    /// <summary> 玩家名。 </summary>
+    public string PlayerName { get; private set; }
+
     /// <summary>
     /// 执行全局初始化（幂等、可重试）。
     /// 已成功完成过则直接跳过；上一次失败则允许再次调用重试。
     /// </summary>
     /// <param name="_playMode">YooAsset 播放模式。只有 HostPlayMode 会真正走 CDN 热更。</param>
-    /// <param name="_serverIp">服务器 IP。</param>
-    /// <param name="_serverPort">服务器端口。</param>
-    /// <param name="_playerName">玩家名。</param>
+    /// <param name="_serverIp">服务器 IP（仅透传给热更侧，本方法不发起连接）。</param>
+    /// <param name="_serverPort">服务器端口（仅透传）。</param>
+    /// <param name="_playerName">玩家名（仅透传）。</param>
     public IEnumerator EnsureInitialized(EPlayMode _playMode, string _serverIp, int _serverPort, string _playerName)
     {
         if (IsInitialized)
@@ -83,15 +111,15 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
         IsFailed = false;
         ErrorMessage = null;
 
+        // 先记下启动参数：热更侧的 GameEntry 会在本方法收尾后读取它们发起连接。
+        // （放在这里而不是 try 里，是为了让重试路径也能拿到最新的参数。）
+        ServerIp = _serverIp;
+        ServerPort = _serverPort;
+        PlayerName = _playerName;
+
         try
         {
-            // 1. 连接服务器
-            NetworkManager.Instance.Connect(_serverIp, _serverPort, _playerName);
-
-            // 1.1 记录服务器地址，供断线重连时重新发起连接
-            SessionTracker.Instance.SetEndPoint(_serverIp, _serverPort, _playerName);
-
-            // 2. 初始化 UI 面板配置。
+            // 1. 初始化 UI 面板配置。
             //    ⚠️ 必须排在热更之前：进度面板（ProgressHub.AutoManagePanel）依赖 UIManager 中已注册的面板控制器。
             //    之所以这样也能成立，是因为下面给 UI 包传了 useBuiltin=true ——
             //    「首次安装、尚未下载任何资源」时，UIConfig.json 与面板预制体会从 StreamingAssets 的内置副本读到。
@@ -101,18 +129,21 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
                 ResolveFallbackUrl(_playMode),
                 true);
 
-            // 3. 逐包热更（创建包 → 取版本 → 更新清单 → 下载 → 清理旧缓存）。
+            // 2. 逐包热更（创建包 → 取版本 → 更新清单 → 下载 → 清理旧缓存）。
             //    放在 UIConfig 之后、PreLoadPanel 之前：
             //      · 在 UIConfig 之后 —— 此时进度面板已可用；
             //      · 在 PreLoadPanel 之前 —— 预加载拿到的是刚下载下来的最新预制体。
             yield return RunHotUpdate(_playMode, Packages);
 
+            // 3. 代码热更：补 AOT 元数据 → Assembly.Load(GameLogic) → 反射调用入口。
+            //    内部会同步调用 GameEntry.Start()，后者起一个协程等 IsInitialized 再接着往下走
+            //    —— 所以它不会卡在这里。
             bool codeReady = false;
             yield return HotUpdateBootstrap.Initialize(ok => codeReady = ok);
             if (!codeReady)
             {
                 Fail("代码热更新失败！");
-                yield break; 
+                yield break;
             }
 
             if (IsFailed)
@@ -126,7 +157,8 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
             yield return UIManager.Instance.PreLoadPanel(EUIType.RoomPanel);
             yield return UIManager.Instance.PreLoadPanel(EUIType.OptionPanel);
 
-            // 5. 全部成功后才置位，保证失败可以重试
+            // 5. 全部成功后才置位，保证失败可以重试。
+            //    ⚠️ 热更侧的 GameEntry 正阻塞等待这一个置位，然后才 Connect + 开主菜单。
             IsInitialized = true;
             Debug.Log("[GameBootstrap] 全局初始化完成");
         }
@@ -134,6 +166,22 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
         {
             IsInitializing = false;
         }
+    }
+
+    /// <summary>
+    /// 把 Update 转发给热更入口（<see cref="HotUpdateBootstrap.Tick"/>）。
+    ///
+    /// 🔴 为什么写在这里：HotUpdateBootstrap.Tick / Quit 在此之前**没有任何调用方** ——
+    ///    即使 GameEntry.Update 里写了逻辑也永远不会执行，是个静默陷阱（2026-10-14 补）。
+    ///    交给本类驱动是因为它满足两个条件：AOT 程序集 + DontDestroyOnLoad 常驻。
+    /// </summary>
+    private void Update() => HotUpdateBootstrap.Tick(Time.deltaTime);
+
+    /// <summary>应用退出时通知热更入口，并把静态退出标志交给基类处理。</summary>
+    protected override void OnApplicationQuit()
+    {
+        HotUpdateBootstrap.Quit();
+        base.OnApplicationQuit();
     }
 
     /// <summary>

@@ -104,11 +104,11 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
 
     #region 服务器连接
     /// <summary>
-    /// 
+    /// 连接服务器
     /// </summary>
-    /// <param name="_ip"></param>
-    /// <param name="_port"></param>
-    /// <param name="_playerName"></param>
+    /// <param name="_ip">端口</param>
+    /// <param name="_port">服务器ip地址</param>
+    /// <param name="_playerName">玩家名字</param>
     public bool Connect(string _ip, int _port, string _playerName)
     {
         // 断线重连（D7）已暂时禁用
@@ -135,6 +135,7 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
             tcpClient.Connect(_ip, _port);
             stream = tcpClient.GetStream();
             shouldStop = false;
+            bufferedBytes = 0;
             IsConnected = true;
 
             Debug.Log($"[NetworkManager] 已连接到{_ip}:{_port}");
