@@ -56,7 +56,10 @@ public class GameStartCDUI : BasePanel
         }
 
         OnCDToStartTimerUpdate(_arg.cdSeconds);
+        
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         Debug.Log($"[CD] 帧={Time.frameCount} 时间={Time.time:F2} cd={_arg.cdSeconds}");
+#endif
     }
 
     private void KitchenGameManager_OnStateChanged(EGameState _state)
@@ -83,7 +86,7 @@ public class GameStartCDUI : BasePanel
             previousCDNumber = cdNumber;
             animator.ResetTrigger("Play");
             animator.SetTrigger("Play");
-    
+
             //TODO: play sound
         }
     }

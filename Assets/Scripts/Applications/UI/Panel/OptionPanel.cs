@@ -89,6 +89,8 @@ public class OptionPanel : BasePanel
     {
         base.OnRemoveListener();
 
+        KitchenGameManager.Instance.OnGamePaused -= KitchenGameManager_OnGameUnpaused;
+
         if (onLocalPlayerSpawnedHandler != null)
         {
             EventManager.RemoveListener<OnLocalPlayerSpawned>(this, onLocalPlayerSpawnedHandler);

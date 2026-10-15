@@ -10,6 +10,7 @@ public class DeliveryResultUI : MonoBehaviour
     private const string POPUP = "Popup";
 
     [SerializeField] private Image backgroundImage;
+
     //[SerializeField] private Image iconImage;
     [SerializeField] private TextMeshProUGUI messageText;
     [SerializeField] private Color sucessColor;
@@ -33,9 +34,15 @@ public class DeliveryResultUI : MonoBehaviour
         NetworkDeliveryManager.Instance.OnRecipeSuccess += DeliveryManager_OnRecipeSuccess;
         NetworkDeliveryManager.Instance.OnRecipeFailed += DeliveryManager_OnRecipeFailed;
 
-        Debug.Log("DeliveryResultUI subscribed to DeliveryManager events");
-        // Keep root active to avoid activation edge cases; child UIs are controlled explicitly
         gameObject.SetActive(true);
+    }
+
+    private void OnDestroy()
+    {
+        if (NetworkDeliveryManager.Instance == null) return;
+
+        NetworkDeliveryManager.Instance.OnRecipeSuccess -= DeliveryManager_OnRecipeSuccess;
+        NetworkDeliveryManager.Instance.OnRecipeFailed -= DeliveryManager_OnRecipeFailed;
     }
 
     private void DeliveryManager_OnRecipeFailed(object sender, EventArgs e)
@@ -47,7 +54,7 @@ public class DeliveryResultUI : MonoBehaviour
         messageText.color = failedColor;
         //iconImage.sprite = failedSprite;
         failUI.SetActive(true);
-        sucessUI.SetActive(false);  
+        sucessUI.SetActive(false);
     }
 
     private void DeliveryManager_OnRecipeSuccess(object sender, EventArgs e)

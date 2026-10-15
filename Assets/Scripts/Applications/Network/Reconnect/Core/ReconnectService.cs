@@ -116,7 +116,7 @@ public sealed class ReconnectService : SingletonMono<ReconnectService>
         hasSession = false;
         inFlight = false;
         SessionTracker.Instance.Clear();
-        transport.ResetLocalSession();
+        transport.Close();
         if (config.FreezeGameplay) Time.timeScale = 1f;
         SetState(EReconnectState.Idle);
         UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenuScene");

@@ -39,6 +39,23 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
     private const float HEARTBEAT_INTERVAL = 3f; // 每3秒发送一次心跳包
 
     /// <summary>
+    /// 上一次接收到服务器数据的时间（Environment.TickCount64，毫秒）。
+    /// 接收线程会写它，不能用 Time.realtimeSinceStartup（Unity API 仅限主线程）；
+    /// 读写经 Interlocked 保证跨线程可见性与原子性。
+    /// </summary>
+    private long lastReceiveTicksMs = 0;
+
+    /// <summary>
+    /// 接受超时
+    /// </summary>
+    private const float RECEIVE_TIMEOUT = 10f;
+
+    /// <summary>
+    /// 单条消息体的长度上限
+    /// </summary>
+    private const int MAX_BODY_LENGTH = 1024 * 1024;
+
+    /// <summary>
     /// 是否为调试客户端（编辑器 / 开发版）。
     /// 随心跳上报给服务端，服务端据此放宽保活超时，
     /// 使断点调试（主线程被调试器挂起、心跳停发）或编辑器失去焦点时不会掉线。
@@ -46,6 +63,11 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
     private static bool IsDebugClient => Application.isEditor || Debug.isDebugBuild;
 
     public bool IsConnect => IsConnected;
+
+    /// <summary>
+    /// 链接超时
+    /// </summary>
+    private const int CONNECT_TIMEOUT = 3000;
 
     // Update is called once per frame
     void Update()
@@ -56,12 +78,66 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
             action?.Invoke();
         }
 
+        if (IsConnect)
+        {
+            if (Environment.TickCount - Interlocked.Read(ref lastReceiveTicksMs) > RECEIVE_TIMEOUT * 1000)
+            {
+                Debug.LogWarning($"[NetworkManager] {RECEIVE_TIMEOUT}S 未收到服务端的任何数据");
+                HandleLinkDown("接受来自服务器的数据超时", true);
+                return;
+            }
+        }
+
         // 更新心跳计时器：用非缩放时间，避免 Time.timeScale=0（暂停/重连）时停发心跳
         heartbeatTimer += Time.unscaledDeltaTime;
         if (heartbeatTimer >= HEARTBEAT_INTERVAL)
         {
             SendHeartbeat();
         }
+    }
+
+    private void HandleLinkDown(string _reason, bool _fromMainThread)
+    {
+        // 幂等守卫：ReceiveLoop 的尾部与主线程检测可能几乎同时触发，先到者生效
+        if (!IsConnected) return;
+
+        IsConnected = false;
+        shouldStop = true;
+        bufferedBytes = 0;
+        heartbeatTimer = 0f;
+
+        // 🔴 必须主动关 socket：此刻 ReceiveLoop 正阻塞在 stream.Read 上，
+        //    不关它就会一直挂着（线程泄漏 + 旧连接残留，服务端要等保活超时才回收座位）。
+        try
+        {
+            stream?.Close();
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            tcpClient?.Close();
+        }
+        catch
+        {
+        }
+
+        stream = null;
+        tcpClient = null;
+        receiveThread = null;
+
+        PlayerID = -1;
+        MySeatId = -1;
+        ResetRoomState(); // 内部已含 RoomPlayers.Clear()
+
+        Debug.LogWarning($"[NetworkManager] 与服务器的连接已断开（{_reason}）");
+
+        if (_fromMainThread)
+            EventManager.Invoke<OnNetworkDisconnected>(new OnNetworkDisconnected());
+        else
+            EnqueueOnMainThread(() => EventManager.Invoke<OnNetworkDisconnected>(new OnNetworkDisconnected()));
     }
 
     /// <summary>
@@ -103,6 +179,7 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
     }
 
     #region 服务器连接
+
     /// <summary>
     /// 连接服务器
     /// </summary>
@@ -123,8 +200,22 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
         else
         {
             // 被动断线（ReceiveLoop 自行退出）时 Disconnect 未执行，清理残留的旧套接字
-            try { stream?.Close(); } catch { }
-            try { tcpClient?.Close(); } catch { }
+            try
+            {
+                stream?.Close();
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                tcpClient?.Close();
+            }
+            catch
+            {
+            }
+
             stream = null;
             tcpClient = null;
         }
@@ -132,10 +223,29 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
         try
         {
             tcpClient = new TcpClient();
-            tcpClient.Connect(_ip, _port);
+            tcpClient.NoDelay = true;
+
+            if (!TryConnectWithTimeout(tcpClient, _ip, _port, CONNECT_TIMEOUT))
+            {
+                Debug.LogError($"[NetworkManager] 连接超时（{CONNECT_TIMEOUT}ms）：{_ip}:{_port}");
+                try
+                {
+                    tcpClient.Close();
+                }
+                catch
+                {
+                }
+
+                tcpClient = null;
+                IsConnected = false;
+                return false;
+            }
+
+            // tcpClient.Connect(_ip, _port);
             stream = tcpClient.GetStream();
             shouldStop = false;
             bufferedBytes = 0;
+            Interlocked.Exchange(ref lastReceiveTicksMs, Environment.TickCount);
             IsConnected = true;
 
             Debug.Log($"[NetworkManager] 已连接到{_ip}:{_port}");
@@ -162,6 +272,32 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
         }
     }
 
+    /// <summary>
+    /// 带超时的 TCP 连接。
+    /// BeginConnect 把真正的连接（含 DNS 解析、SYN 握手）放到线程池线程上执行，
+    /// 主线程只做一次有界等待 —— 相比同步 Connect() 的 21 秒上限，这里压到 3 秒。
+    /// </summary>
+    private static bool TryConnectWithTimeout(TcpClient _client, string _ip, int _port, int _timeoutMs)
+    {
+        IAsyncResult ar = _client.BeginConnect(_ip, _port, null, null);
+
+        if (!ar.AsyncWaitHandle.WaitOne(_timeoutMs))
+        {
+            // 超时：不调用 EndConnect，交由调用方 Close() 释放这个半开的 socket
+            return false;
+        }
+
+        try
+        {
+            _client.EndConnect(ar);
+            return _client.Connected;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public void Close()
     {
         if (!IsConnected) return;
@@ -170,21 +306,33 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
         {
             SendRaW(NetworkMessage.Create_Disconnect());
         }
-        catch { }
+        catch
+        {
+        }
 
         shouldStop = true;
         IsConnected = false;
 
-        if (receiveThread != null && receiveThread.IsAlive)
+        try
         {
-            receiveThread.Join(1000);
+            stream?.Close();
+        }
+        catch
+        {
         }
 
-        try { stream?.Close(); } catch { }
-        try { tcpClient?.Close(); } catch { }
+        try
+        {
+            tcpClient?.Close();
+        }
+        catch
+        {
+        }
 
-        // 断线前缓存局内会话（必须在 PlayerID/RoomId 重置之前执行）——断线重连（D7）已暂时禁用
-        //CacheResumableSession();
+        if (receiveThread != null && receiveThread.IsAlive)
+        {
+            receiveThread.Join(200);
+        }
 
         bufferedBytes = 0;
         heartbeatTimer = 0f;
@@ -207,9 +355,11 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
         MySeatId = -1;
         ResetRoomState();
     }
+
     #endregion
 
     #region 发送消息
+
     /// <summary>
     /// 底层发送：把字节数组写入网络流
     /// 发送操作在主线程执行，加锁保护NetworkStream的线程安全
@@ -238,7 +388,8 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
         }
     }
 
-    #region  玩家
+    #region 玩家
+
     /// <summary> 上报玩家移动 </summary>
     public void SendPlayerMove(float x, float y, float z, float rotY)
     {
@@ -259,9 +410,11 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
     {
         SendRaW(NetworkMessage.Create_PlayerInteract(PlayerID, counterId));
     }
+
     #endregion
 
     #region 操作台
+
     /// <summary>
     /// 上报操作台类型映射（连接后由 CountersManager 调用一次）。
     /// </summary>
@@ -304,6 +457,7 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
     {
         SendRaW(NetworkMessage.Create_DeliveryRequest(_plateId));
     }
+
     #endregion
 
     /// <summary>
@@ -322,6 +476,7 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
     }
 
     #region Room
+
     public void SendRequestRoomCreate(int _maxPlayer, string _roomName)
     {
         SendRaW(NetworkMessage.Create_RoomCreated(_maxPlayer, _roomName));
@@ -393,15 +548,18 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
     {
         SendRaW(NetworkMessage.Create_SucessEnterGameScene());
     }
+
     #endregion
 
     public void SendRequestBackRoom()
     {
         SendRaW(NetworkMessage.Create_RequestBackRoom());
     }
+
     #endregion
 
     #region 接受消息
+
     private void ReceiveLoop(object obj)
     {
         byte[] tempBUffer = new byte[4096];
@@ -417,6 +575,8 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
                     break;
                 }
 
+                Interlocked.Exchange(ref lastReceiveTicksMs, Environment.TickCount);
+
                 EnsureBufferCapacity(bufferedBytes + bytesRead);
                 Array.Copy(tempBUffer, 0, receiveBuffer, bufferedBytes, bytesRead);
                 bufferedBytes += bytesRead;
@@ -426,8 +586,10 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
                     var (bodyLength, type) = NetworkMessage.ReadHeader(receiveBuffer, 0);
                     int totalLength = NetworkMessage.HEADER_SIZE + bodyLength;
 
-                    if (bufferedBytes < totalLength)
+                    if (bufferedBytes < totalLength || bodyLength > MAX_BODY_LENGTH)
                     {
+                        Debug.LogError($"[NetworkManager] 非法报文长度 {bodyLength}（类型 {type}），主动断开");
+                        shouldStop = true;
                         break;
                     }
 
@@ -445,6 +607,7 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
                     {
                         Array.Copy(receiveBuffer, totalLength, receiveBuffer, 0, remaining);
                     }
+
                     bufferedBytes = remaining;
                 }
             }
@@ -467,16 +630,7 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
             }
         }
 
-        EnqueueOnMainThread(() =>
-        {
-            // 被动断线：在 PlayerID 重置前缓存局内会话，供重连认领使用——断线重连（D7）已暂时禁用
-            //CacheResumableSession();
-
-            IsConnected = false;
-            PlayerID = -1;
-            EventManager.Invoke<OnNetworkDisconnected>(new OnNetworkDisconnected());
-            Debug.Log("[NetworkManager] 与服务器的连接已断开");
-        });
+        HandleLinkDown(shouldStop ? "本地主动收尾" : "对端关闭连接", false);
     }
 
     /// <summary>
@@ -487,6 +641,7 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
     private void HandleMessage(MessageType _type, byte[] _body)
     {
         #region 连接与玩家生命周期
+
         if (_type == MessageType.Connect)
         {
             var playerId = NetworkMessage.Parse_Connect(_body);
@@ -509,18 +664,22 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
             EventManager.Invoke<OnPlayerPosition>(new OnPlayerPosition(playerId, x, y, z, rotY));
             return;
         }
+
         #endregion
 
         #region 玩家交互
+
         if (_type == MessageType.InteractionSync)
         {
             var (counterId, counterItem, playerId, playerItem) = NetworkMessage.Parse_InteractionSync(_body);
             EventManager.Invoke<OnInteractionSync>(new OnInteractionSync(counterId, counterItem, playerId, playerItem));
             return;
         }
+
         #endregion
 
         #region 游戏流程（状态/计时/订单/分数）
+
         if (_type == MessageType.GameStartCD)
         {
             float cd = NetworkMessage.Parse_GameStartCD(_body);
@@ -600,9 +759,11 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
             //TODO:切换房间
             YooAssetsLoad.Instance.LoadSceneAsync("GameRoom", "GameRoomScene");
         }
+
         #endregion
 
         #region 操作台
+
         if (_type == MessageType.RemotePlate)
         {
             var (counterId, plateId) = NetworkMessage.Parse_RemotePlate(_body);
@@ -629,9 +790,11 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
             var (counterId, state) = NetworkMessage.Parse_CounterStateSync(_body);
             EventManager.Invoke<OnCounterStateSync>(new OnCounterStateSync(counterId, state));
         }
+
         #endregion
 
         #region 盘子
+
         if (_type == MessageType.PlateAddIngredient)
         {
             var (plateId, ingIdx) = NetworkMessage.Parse_PlateIngredientSync(_body);
@@ -655,8 +818,10 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
 
         if (_type == MessageType.PlateOwnerSync)
         {
-            var (plateId, ownerType, ownerId, plateKitchenObjectId, ingredients) = NetworkMessage.Parse_PlateOwnerSync(_body);
-            EventManager.Invoke<OnPlateOwnerSync>(new OnPlateOwnerSync(plateId, ownerType, ownerId, plateKitchenObjectId, ingredients));
+            var (plateId, ownerType, ownerId, plateKitchenObjectId, ingredients) =
+                NetworkMessage.Parse_PlateOwnerSync(_body);
+            EventManager.Invoke<OnPlateOwnerSync>(new OnPlateOwnerSync(plateId, ownerType, ownerId,
+                plateKitchenObjectId, ingredients));
             return;
         }
 
@@ -666,18 +831,22 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
             EventManager.Invoke<OnPlateDestroy>(new OnPlateDestroy(destroyId));
             return;
         }
+
         #endregion
 
         #region 聊天
+
         if (_type == MessageType.SendMessage)
         {
             var (playerId, message) = NetworkMessage.Parse_SendMessage(_body);
             EventManager.Invoke<OnNetworkMessage>(new OnNetworkMessage(playerId, message));
             return;
         }
+
         #endregion
 
         #region 房间
+
         if (_type == MessageType.RoomCreated)
         {
             var (roomId, name, maxPlayer) = NetworkMessage.Parse_CreateRoom(_body);
@@ -700,12 +869,12 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
 
             RoomMaxPlayer = maxPlayer;
 
-            if (playerId == PlayerID)// 说明是自己加入房间，记录座位号
+            if (playerId == PlayerID) // 说明是自己加入房间，记录座位号
             {
                 MySeatId = seatId;
             }
 
-            if (RoomId == -1)// 说明是第一次加入房间，切换场景
+            if (RoomId == -1) // 说明是第一次加入房间，切换场景
             {
                 RoomId = roomId;
                 YooAssetsLoad.Instance.LoadSceneAsync("GameRoom", "GameRoomScene");
@@ -770,7 +939,8 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
                 }
             }
 
-            EventManager.Invoke<OnReceivePlayerReadyStatusUpdate>(new OnReceivePlayerReadyStatusUpdate(playerId, isReady));
+            EventManager.Invoke<OnReceivePlayerReadyStatusUpdate>(
+                new OnReceivePlayerReadyStatusUpdate(playerId, isReady));
             return;
         }
 
@@ -795,6 +965,7 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
             EventManager.Invoke<OnRoomOwnerChanged>(new OnRoomOwnerChanged(newOwnerPlayerId));
             return;
         }
+
         #endregion
 
         if (NetworkMessageRouter.Instance.Dispatch(_type, _body))
@@ -802,9 +973,11 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
 
         Debug.LogWarning($"[NetworkManager] 未处理的消息类型: {_type}");
     }
+
     #endregion
 
     #region 工具方法
+
     private void EnqueueOnMainThread(Action _value)
     {
         mainThreadActions.Enqueue(_value);
@@ -826,5 +999,6 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
             receiveBuffer = newBuffer;
         }
     }
+
     #endregion
 }

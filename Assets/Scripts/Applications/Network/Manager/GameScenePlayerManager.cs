@@ -29,18 +29,11 @@ public class GameScenePlayerManager : MonoBehaviour
     void Awake()
     {
         Instance = this;
-        Debug.Log("Awake");
     }
 
     void OnEnable()
     {
         EventManager.AddListener<OnNetworkPlayerLeft>(this, OnPlayerLeft);
-        Debug.Log("OnEnable");
-    }
-
-    void Start()
-    {
-        Debug.Log("Start");
     }
 
     void OnDisable()
@@ -49,8 +42,6 @@ public class GameScenePlayerManager : MonoBehaviour
         {
             EventManager.RemoveAllListener(this);
         }
-
-        Debug.Log("OnDisable");
     }
 
     public bool IsLocalPlayer(int _playerId)

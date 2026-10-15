@@ -52,20 +52,25 @@ namespace FrameWork.HotUpdate
         /// 需要补充元数据的 AOT 程序集清单。
         ///
         /// 来源：HybridCLR → Generate → All 产出的 AOTGenericReferences.cs，
-        ///       取其中 "// {{ AOT assemblies" 到 "// }}" 之间的注释列表（见 §6.3）。
+        ///       取其中 "// {{ AOT assemblies" 到 "// }}" 之间的列表（见 §6.3）。
         /// 🔴 这份清单是**算出来的**，不是拍脑袋写的：热更代码里每多一个 AOT 泛型实例化，
         ///    列表就可能变长。改完热更代码要重新 Generate 并同步这里，否则真机上会出现
         ///    "Attempting to call method ... for which no ahead of time (AOT) code was generated"。
-        /// 🔴 只列**真正需要**的：列多了 → 每个文件都要进包、都要走一遍元数据解析（mscorlib 就 2MB）；
-        ///    列少了 → 运行时才炸，且报错信息很难反推。
+        /// 🔴 集合必须与 PatchedAOTAssemblyList **完全一致**（多列/少列都要改）：
+        ///    少列 → 运行时才炸且报错难反推；多列 → 每个文件都要进包、都要走一遍元数据解析（mscorlib 就 2MB）。
+        /// ⚠️ 2026-10-14 实测更正：本节原写 6 个，缺 <c>System.dll</c> / <c>YooAsset.dll</c>。
+        ///    这两个 dll 其实**一直躺在 Code 包里**（Assets/HotUpdate/*.bytes），只是代码没加载它们的
+        ///    元数据 —— 等于备了药却没吃。现已按生成的清单补齐为 8 个。
         /// </summary>
         private static readonly string[] AotMetadataDlls =
         {
-            "mscorlib.dll",                 // 基础类型反射 + 泛型骨架
+            "mscorlib.dll",                 // 基础类型反射 + 泛型骨架（最大，约 2MB）
+            "System.dll",                   // 补充：System.Action/Func 与事件委托的泛型骨架
             "System.Core.dll",              // LINQ / Action / Func
             "UnityEngine.CoreModule.dll",   // GameObject / Component / Object 上的泛型
             "Unity.InputSystem.dll",        // InputAction.CallbackContext 相关泛型
-            "LiteGameFramework.dll",        // EventManager<T> / Singleton<T> / UIManager<T> 等跨 AOT 泛型
+            "YooAsset.dll",                 // 补充：YooAsset 句柄 / 回调相关泛型
+            "LiteGameFramework.dll",        // EventManager<T> / SingletonMono<T> / UIManager.OpenPanelAsync<T> 等跨 AOT 泛型
             "DOTween.dll",                  // TweenSettingsExtensions.SetEase<T>
         };
 #endif
@@ -161,7 +166,7 @@ namespace FrameWork.HotUpdate
             IHotUpdateEntry entryInstance;
             try
             {
-                entryInstance =Activator.CreateInstance(entryType) as IHotUpdateEntry;
+                entryInstance = Activator.CreateInstance(entryType) as IHotUpdateEntry;
             }
             catch (Exception e)
             {
@@ -184,7 +189,8 @@ namespace FrameWork.HotUpdate
             }
             catch (Exception e)
             {
-                Debug.Log($"[HotUpdate] 入口 ‘{EntryTypeName}’ 的Start()抛异常：{e}");
+                Debug.LogError($"[HotUpdate] 入口 '{EntryTypeName}' 的 Start() 抛异常：" +
+                               $"代码热更失败，游戏无法继续：{e}");
                 s_entry = null;
                 onDone?.Invoke(false);
                 yield break;
@@ -222,7 +228,7 @@ namespace FrameWork.HotUpdate
                                   && !t.IsAbstract
                                   && !t.IsInterface
                                   && typeof(IHotUpdateEntry).IsAssignableFrom(t))
-                      .ToArray();
+                .ToArray();
         }
 
         /// <summary>

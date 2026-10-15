@@ -113,8 +113,10 @@ public class NetworkCountersManager : MonoBehaviour
     /// <param name="_arg"></param>
     private void OnInteractionSync(OnInteractionSync _arg)
     {
-        Debug.Log($"[CounterManager] 交互同步 操作台：{_arg.counterId} 操作台上物品：{_arg.counterIetmId} 玩家手里物品：{_arg.playerHeldId}");
-
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        Debug.Log($"[CounterManager] 交互同步 操作台：{_arg.counterId} " +
+                  $"操作台上物品：{_arg.counterIetmId} 玩家手里物品：{_arg.playerHeldId}");
+#endif
         // 交互前：记录台面物品与触发者手持状态，用于交互后判定“放 / 取”
         counterMap.TryGetValue(_arg.counterId, out var counter);
         KitchenObjectSO soBefore = counter != null && counter.HasKitchenObject()
@@ -182,6 +184,7 @@ public class NetworkCountersManager : MonoBehaviour
         if (counterMap.TryGetValue(_arg.counterId, out var counter))
             counter.ApplyServerIngredient(_arg.ingredientIndex);
     }
+
     #endregion
 
     /// <summary>
