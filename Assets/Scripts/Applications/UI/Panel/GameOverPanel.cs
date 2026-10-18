@@ -12,7 +12,7 @@ public class GameOverPanel : BasePanel
     {
         base.OnAddListener();
 
-        if(NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
+        if(NetworkManager.Instance != null && NetworkManager.Instance.IsConnect)
         {
             EventManager.AddListener<OnGameOver>(this,OnGameOver);
         }
@@ -25,7 +25,7 @@ public class GameOverPanel : BasePanel
     {
         base.OnRemoveListener();
 
-        if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
+        if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnect)
         {
             EventManager.RemoveListener<OnGameOver>(this, OnGameOver);
         }
@@ -54,7 +54,7 @@ public class GameOverPanel : BasePanel
         recipesDeliveredText.text = $"Score:{_arg.Score}";
 
         // 非房主不允许重启游戏
-        if(!NetworkManager.Instance.IsRoomOwner)
+        if(!NetworkManager.Instance.Session.IsRoomOwner)
             reStartBtn.gameObject.SetActive(false);
 
         UIManager.Instance.OpenPanel<GameOverPanel>(EUIType.GameOverPanel);

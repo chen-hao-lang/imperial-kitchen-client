@@ -2,6 +2,9 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// 操作台快照
+/// </summary>
 public readonly struct CounterSnapshot
 {
     public readonly int CounterId;

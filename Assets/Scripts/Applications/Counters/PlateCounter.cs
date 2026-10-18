@@ -10,7 +10,7 @@ public class PlateCounter : BaseCounter
     public override void Interact(PlayerController _player)
     {
         // 网络模式：服务器权威分配盘子，客户端只发交互意图（PlayerController.DoInteract 已处理）
-        if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
+        if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnect)
         {
             return;
         }

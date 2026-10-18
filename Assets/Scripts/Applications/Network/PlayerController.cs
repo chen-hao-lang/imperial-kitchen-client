@@ -181,7 +181,7 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
         if (_selectedCounter == null) return;
 
         // 联网
-        if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
+        if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnect)
         {
             LocalInteractionMemory.Mark(_selectedCounter.NetworkCounterId);
             

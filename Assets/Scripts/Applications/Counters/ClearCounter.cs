@@ -7,7 +7,7 @@ public class ClearCounter : BaseCounter
 {
     public override void Interact(PlayerController _player)
     {
-        if(NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
+        if(NetworkManager.Instance != null && NetworkManager.Instance.IsConnect)
         {
             return;
         }

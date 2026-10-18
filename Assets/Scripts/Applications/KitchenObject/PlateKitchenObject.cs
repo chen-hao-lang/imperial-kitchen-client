@@ -37,7 +37,7 @@ public class PlateKitchenObject : KitchenObject
         if (SuppressOwnerSync) return;
 
         if (NetworkPlateId < 0) return; // 还没拿到永久ID
-        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnected) return;
+        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnect) return;
 
         List<int> list = new List<int>();
         foreach (var temp in kitchenObjectSOList)

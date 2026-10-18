@@ -93,6 +93,7 @@ public enum MessageType : byte
     ResumeGameResult = 40,          // 断线重连（D7）已暂时禁用
 
     C2S_HeartBeat = 138,
+    S2C_HeartBeatAck = 41,        // 心跳应答（服务器 → 客户端，空消息体）：为客户端收包超时检测提供周期下行流量
     C2S_ResumeGame = 132// 断线重连（D7）已暂时禁用
     #endregion
 }

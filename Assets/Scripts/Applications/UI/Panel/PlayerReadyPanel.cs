@@ -90,7 +90,7 @@ public class PlayerReadyPanel : BasePanel
     // 退出房间
     private void OnBackButtonClick()
     {
-        if (NetworkManager.Instance.IsRoomOwner)// 如果是房主
+        if (NetworkManager.Instance.Session.IsRoomOwner)// 如果是房主
         {
             NetworkManager.Instance.SendDestroyRoom();// 向服务器发送删除房间的消息
         }
@@ -98,6 +98,8 @@ public class PlayerReadyPanel : BasePanel
         {
             NetworkManager.Instance.SendLevelRoom();// 向服务器发送离开房间的消息
         }
+        
+        UIManager.Instance.HidePanel(EUIType.PlayerReadyPanel);
 
         // 切换场景
         UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenuScene");
@@ -166,7 +168,7 @@ public class PlayerReadyPanel : BasePanel
         startGameButton.interactable = allReady;
 
         // 如果不是房主，隐藏开始游戏按钮
-        if (!NetworkManager.Instance.IsRoomOwner)
+        if (!NetworkManager.Instance.Session.IsRoomOwner)
         {
             startGameButton.gameObject.SetActive(false);
             return;
@@ -179,7 +181,7 @@ public class PlayerReadyPanel : BasePanel
     {
         if (currentRoomPlayerNums != null)
         {
-            currentRoomPlayerNums.text = $"当前人数:{NetworkManager.Instance.RoomPlayers.Count} / {NetworkManager.Instance.RoomMaxPlayer}";
+            currentRoomPlayerNums.text = $"当前人数:{NetworkManager.Instance.Session.RoomPlayers.Count} / {NetworkManager.Instance.Session.RoomMaxPlayer}";
         }
     }
 }

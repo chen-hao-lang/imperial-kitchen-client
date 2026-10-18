@@ -11,7 +11,7 @@ public class GamePlayingClockUI : BasePanel
     {
         base.OnAddListener();
 
-        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnected)
+        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnect)
         {
             KitchenGameManager.Instance.OnGamePlayingTimerUpdate += UpdateTimerImage;
         }
@@ -25,7 +25,7 @@ public class GamePlayingClockUI : BasePanel
     {
         base.OnRemoveListener();
 
-        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnected)
+        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnect)
         {
             KitchenGameManager.Instance.OnGamePlayingTimerUpdate -= UpdateTimerImage;
         }

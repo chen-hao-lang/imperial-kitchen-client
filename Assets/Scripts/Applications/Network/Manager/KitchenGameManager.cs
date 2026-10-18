@@ -52,7 +52,7 @@ public class KitchenGameManager : SingletonMono<KitchenGameManager>
 
     private void Update()
     {
-        if(NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
+        if(NetworkManager.Instance != null && NetworkManager.Instance.IsConnect)
             return;
 
         switch (state)

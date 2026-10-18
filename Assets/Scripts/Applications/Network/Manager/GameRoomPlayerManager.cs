@@ -330,7 +330,7 @@ public class GameRoomPlayerManager : MonoBehaviour
     /// </summary>
     private void TryBootstrapSelf()
     {
-        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnected) return;
+        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnect) return;
         if (NetworkManager.Instance.RoomId < 0) return;
 
         int myPlayerId = NetworkManager.Instance.PlayerID;

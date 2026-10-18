@@ -17,7 +17,7 @@ public class NetworkKitchenGameManager : SingletonMono<NetworkKitchenGameManager
 
     private void Start()
     {
-        if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
+        if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnect)
         {
             EventManager.AddListener<OnPauseActionEvent>(this, OnPauseActionEvent);
         }

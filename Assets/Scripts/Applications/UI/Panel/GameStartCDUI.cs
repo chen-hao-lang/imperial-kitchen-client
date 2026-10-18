@@ -21,7 +21,7 @@ public class GameStartCDUI : BasePanel
     {
         base.OnAddListener();
 
-        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnected)
+        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnect)
         {
             KitchenGameManager.Instance.OnStateChanged += KitchenGameManager_OnStateChanged;
             KitchenGameManager.Instance.OnCDToStartTimerUpdate += OnCDToStartTimerUpdate;
@@ -36,7 +36,7 @@ public class GameStartCDUI : BasePanel
     {
         base.OnRemoveListener();
 
-        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnected)
+        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnect)
         {
             KitchenGameManager.Instance.OnStateChanged -= KitchenGameManager_OnStateChanged;
             KitchenGameManager.Instance.OnCDToStartTimerUpdate -= OnCDToStartTimerUpdate;

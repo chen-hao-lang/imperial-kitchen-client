@@ -31,7 +31,7 @@ public class BaseCounter : MonoBehaviour, IKitchenObjectParent
     /// <summary>
     /// 是否处于网络模式
     /// </summary>
-    public bool IsNetworkMode => NetworkManager.Instance != null && NetworkManager.Instance.IsConnected;
+    public bool IsNetworkMode => NetworkManager.Instance != null && NetworkManager.Instance.IsConnect;
 
 
     /// <summary>

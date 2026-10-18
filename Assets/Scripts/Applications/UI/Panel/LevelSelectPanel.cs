@@ -75,7 +75,7 @@ public class LevelSelectPanel : BasePanel
             return;
         }
 
-        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnected)
+        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnect)
         {
             Debug.LogWarning("[LevelSelectPanel] 未连接服务器，无法上报关卡选择");
             return;

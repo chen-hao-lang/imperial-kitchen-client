@@ -1,7 +1,5 @@
 /// <summary>
-/// 一次全量快照（纯数据 DTO）。
-/// ⚠️ 绝不能继承 MonoBehaviour：MonoBehaviour 只能用 AddComponent 创建，
-/// `new` 出来的实例会被 Unity 的重载 == 判定为 null，导致快照被整体丢弃。
+/// 房间快照
 /// </summary>
 public sealed class RoomSnapshot
 {

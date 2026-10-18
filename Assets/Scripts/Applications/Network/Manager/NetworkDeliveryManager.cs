@@ -57,7 +57,7 @@ public class NetworkDeliveryManager : SingletonMono<NetworkDeliveryManager>
         EventManager.AddListener<OnScoreUpdate>(this, OnNetworkScoreUpdate);
 
         // 防错过：如果已经处于连接状态（如切换场景后重连、面板晚加载），立即补齐
-        if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnected)
+        if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnect)
         {
             // 上报配方表（若尚未上报）
             SendRegisterRecipes();
@@ -88,7 +88,7 @@ public class NetworkDeliveryManager : SingletonMono<NetworkDeliveryManager>
             return;
         }
 
-        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnected)
+        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnect)
         {
             return;
         }
@@ -184,7 +184,7 @@ public class NetworkDeliveryManager : SingletonMono<NetworkDeliveryManager>
     /// <param name="_plateKitchenObject">要交付的盘子</param>
     public void DeliveRecipe(PlateKitchenObject _plateKitchenObject)
     {
-        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnected)
+        if (NetworkManager.Instance == null || !NetworkManager.Instance.IsConnect)
         {
             Debug.LogWarning("[DeliveryManager] 未连接服务器，无法交付");
             return;
