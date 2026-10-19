@@ -3,24 +3,38 @@ using FrameWork.HotUpdate;
 using LiteGameFramework;
 using UnityEngine;
 using YooAsset;
+using System.Collections.Generic;
 
 /// <summary>
-/// 全局启动引导器 —— 常驻单例（DontDestroyOnLoad），属于 **AOT 程序集 LiteGameFramework**。
-///
+/// 全局启动器
+/// </summary>
 public class GameBootstrap : SingletonMono<GameBootstrap>
 {
+    [Header("启动设置")] [Header("服务器配置")] [SerializeField]
+    private string serverIp;
+
+    [SerializeField] private int serverPort;
+
+    [Space] [Header("热更模式")] [SerializeField]
+    private EPlayMode eplayMode = EPlayMode.OfflinePlayMode;
+
     /// <summary>
-    /// 需要提前准备（初始化 + 更新清单 + 下载）的全部资源包。
+    /// 需要提前准备的资源包。顺序有语义：
+    ///   · <c>UI</c> 必须第一（InitUIConfig 之后进度面板才可用）；
+    ///   · <c>Code</c> 必须排在代码热更之前（它就是 GameLogic.dll + AOT 元数据）。
+    /// 这里给默认值是兜底：场景里未配置时 List 会是 null，直接 foreach 会 NRE。
     /// </summary>
-    private static readonly string[] Packages =
+    [Header("需要加载的热更包")] [SerializeField]
+    private List<string> Packages = new List<string>
     {
-        "UI", // 面板预制体 + UIConfig.json
-        "GameRoomScene", // 房间场景
-        "PlayerPrefab", // 玩家 / 网络预制体
-        "GameScene", // 关卡 1（含 ScriptableObjects）
-        "GameScene2", // 关卡 2
-        "Code" // 热更 DLL + AOT 元数据（Assets/HotUpdate）
+        "UI",
+        "GameRoomScene",
+        "PlayerPrefab",
+        "GameScene",
+        "GameScene2",
+        "Code"
     };
+
 
     /// <summary> 全局初始化是否已完成（仅在全部步骤成功后为 true）。 </summary>
     public bool IsInitialized { get; private set; }
@@ -40,29 +54,38 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
     /// </summary>
     public bool clearUnusedCacheAfterUpdate = true;
 
-    // ── 启动参数透传（AOT → 热更）────────────────────────────────────────────
-    // 这几个值来自场景上的 SceneEntryBase（AOT）。连接动作本身在热更侧执行
-    // （Applications.GameEntry），但热更程序集不该反过来持有场景序列化配置，
-    // 所以由 AOT 侧在这里存一份、热更侧只读。
+    /// <summary>
+    /// 服务器网址
+    /// </summary>
+    public string ServerIp => serverIp;
 
-    /// <summary> 服务器 IP（由场景入口传入，供热更侧 <c>NetworkManager.Connect</c> 使用）。 </summary>
-    public string ServerIp { get; private set; }
-
-    /// <summary> 服务器端口。 </summary>
-    public int ServerPort { get; private set; }
+    /// <summary>
+    /// 服务器端口
+    /// </summary>
+    public int ServerPort => serverPort;
 
     /// <summary> 玩家名。 </summary>
-    public string PlayerName { get; private set; }
+    public string PlayerName
+    {
+        get { return "CHF"; }
+    }
+
+    private void Start()
+    {
+        StartCoroutine(Init());
+    }
+
+    private IEnumerator Init()
+    {
+        yield return EnsureInitialized();
+    }
 
     /// <summary>
     /// 执行全局初始化（幂等、可重试）。
-    /// 已成功完成过则直接跳过；上一次失败则允许再次调用重试。
+    /// 已成功完成过则直接跳过；上一次失败则允许再次调用重试；
+    /// 已有一轮在进行中则等它结束后返回（场景入口据此安全地并发调用）。
     /// </summary>
-    /// <param name="_playMode">YooAsset 播放模式。只有 HostPlayMode 会真正走 CDN 热更。</param>
-    /// <param name="_serverIp">服务器 IP（仅透传给热更侧，本方法不发起连接）。</param>
-    /// <param name="_serverPort">服务器端口（仅透传）。</param>
-    /// <param name="_playerName">玩家名（仅透传）。</param>
-    public IEnumerator EnsureInitialized(EPlayMode _playMode, string _serverIp, int _serverPort, string _playerName)
+    public IEnumerator EnsureInitialized()
     {
         if (IsInitialized)
         {
@@ -82,12 +105,6 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
         IsFailed = false;
         ErrorMessage = null;
 
-        // 先记下启动参数：热更侧的 GameEntry 会在本方法收尾后读取它们发起连接。
-        // （放在这里而不是 try 里，是为了让重试路径也能拿到最新的参数。）
-        ServerIp = _serverIp;
-        ServerPort = _serverPort;
-        PlayerName = _playerName;
-
         try
         {
             // 1. 初始化 UI 面板配置。
@@ -95,20 +112,21 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
             //    之所以这样也能成立，是因为下面给 UI 包传了 useBuiltin=true ——
             //    「首次安装、尚未下载任何资源」时，UIConfig.json 与面板预制体会从 StreamingAssets 的内置副本读到。
             yield return UIManager.Instance.InitUIConfig(
-                _playMode,
-                ResolveHostUrl(_playMode),
-                ResolveFallbackUrl(_playMode),
+                eplayMode,
+                ResolveHostUrl(eplayMode),
+                ResolveFallbackUrl(eplayMode),
                 true);
 
             // 2. 逐包热更（创建包 → 取版本 → 更新清单 → 下载 → 清理旧缓存）。
             //    放在 UIConfig 之后、PreLoadPanel 之前：
             //      · 在 UIConfig 之后 —— 此时进度面板已可用；
             //      · 在 PreLoadPanel 之前 —— 预加载拿到的是刚下载下来的最新预制体。
-            yield return RunHotUpdate(_playMode, Packages);
+            yield return RunHotUpdate(eplayMode, Packages);
 
             // 3. 代码热更：补 AOT 元数据 → Assembly.Load(GameLogic) → 反射调用入口。
-            //    内部会同步调用 GameEntry.Start()，后者起一个协程等 IsInitialized 再接着往下走
-            //    —— 所以它不会卡在这里。
+            //    ⚠️ 「连接服务器」也发生在这一步，但代码写在热更入口（Applications.GameEntry）里：
+            //    NetworkManager 属于热更程序集 GameLogic，AOT 的 GameBootstrap 直接引用它会
+            //    重演 2026-10-14 的剔除事故。本类只负责持有并暴露 serverIp / serverPort / playerName。
             bool codeReady = false;
             yield return HotUpdateBootstrap.Initialize(ok => codeReady = ok);
             if (!codeReady)
@@ -123,13 +141,8 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
                 yield break;
             }
 
-            // 4. 预加载主菜单相关面板
-            yield return UIManager.Instance.PreLoadPanel(EUIType.MainMenuPanel);
-            yield return UIManager.Instance.PreLoadPanel(EUIType.RoomPanel);
-            yield return UIManager.Instance.PreLoadPanel(EUIType.PauseMenuPanel);
-
-            // 5. 全部成功后才置位，保证失败可以重试。
-            //    ⚠️ 热更侧的 GameEntry 正阻塞等待这一个置位，然后才 Connect + 开主菜单。
+            // 4. 全部成功后才置位，保证失败可以重试。
+            //    ⚠️ 场景入口（SceneEntryBase）正等待这一个置位，然后才清理残留 + 开自己的面板。
             IsInitialized = true;
             Debug.Log("[GameBootstrap] 全局初始化完成");
         }
@@ -163,20 +176,23 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
     /// </summary>
     /// <param name="_playMode">YooAsset 播放模式。</param>
     /// <param name="_packages">需要热更的资源包名列表。</param>
-    private IEnumerator RunHotUpdate(EPlayMode _playMode, string[] _packages)
+    private IEnumerator RunHotUpdate(EPlayMode _playMode, List<string> _packages)
     {
+        if (_packages == null || _packages.Count == 0)
+        {
+            Fail("热更包列表为空：请在 GameBootstrap 的 Packages 中配置资源包。");
+            yield break;
+        }
+
         string hostUrl = ResolveHostUrl(_playMode);
         string fallbackUrl = ResolveFallbackUrl(_playMode);
-
         var flow = ProgressHub.Instance.BeginFlow("HotUpdate");
-
         foreach (var pkg in _packages)
         {
             // ① 准备段：创建包 → 请求版本 → 更新清单
             var prepare = flow.AddStep(
                 new PackagePatchStep(pkg, _playMode, hostUrl, fallbackUrl, true), 1f);
             yield return prepare.Run();
-
             if (prepare.IsFailed)
             {
                 Fail($"资源包 {pkg} 准备失败：{prepare.Error}");
@@ -187,7 +203,6 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
             // ② 下载段：权重明显大于准备段，因为下载才是真正耗时的地方
             var download = flow.AddStep(new DownloadStep(pkg, $"下载资源：{pkg}"), 4f);
             yield return download.Run();
-
             if (download.IsFailed)
             {
                 Fail($"资源包 {pkg} 下载失败：{download.Error}");
@@ -209,7 +224,6 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
                     pkg,
                     _sucess: () => cleared = true,
                     _fail: () => cleared = false);
-
                 if (!cleared)
                     Debug.LogWarning($"[GameBootstrap] 资源包 {pkg} 清理旧缓存失败（不影响本次运行）");
             }

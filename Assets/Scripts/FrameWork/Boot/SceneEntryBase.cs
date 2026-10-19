@@ -1,54 +1,90 @@
 using System.Collections;
+using System.Collections.Generic;
 using LiteGameFramework;
 using UnityEngine;
-using YooAsset;
 
+/// <summary>
+/// 场景启动基类（AOT 程序集 LiteGameFramework，可直接挂在主包场景上）。
+///
+/// 只负责两件事，其余逻辑留给派生类：
+///   ① 等待 <see cref="GameBootstrap"/> 完成全局初始化（资源热更 + 代码热更）；
+///   ② 声明本场景拥有哪些面板 —— 清掉上一场景的残留，预加载并打开自己需要的面板。
+///
+/// 🔴 派生类只重写 <see cref="Init"/> 并必须调用 base.Init()。
+///    不要再写 void Start() / IEnumerator Init() —— 那会**隐藏**基类同名成员（不是重写），
+///    结果就是面板逻辑整段失效（2026-10-19 修正前的 GameRoomSceneEntry 即此状态）。
+/// </summary>
 public class SceneEntryBase : MonoBehaviour
 {
-    [Header("启动配置")]
-    public EPlayMode ePlayMode = EPlayMode.OfflinePlayMode;
-    // 服务器：106.52.92.221
-    // 本地：127.0.0.1
-    public string serverIp = "106.52.92.221";
-    public int serverPort = 7777;
-    public string playerName = "chf";
+    [Header("场景面板配置")]
+    [Tooltip("本场景拥有的全部面板：进入时预加载，同时作为清理残留时的白名单")]
+    [SerializeField] private List<EUIType> scenePanel = new List<EUIType>();
 
-    [SerializeField] private AudioClip bgm;
+    [Tooltip("进入场景后需要显示的面板（建议同时列入 scenePanel）")]
+    [SerializeField] private List<EUIType> openPanels = new List<EUIType>();
 
-    // Start is called before the first frame update
-    void Start()
+    protected virtual void Start()
     {
         StartCoroutine(Init());
-        
-        if (bgm != null)
-            AudioManager.Instance.PlayBGM(bgm, true);
     }
 
-    IEnumerator Init()
+    protected virtual IEnumerator Init()
     {
-        yield return GameBootstrap.Instance.EnsureInitialized(ePlayMode, serverIp, serverPort, playerName);
+        if (GameBootstrap.Instance == null)
+        {
+            Debug.LogError($"[{GetType().Name}] 找不到 GameBootstrap，场景无法启动。");
+            yield break;
+        }
+
+        // 幂等等待：GameBootstrap 已在初始化就等它收尾；尚未开始则本轮驱动它。
+        // 两种顺序都成立，因此不需要约定两个组件的 Start 执行先后。
+        yield return GameBootstrap.Instance.EnsureInitialized();
 
         if (!GameBootstrap.Instance.IsInitialized)
         {
-            Debug.LogError($"[Launch] 全局初始化未完成，已中止进入主菜单。" +
+            Debug.LogError($"[{GetType().Name}] 全局初始化未完成，已中止场景启动。" +
                            $"（IsFailed={GameBootstrap.Instance.IsFailed}，原因：{GameBootstrap.Instance.ErrorMessage}）");
             yield break;
         }
 
-        // 🔴 主菜单场景就绪：通知热更侧恢复主菜单 UI。
-        //    为什么必须走事件而不是在这里直接开面板：
-        //      · MainMenuPanel 是热更类型，AOT 的 SceneEntryBase 不能引用（会触发 2026-10-14 的剔除事故）；
-        //      · 「进入主菜单」是**可重复**动作（首次启动 / 从房间或对局返回），
-        //        不能只写在 GameEntry.Start() 里 —— 那个方法整个生命周期只执行一次，
-        //        导致二次进入主菜单时没有任何代码去打开 MainMenuPanel。
-        EventManager.Invoke<OnMainMenuSceneReady>(new OnMainMenuSceneReady());
-    }
-}
+        if (scenePanel == null || scenePanel.Count == 0)
+            Debug.LogWarning($"[{GetType().Name}] scenePanel 未配置，本场景将隐藏所有非持久化面板。");
 
-/// <summary>
-/// 主菜单场景已就绪（AOT 侧发出，热更侧负责连接服务器 + 打开 MainMenuPanel）。
-/// 定义在 AOT 程序集，热更程序集可以直接订阅（依赖方向 热更 → AOT 合法）。
-/// </summary>
-public struct OnMainMenuSceneReady : IEvent
-{
+        // 场景级面板所有权：只隐藏、不销毁。
+        // 面板挂在常驻 UIRoot 下，销毁（CloseAllPanels）会让下次进入时重新实例化预制体，
+        // 而 HideAllExcept 保留实例、只重置显示状态，是这套 UI 框架的既定约定。
+        UIManager.Instance.HideAllExcept(BuildKeepTypes());
+
+        // 预加载本场景面板（已加载过的会直接跳过，不会重复实例化）
+        if (scenePanel != null && scenePanel.Count > 0)
+            yield return UIManager.Instance.PreLoadPanel(scenePanel);
+
+        // 打开需要显示的面板：用非泛型重载，避免 AOT 引用热更面板类型（MainMenuPanel 等）
+        if (openPanels != null)
+        {
+            for (int i = 0; i < openPanels.Count; i++)
+                yield return UIManager.Instance.OpenPanelAsync(openPanels[i]);
+        }
+    }
+
+    /// <summary>
+    /// 清理残留时要保留的面板 = scenePanel ∪ openPanels。
+    /// 取并集是为了容忍"只配了 openPanels、漏配 scenePanel"的配置错误，避免刚打开就被隐藏。
+    /// </summary>
+    private EUIType[] BuildKeepTypes()
+    {
+        List<EUIType> keep = scenePanel != null
+            ? new List<EUIType>(scenePanel)
+            : new List<EUIType>();
+
+        if (openPanels != null)
+        {
+            for (int i = 0; i < openPanels.Count; i++)
+            {
+                if (!keep.Contains(openPanels[i])) keep.Add(openPanels[i]);
+            }
+        }
+
+        return keep.ToArray();
+    }
 }
