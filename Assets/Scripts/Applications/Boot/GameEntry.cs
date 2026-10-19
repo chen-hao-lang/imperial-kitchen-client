@@ -29,6 +29,14 @@ namespace Applications
 
         public void Start()
         {
+            // 🔴 只在这里订阅一次，「打开主菜单」的实质工作交给 OnMainMenuSceneReady。
+            //    原因：本方法在热更成功时只执行一次，而从房间/对局返回 MainMenuScene 会再次进入主菜单，
+            //    必须有一个可重复触发的入口，否则 MainMenuPanel 永远打不开（表现为只剩房间面板残留）。
+            EventManager.AddListener<OnMainMenuSceneReady>(this, HandleMainMenuSceneReady);
+        }
+
+        private void HandleMainMenuSceneReady(OnMainMenuSceneReady _)
+        {
             var boot = GameBootstrap.Instance;
             if (boot == null)
             {
@@ -36,13 +44,11 @@ namespace Applications
                 return;
             }
 
-            // 本方法由 HotUpdateBootstrap.Initialize 同步调用，此刻 GameBootstrap.EnsureInitialized
-            // 还停在"代码热更之后、PreLoadPanel 之前" —— 不能在这里同步往下走，必须开协程等它收尾。
-            // 借 GameBootstrap 这个常驻 MonoBehaviour 当协程宿主（热更 → AOT 的引用方向是允许的）。
-            boot.StartCoroutine(CoStart(boot));
+            // 用常驻 MonoBehaviour 当协程宿主（热更 → AOT 的引用方向是允许的）
+            boot.StartCoroutine(CoEnterMainMenu(boot));
         }
 
-        private static IEnumerator CoStart(GameBootstrap _boot)
+        private static IEnumerator CoEnterMainMenu(GameBootstrap _boot)
         {
             // ① 等 AOT 侧把 PreLoadPanel 跑完并置位 IsInitialized。
             //    必须先等到位再开面板：面板未预加载就 OpenPanel 会撞上 UIPanelController 的 NRE
@@ -67,13 +73,18 @@ namespace Applications
                 yield break;
             }
 
-            // ② 连接服务器；同时记录地址，供断线重连时重新发起连接。
-            //    参数由 AOT 侧 GameBootstrap 从场景配置（SceneEntryBase）透传过来。
-            NetworkManager.Instance.Connect(_boot.ServerIp, _boot.ServerPort, _boot.PlayerName);
-            SessionTracker.Instance.SetEndPoint(_boot.ServerIp, _boot.ServerPort, _boot.PlayerName);
+            // ② 连接服务器（幂等：已在连接中/已连接则跳过）。
+            //    从房间返回主菜单时连接可能仍存活，不能重复 Connect（会先 Close 再重连，造成瞬时掉线）。
+            if (NetworkManager.Instance != null && !NetworkManager.Instance.IsConnect)
+            {
+                NetworkManager.Instance.Connect(_boot.ServerIp, _boot.ServerPort, _boot.PlayerName);
+                SessionTracker.Instance.SetEndPoint(_boot.ServerIp, _boot.ServerPort, _boot.PlayerName);
+            }
 
-            // ③ 隐藏上一场景残留面板，然后进主菜单
-            UIManager.Instance.HideAll();
+            // ③ 场景级面板清理：主菜单只保留 MainMenuPanel，其余（房间/对局面板）全部隐藏。
+            //    这是"跨场景残留"的根治点 —— 面板挂在常驻 UIRoot 下不会随场景销毁，
+            //    任何返回主菜单的路径（解散房间、断线重连失败、主动退出）都必须经过这里。
+            UIManager.Instance.HideAllExcept(EUIType.MainMenuPanel);
 
             yield return UIManager.Instance.OpenPanelAsync<MainMenuPanel>(EUIType.MainMenuPanel);
         }
@@ -85,6 +96,8 @@ namespace Applications
 
         public void OnApplicationQuit()
         {
+            // 本实例注册在静态 EventManager 上，退出时主动摘除，避免热更重载后残留悬挂处理器
+            EventManager.RemoveAllListener(this);
         }
     }
 }

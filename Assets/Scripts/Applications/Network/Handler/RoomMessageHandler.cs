@@ -68,7 +68,9 @@ public sealed class RoomMessageHandler
         if (session.RoomId == -1) // 说明是第一次加入房间，切换场景
         {
             session.MarkFirstJoin(roomId);
-            YooAssetsLoad.Instance.LoadSceneAsync("GameRoom", "GameRoomScene");
+            // 🔴 与房主建房路径保持一致：统一走 SceneLoader（带进度条 + 重入保护）。
+            //    原先走 YooAssetsLoad.LoadSceneAsync 裸句柄，导致"房主慢、加入者瞬间进"的观感差异。
+            SceneLoader.Instance.LoadScene("GameRoom", "GameRoomScene", "LoadingToRoom");
         }
 
         session.AddRoomPlayerIfAbsent(new PlayeInfo(playerId, seatId, name, false));

@@ -6,6 +6,7 @@ public class MainMenuPanel : BasePanel
 {
     [SerializeField] private Button playBtn;
     [SerializeField] private Button quitBtn;
+    [SerializeField] private Button setBtn;
 
     private MainMenuPanelAnim panelAnim;
 
@@ -15,10 +16,9 @@ public class MainMenuPanel : BasePanel
 
         playBtn.onClick.AddListener(OnPlayBtnOnClick);
 
-        quitBtn.onClick.AddListener(() =>
-            {
-                Application.Quit();
-            });
+        quitBtn.onClick.AddListener(() => { Application.Quit(); });
+
+        setBtn.onClick.AddListener(OnSetBtnOnClick);
 
         // 动画驱动器与面板挂在同一节点上，缓存一次即可
         panelAnim = GetComponent<MainMenuPanelAnim>();
@@ -33,7 +33,8 @@ public class MainMenuPanel : BasePanel
     public override void OnRemoveListener()
     {
         base.OnRemoveListener();
-
+        
+        setBtn.onClick.RemoveAllListeners();
         playBtn.onClick.RemoveAllListeners();
         quitBtn.onClick.RemoveAllListeners();
     }
@@ -53,5 +54,10 @@ public class MainMenuPanel : BasePanel
     private void OpenRoomPanel()
     {
         UIManager.Instance.OpenPanel<RoomPanel>(EUIType.RoomPanel);
+    }
+
+    private void OnSetBtnOnClick()
+    {
+        UIManager.Instance.OpenPanel<PauseMenuPanel>(EUIType.PauseMenuPanel);
     }
 }

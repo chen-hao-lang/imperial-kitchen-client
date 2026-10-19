@@ -24,14 +24,6 @@
     "isPersistent": false
   },
   {
-    "type": "OptionPanel",
-    "packageName": "UI",
-    "panelName": "OptionPanel",
-    "layer": "Normal",
-    "isWindow": false,
-    "isPersistent": false
-  },
-  {
     "type": "GameStartCDUI",
     "packageName": "UI",
     "panelName": "GameStartCDUI",
@@ -43,14 +35,6 @@
     "type": "GamePlayingClockUI",
     "packageName": "UI",
     "panelName": "GamePlayingClockUI",
-    "layer": "Normal",
-    "isWindow": false,
-    "isPersistent": false
-  },
-  {
-    "type": "GamePausePanel",
-    "packageName": null,
-    "panelName": "GamePausePanel",
     "layer": "Normal",
     "isWindow": false,
     "isPersistent": false
@@ -101,6 +85,14 @@
     "panelName": "LevelSelectPanel",
     "layer": "Normal",
     "isWindow": false,
+    "isPersistent": false
+  },
+  {
+    "type": "PauseMenuPanel",
+    "packageName": "UI",
+    "panelName": "PauseMenuPanel",
+    "layer": "Top",
+    "isWindow": true,
     "isPersistent": false
   }
 ]

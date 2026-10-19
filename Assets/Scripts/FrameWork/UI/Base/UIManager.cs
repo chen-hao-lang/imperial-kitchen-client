@@ -286,6 +286,25 @@ namespace LiteGameFramework
             OpenPanel<T>(_type, _callBack);
         }
 
+        /// <summary>
+        /// 异步打开面板（非泛型版本）。
+        /// 🔴 供 AOT 侧（如场景入口 SceneEntryBase）调用：AOT 程序集不能引用热更类型 MainMenuPanel 等，
+        ///    因此不能使用泛型 <see cref="OpenPanelAsync{T}"/>，只能按 EUIType 打开。
+        /// </summary>
+        public IEnumerator OpenPanelAsync(EUIType _type, Action _callBack = null)
+        {
+            if (!panelControllers.ContainsKey(_type)) yield break;
+
+            var controller = panelControllers[_type];
+
+            if (!controller.IsLoaded && !controller.IsLoading)
+            {
+                yield return controller.LoadPanel();
+            }
+
+            OpenPanel<BasePanel>(_type, _callBack);
+        }
+
         public void HidePanel(EUIType _type, Action _callBack = null)
         {
             if (panelControllers.ContainsKey(_type))
@@ -305,26 +324,42 @@ namespace LiteGameFramework
         /// <param name="_ignoreType">需要忽略隐藏的面板</param>
         public void HideAll(EUIType _ignoreType = EUIType.Max)
         {
-            var list = new List<EUIType>();
+            HideAllExcept(_ignoreType == EUIType.Max ? Array.Empty<EUIType>() : new[] { _ignoreType });
+        }
 
-            foreach (var uiType in openedPanels)
+        /// <summary>
+        /// 场景级面板清理：隐藏**所有**非持久化面板，除了 <paramref name="_keepTypes"/> 中显式保留的。
+        ///
+        /// 🔴 这是跨场景 UI 的核心约定：面板对象挂在常驻的 UIRoot 下（DontDestroyOnLoad），
+        ///    不会随场景销毁；而每个场景只应显示自己拥有的面板。
+        ///    遍历的是**全部已注册控制器**（而不是 openedPanels），
+        ///    这样即使某个面板的登记状态与真实显示状态发生偏移，也不会残留到下一个场景。
+        /// </summary>
+        /// <param name="_keepTypes">本场景要保留（不清除）的面板类型，可为空</param>
+        public void HideAllExcept(params EUIType[] _keepTypes)
+        {
+            HashSet<EUIType> keep = null;
+            if (_keepTypes != null && _keepTypes.Length > 0)
             {
-                if (_ignoreType == uiType) continue;
-                if(panelControllers.TryGetValue(uiType,out var ctrl) && ctrl.isPersistent) continue;
-
-                if (panelControllers.ContainsKey(uiType))
-                {
-                    panelControllers[uiType].HidePanel();
-                    list.Add(uiType);
-                }
+                keep = new HashSet<EUIType>(_keepTypes);
             }
 
-            foreach (var uiType in list)
+            foreach (var pair in panelControllers)
             {
+                EUIType uiType = pair.Key;
+                UIPanelController controller = pair.Value;
+
+                // 持久化面板（进度条 / 断线提示）跨场景常驻，不参与场景级清理
+                if (controller.isPersistent) continue;
+                if (keep != null && keep.Contains(uiType)) continue;
+
+                // 用 ResetToHidden + RemoveFromStack：绕开"关闭一个面板会让同层其它面板重新打开"的
+                // 交互语义，否则批量清理会边隐藏边复活，残留面板覆盖新场景 UI。
+                controller.ResetToHidden();
+                controller.layer?.RemoveFromStack(controller);
+
                 openedPanels.Remove(uiType);
             }
-
-            list.Clear();
         }
 
         /// <summary>

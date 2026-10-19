@@ -34,5 +34,21 @@ public class SceneEntryBase : MonoBehaviour
                            $"（IsFailed={GameBootstrap.Instance.IsFailed}，原因：{GameBootstrap.Instance.ErrorMessage}）");
             yield break;
         }
+
+        // 🔴 主菜单场景就绪：通知热更侧恢复主菜单 UI。
+        //    为什么必须走事件而不是在这里直接开面板：
+        //      · MainMenuPanel 是热更类型，AOT 的 SceneEntryBase 不能引用（会触发 2026-10-14 的剔除事故）；
+        //      · 「进入主菜单」是**可重复**动作（首次启动 / 从房间或对局返回），
+        //        不能只写在 GameEntry.Start() 里 —— 那个方法整个生命周期只执行一次，
+        //        导致二次进入主菜单时没有任何代码去打开 MainMenuPanel。
+        EventManager.Invoke<OnMainMenuSceneReady>(new OnMainMenuSceneReady());
     }
+}
+
+/// <summary>
+/// 主菜单场景已就绪（AOT 侧发出，热更侧负责连接服务器 + 打开 MainMenuPanel）。
+/// 定义在 AOT 程序集，热更程序集可以直接订阅（依赖方向 热更 → AOT 合法）。
+/// </summary>
+public struct OnMainMenuSceneReady : IEvent
+{
 }

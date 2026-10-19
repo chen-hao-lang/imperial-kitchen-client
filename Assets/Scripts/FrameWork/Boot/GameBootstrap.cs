@@ -7,48 +7,19 @@ using YooAsset;
 /// <summary>
 /// 全局启动引导器 —— 常驻单例（DontDestroyOnLoad），属于 **AOT 程序集 LiteGameFramework**。
 ///
-/// 负责整个游戏生命周期内【只执行一次】的全局初始化：UI 配置、YooAsset 热更资源包、代码热更、面板预加载。
-///
-/// 🔴 为什么它现在在 FrameWork/Boot 而不是 Applications/Boot（2026-10-14 出包事故整改）：
-///    1. 主包资源**只能挂 AOT 脚本**：本类原来在热更程序集 GameLogic 里，却被主包场景
-///       MainMenuScene 以组件形式引用 → 出包时 GameLogic 被 IFilterBuildAssemblies 剔除
-///       → 运行期 "The referenced script (GameBootstrap) on this Behaviour is missing!"；
-///    2. 自举悖论：本类的核心职责就是「触发代码热更」，但它自己却位于热更程序集里 → 循环依赖。
-///    因此上移到 AOT，同时**剥掉对网络层的直接依赖**（NetworkManager / SessionTracker 均为热更类型），
-///    那部分改由热更侧 Applications.GameEntry 接管（见类尾的「职责分界」）。
-///
-/// 特性：
-/// 1. 继承 <see cref="SingletonMono{T}"/>，跨场景不销毁，重复实例自动销毁；
-/// 2. <see cref="EnsureInitialized"/> 幂等，任意场景入口（Launch / GameRoomLaunch / GameSceneLaunch）
-///    重复调用都不会重复初始化，避免场景切换（如 GameRoom 回 MainMenuScene）时产生冲突；
-/// 3. 各场景只负责自己的场景级 UI（打开/关闭面板），全局初始化统一在此完成；
-/// 4. <see cref="IsInitialized"/> **只在全部步骤成功后置位**：失败时保持 false，调用方可再次调用重试。
-///
-/// 职责分界（AOT ↔ 热更）：
-///   · AOT（本类）：InitUIConfig → RunHotUpdate(6 个包) → HotUpdateBootstrap.Initialize → PreLoadPanel ×3
-///   · 热更（Applications.GameEntry）：等待 IsInitialized → Connect → SessionTracker.SetEndPoint
-///                                   → UIManager.HideAll → OpenPanelAsync&lt;MainMenuPanel&gt;
-/// </summary>
 public class GameBootstrap : SingletonMono<GameBootstrap>
 {
     /// <summary>
     /// 需要提前准备（初始化 + 更新清单 + 下载）的全部资源包。
-    /// 顺序有讲究：
-    ///   · <c>UI</c> 必须最先 —— 进度面板与 UIConfig.json 都来自它；
-    ///   · <c>Code</c>（热更 DLL）只需排在 <see cref="HotUpdateBootstrap.Initialize"/> 之前即可，
-    ///     放在最后是因为它体积最大、且紧跟代码热更步骤。
-    /// ⚠️ 每个包都必须有内置副本（<c>Assets/StreamingAssets/yoo/{包名}/BuiltinCatalog.bytes</c>），
-    ///    否则 HostPlayMode 下该包初始化直接 404，进而中断整个全局初始化
-    ///    （见《HybridCLR代码热更新接入指南.md》§7.4）。
     /// </summary>
     private static readonly string[] Packages =
     {
-        "UI",               // 面板预制体 + UIConfig.json
-        "GameRoomScene",    // 房间场景
-        "PlayerPrefab",     // 玩家 / 网络预制体
-        "GameScene",        // 关卡 1（含 ScriptableObjects）
-        "GameScene2",       // 关卡 2
-        "Code"              // 热更 DLL + AOT 元数据（Assets/HotUpdate）
+        "UI", // 面板预制体 + UIConfig.json
+        "GameRoomScene", // 房间场景
+        "PlayerPrefab", // 玩家 / 网络预制体
+        "GameScene", // 关卡 1（含 ScriptableObjects）
+        "GameScene2", // 关卡 2
+        "Code" // 热更 DLL + AOT 元数据（Assets/HotUpdate）
     };
 
     /// <summary> 全局初始化是否已完成（仅在全部步骤成功后为 true）。 </summary>
@@ -155,7 +126,7 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
             // 4. 预加载主菜单相关面板
             yield return UIManager.Instance.PreLoadPanel(EUIType.MainMenuPanel);
             yield return UIManager.Instance.PreLoadPanel(EUIType.RoomPanel);
-            yield return UIManager.Instance.PreLoadPanel(EUIType.OptionPanel);
+            yield return UIManager.Instance.PreLoadPanel(EUIType.PauseMenuPanel);
 
             // 5. 全部成功后才置位，保证失败可以重试。
             //    ⚠️ 热更侧的 GameEntry 正阻塞等待这一个置位，然后才 Connect + 开主菜单。
@@ -263,6 +234,7 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
             IsFailed = true;
             ErrorMessage = _message;
         }
+
         Debug.LogError($"[GameBootstrap] {_message}");
     }
 }

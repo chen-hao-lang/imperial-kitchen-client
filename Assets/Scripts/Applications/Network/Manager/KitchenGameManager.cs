@@ -86,6 +86,15 @@ public class KitchenGameManager : SingletonMono<KitchenGameManager>
 
     private void OnPauseActionEvent(OnPauseActionEvent _)
     {
+        // 1) 输入框聚焦时 Esc 属于「取消输入」，不能顺带把游戏暂停
+        if (PlayerInput.IsTypingInInputField())
+            return;
+
+        // 2) 联机模式交给 NetworkKitchenGameManager（它只暂停 UI、不冻 timeScale）。
+        //    这里若也响应，一次按键会广播两次 paused，面板刚打开就被第二次广播关掉。
+        if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnect)
+            return;
+
         TogglePauseGame();
     }
 
@@ -99,6 +108,11 @@ public class KitchenGameManager : SingletonMono<KitchenGameManager>
         }
     }
 
+    /// <summary>
+    /// 切换暂停。单机与联机共用同一个面板，区别只在是否冻结 <see cref="Time.timeScale"/>。
+    /// 面板由这里统一开关（而不是面板自己订阅），因为面板在 Boot 阶段就已预加载，
+    /// 那时本 Manager 尚未创建，订阅会永远错过。
+    /// </summary>
     public void TogglePauseGame()
     {
         isGamePaused = !isGamePaused;
@@ -107,12 +121,25 @@ public class KitchenGameManager : SingletonMono<KitchenGameManager>
         {
             Time.timeScale = 0f;
             OnGamePaused?.Invoke();
+
+            if (UIManager.HasInstance)
+                UIManager.Instance.OpenPanel<PauseMenuPanel>(EUIType.PauseMenuPanel);
         }
         else
         {
             Time.timeScale = 1f;
             OnGameUnpaused?.Invoke();
+
+            if (UIManager.HasInstance)
+                UIManager.Instance.HidePanel(EUIType.PauseMenuPanel);
         }
+    }
+
+    /// <summary>场景切换 / 返回主菜单时强制复位暂停状态，避免下一局开局就处于暂停</summary>
+    public void ResetPauseState()
+    {
+        isGamePaused = false;
+        Time.timeScale = 1f;
     }
 
     public int GetGamePlayingTimerSeconds()

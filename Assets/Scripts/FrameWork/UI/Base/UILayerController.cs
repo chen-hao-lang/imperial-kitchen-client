@@ -22,8 +22,7 @@ public class UILayerController : MonoBehaviour
     }
 
     public void OpenPanel(UIPanelController _controller)
-    {
-        if (_controller == null || _controller.canvas == null)
+    {        if (_controller == null || _controller.canvas == null)
         {
             Debug.LogError($"[UILayerController] 面板或Canvas为空，跳过层级处理：{_controller?.panelName}");
             return;
@@ -90,6 +89,27 @@ public class UILayerController : MonoBehaviour
             else
                 controller.OpenPanel();
         }
+    }
+
+    /// <summary>
+    /// 仅把面板从本层栈中移除，**不触发任何 Resume/Open 副作用**。
+    ///
+    /// 🔴 与 <see cref="HidePanel"/> 的区别：HidePanel 是"交互式关闭"，会把栈内剩余面板重新打开/恢复；
+    ///    场景批量清理时若沿用它，隐藏 A 会被 B 的关闭顺手重新打开 → 跨场景面板残留。
+    /// </summary>
+    public void RemoveFromStack(UIPanelController _controller)
+    {
+        if (_controller == null || openedPanels == null || openedPanels.Count == 0) return;
+        if (!openedPanels.Contains(_controller)) return;
+
+        var kept = new List<UIPanelController>(openedPanels.Count);
+        while (openedPanels.Count > 0)
+        {
+            var c = openedPanels.Pop();
+            if (c != _controller) kept.Add(c);
+        }
+
+        for (int i = kept.Count - 1; i >= 0; i--) openedPanels.Push(kept[i]);
     }
 
     private int GetOrder()

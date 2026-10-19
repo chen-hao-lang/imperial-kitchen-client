@@ -102,7 +102,7 @@ public sealed class GameFlowMessageHandler
     private void HandleBackRoom(byte[] _body)
     {
         //TODO:切换房间
-        YooAssetsLoad.Instance.LoadSceneAsync("GameRoom", "GameRoomScene");
-        // 注意：原实现此处缺少 return 会穿透到 Router 兜底，迁移后无此问题。
+        // 场景切换统一入口：带进度条 + 重入保护（原裸异步句柄会被重复触发覆盖）
+        SceneLoader.Instance.LoadScene("GameRoom", "GameRoomScene", "LoadingToRoom");
     }
 }

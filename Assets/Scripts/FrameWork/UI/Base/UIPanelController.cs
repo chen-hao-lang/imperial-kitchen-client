@@ -210,6 +210,22 @@ namespace LiteGameFramework
         }
 
         /// <summary>
+        /// 场景级强制隐藏：**不经过** UILayerController 的栈逻辑。
+        ///
+        /// 🔴 为什么不能用 HidePanel()：<see cref="UILayerController.HidePanel"/> 在关闭一个面板后，
+        ///    会把同层栈内其它面板重新 OpenPanel/ResumePanel（交互式关闭需要这个行为），
+        ///    批量清理时会"边隐藏边复活"，正是跨场景 UI 残留的成因之一。
+        /// </summary>
+        public void ResetToHidden()
+        {
+            panel?.HidePanel();
+            if (canvas != null) canvas.sortingOrder = 0;
+
+            isOpen = false;
+            isPause = false;
+        }
+
+        /// <summary>
         /// 关闭面板
         /// </summary>
         public void ClosePanel()

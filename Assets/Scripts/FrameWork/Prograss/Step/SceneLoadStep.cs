@@ -11,7 +11,6 @@ namespace LiteGameFramework
         private const float ProgressCeiling = 0.9f;
 
         public float MinHoldSeconds = 0.3f;
-        public float ReadyTimeout = 15f;
 
         /// <summary>
         /// 允许超时的最长时间
@@ -95,28 +94,13 @@ namespace LiteGameFramework
                 yield break;
             }
 
-            // 等待新场景就绪
-            bool ready = false;
-            Action<OnSceneReady> onReady = (e) => ready = true;
-            EventManager.AddListener(this, onReady);
-
-            float wait = 0f;
-            while (!ready && wait < ReadyTimeout)
-            {
-                wait += Time.unscaledDeltaTime;
-                Report(0.9f + 0.09f * Mathf.Clamp01(wait / ReadyTimeout));
-                yield return null;
-            }
-
-            EventManager.RemoveListener(this, onReady);
-            if (!ready)
-                Debug.LogWarning($"[SceneloadStep] 等待 {location} 就绪超时（{ReadyTimeout}）,已强制完成");
+            // 🔴 场景已激活（Awake/OnEnable 已执行，Start 在本帧末执行）即视为加载完成。
+            //    原实现此处等待 OnSceneReady 事件，但该事件全项目无人触发 →
+            //    每次切场景都白等满 ReadyTimeout(15s)，进度条在 90%~99% 空转。
+            //    场景自身的面板预加载属于"场景初始化"，不应计入加载进度。
+            yield return null;
 
             Complete();
         }
-    }
-
-    public struct OnSceneReady : IEvent
-    {
     }
 }

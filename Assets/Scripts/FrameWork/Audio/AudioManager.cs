@@ -9,6 +9,19 @@ namespace LiteGameFramework
     /// </summary>
     public class AudioManager : SingletonMono<AudioManager>
     {
+        #region 音量配置常量与存档键
+
+        /// <summary>BGM 音量的 PlayerPrefs 键</summary>
+        public const string KEY_BGM_VOLUME = "Audio_BGMVolume";
+
+        /// <summary>SFX 音量的 PlayerPrefs 键</summary>
+        public const string KEY_SFX_VOLUME = "Audio_SFXVolume";
+
+        /// <summary>默认音量（50%）：首次启动与「恢复默认设置」使用</summary>
+        public const float DEFAULT_VOLUME = 0.5f;
+
+        #endregion
+
         // 背景音乐音频源（唯一）
         private AudioSource _bgmSource;
 
@@ -25,6 +38,12 @@ namespace LiteGameFramework
         // 音量配置（默认最大值）
         [Range(0f, 1f)] public float defaultBgmVolume = 1f;
         [Range(0f, 1f)] public float defaultSfxVolume = 1f;
+
+        /// <summary>当前实际生效的 BGM 音量（0-1），供设置面板回显</summary>
+        public float BGMVolume => _bgmSource != null ? _bgmSource.volume : defaultBgmVolume;
+
+        /// <summary>当前实际生效的 SFX 默认音量（0-1），供设置面板回显</summary>
+        public float SFXVolume => defaultSfxVolume;
 
         [SerializeField] private int sfx3DPoolSize = 8;
         private readonly List<AudioSource> sfx3DPool = new();
@@ -60,6 +79,32 @@ namespace LiteGameFramework
                 _voiceSource.playOnAwake = false;
                 _voiceSource.volume = defaultVoiceVolume;
             }
+
+            // 🔴 音量配置必须在启动时应用，而不是等玩家打开设置面板：
+            //    否则本次启动期间的音乐/音效会一直用 Inspector 的默认值，
+            //    玩家上次保存的音量要等进一次设置页才"突然生效"。
+            LoadVolumeSettings();
+        }
+
+        /// <summary>
+        /// 从 PlayerPrefs 读取并应用音量配置（键不存在时回落到 <see cref="DEFAULT_VOLUME"/>）。
+        /// </summary>
+        public void LoadVolumeSettings()
+        {
+            SetBGMVolume(PlayerPrefsManager.GetFloat(KEY_BGM_VOLUME, DEFAULT_VOLUME));
+            SetSFXDefaultVolume(PlayerPrefsManager.GetFloat(KEY_SFX_VOLUME, DEFAULT_VOLUME));
+        }
+
+        /// <summary>
+        /// 把当前音量写入 PlayerPrefs 内存并立即落盘。
+        /// 供设置面板在交互结束（松手 / 切页 / 退出）时调用，
+        /// 避免拖动过程中每帧 <see cref="PlayerPrefsManager.Save"/> 造成的磁盘 IO 抖动。
+        /// </summary>
+        public void SaveVolumeSettings()
+        {
+            PlayerPrefsManager.SetFloat(KEY_BGM_VOLUME, BGMVolume);
+            PlayerPrefsManager.SetFloat(KEY_SFX_VOLUME, SFXVolume);
+            PlayerPrefsManager.Save();
         }
 
         #region 背景音乐（BGM）控制
