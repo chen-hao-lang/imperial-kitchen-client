@@ -14,7 +14,7 @@ namespace FrameWork.HotUpdate
     ///
     /// 职责边界：
     ///   · 本类**只做**「补齐 AOT 元数据 → 加载热更程序集 → 反射调用入口」三件事；
-    ///   · 真正的游戏逻辑全部位于热更程序集 GameLogic 里的 GameEntry（见 §7）；
+    ///   · 真正的游戏逻辑全部位于热更程序集 GameLogic 里（入口为 Applications.HotUpdateEntry，见 §7）；
     ///   · 因此 GameLogic 内代码可以随便改，不需要重新出包。
     /// </summary>
     public static class HotUpdateBootstrap
@@ -28,11 +28,12 @@ namespace FrameWork.HotUpdate
         /// <summary>
         /// 热更入口类型的**完整名（含命名空间）**。
         ///
-        /// 🔴 必须是完整名：`Assembly.GetType()` 只认完整名，写 `"GameEntry"` 是**找不到**
-        ///    `Applications.GameEntry` 的 —— 这正是「热更程序集内未找到入口类型 'GameEntry'」的根因。
-        /// 🔴 GameEntry 改动命名空间/类名后，这里必须同步改（下面的反射兜底只打 Warning，不会静默纠正）。
+        /// 🔴 必须是完整名：`Assembly.GetType()` 只认完整名，写 `"HotUpdateEntry"` 是**找不到**
+        ///    `Applications.HotUpdateEntry` 的 —— 这正是「热更程序集内未找到入口类型」的根因。
+        /// 🔴 热更侧改动命名空间/类名后，这里必须同步改（下面的反射兜底只打 Warning，不会静默纠正）。
+        /// 🔴 本类属于 AOT 程序集，改这一行**无法热更**，必须重新 Build Player 才生效。
         /// </summary>
-        private const string EntryTypeName = "Applications.GameEntry";
+        private const string EntryTypeName = "Applications.HotUpdateEntry";
 
         /// <summary><see cref="EntryTypeName"/> 的短名部分（去掉命名空间），仅用于反射兜底匹配。</summary>
         private static string EntryShortName
@@ -46,6 +47,15 @@ namespace FrameWork.HotUpdate
 
         /// <summary>已加载的热更入口实例，供 Tick/Quit 转发。</summary>
         private static IHotUpdateEntry s_entry;
+
+        /// <summary>
+        /// 已加载的热更程序集。**必须缓存并复用**。
+        ///
+        /// 🔴 HybridCLR 下对同一个 placeholder assembly 第二次调用 <c>Assembly.Load(byte[])</c>
+        ///    会抛 <c>ExecutionEngineException: reloading placeholder assembly is not supported!</c>。
+        ///    那是 native 层致命错误，try/catch **捕获不到**，Player 会直接退出。
+        /// </summary>
+        private static Assembly s_hotUpdateAssembly;
 
 #if !UNITY_EDITOR
         /// <summary>
@@ -78,63 +88,80 @@ namespace FrameWork.HotUpdate
         /// <summary>执行完整的代码热更引导流程。失败时回调 onDone(false)。</summary>
         public static IEnumerator Initialize(Action<bool> onDone)
         {
-            // ── ① 补齐 AOT 元数据（必须在任何 Assembly.Load 之前）──────────────
-            // 原理：AOT 编译期会把「没有被任何 AOT 代码直接引用的泛型实例」裁掉。热更代码跑在
-            //       解释器里，一旦用到被裁掉的泛型实例，运行时就找不到对应机器码而抛异常。
-            //       补元数据 = 把这些泛型骨架从 dll 里「喂」给解释器，让它能继续解释执行。
-            // 编辑器跑的是 Mono(JIT)，压根不存在 AOT 裁剪，所以整段跳过 —— 这也是编辑器下
-            // 迭代不需要先打 Code 包的原因（否则改一行代码都要等一次完整资源打包）。
-#if UNITY_EDITOR
-            yield return null; // 占位挂起点：让本方法保持协程语义（否则编辑器编译期无 yield 会 CS0161）
-#else
-            foreach (var dll in AotMetadataDlls)
+            // 入口已存在：本局已经跑过一遍引导。重复执行只会让 Start() 再订阅一次静态事件。
+            if (s_entry != null)
             {
-                byte[] bytes = null;
-                yield return LoadRawBytes(dll, b => bytes = b);
+                Debug.Log("[HotUpdate] 热更入口已创建，跳过重复引导");
+                onDone?.Invoke(true);
+                yield break;
+            }
 
-                if (bytes == null)
+            // 🔴 程序集已加载就只补入口，绝不再走 ① ②（理由见 s_hotUpdateAssembly 注释）。
+            Assembly hotUpdateAssembly = s_hotUpdateAssembly;
+
+            if (hotUpdateAssembly != null)
+            {
+                Debug.LogWarning("[HotUpdate] 热更程序集已加载，跳过 AOT 元数据补齐与程序集加载");
+            }
+            else
+            {
+                // ── ① 补齐 AOT 元数据（必须在任何 Assembly.Load 之前）──────────────
+                // 原理：AOT 编译期会把「没有被任何 AOT 代码直接引用的泛型实例」裁掉。热更代码跑在
+                //       解释器里，一旦用到被裁掉的泛型实例，运行时就找不到对应机器码而抛异常。
+                //       补元数据 = 把这些泛型骨架从 dll 里「喂」给解释器，让它能继续解释执行。
+                // 编辑器跑的是 Mono(JIT)，压根不存在 AOT 裁剪，所以整段跳过 —— 这也是编辑器下
+                // 迭代不需要先打 Code 包的原因（否则改一行代码都要等一次完整资源打包）。
+#if UNITY_EDITOR
+                yield return null; // 占位挂起点：让本方法保持协程语义（否则编辑器编译期无 yield 会 CS0161）
+#else
+                foreach (var dll in AotMetadataDlls)
                 {
-                    Debug.LogError($"[HotUpdate] AOT 元数据缺失：{dll}（检查 Code 包是否收集到该文件）");
+                    byte[] bytes = null;
+                    yield return LoadRawBytes(dll, b => bytes = b);
+
+                    if (bytes == null)
+                    {
+                        Debug.LogError($"[HotUpdate] AOT 元数据缺失：{dll}（检查 Code 包是否收集到该文件）");
+                        onDone?.Invoke(false);
+                        yield break;
+                    }
+
+                    var err = RuntimeApi.LoadMetadataForAOTAssembly(bytes, HomologousImageMode.SuperSet);
+                    if (err != LoadImageErrorCode.OK)
+                        Debug.LogWarning($"[HotUpdate] AOT 元数据 {dll} 加载返回码：{err}（非 OK 时留意后续泛型调用）");
+                }
+#endif
+
+                // ── ② 加载热更程序集 ────────────────────────────────────────────
+#if UNITY_EDITOR
+                // 编辑器直连模式：不经打包，直接取当前 AppDomain 里已编译好的同名程序集。
+                // 改热更代码后只需等 Unity 编译，无需 CompileDll + 打资源包，迭代最快。
+                hotUpdateAssembly = AppDomain.CurrentDomain.GetAssemblies()
+                    .FirstOrDefault(a => a.GetName().Name == GameLogicAssembly);
+                if (hotUpdateAssembly == null)
+                    Debug.LogWarning($"[HotUpdate] 编辑器下未找到程序集 '{GameLogicAssembly}'，" +
+                                     "请确认 GameLogic.asmdef 存在且已编译。");
+#else
+                byte[] dllBytes = null;
+                yield return LoadRawBytes($"{GameLogicAssembly}.dll", b => dllBytes = b);
+
+                if (dllBytes == null || dllBytes.Length == 0)
+                {
+                    Debug.LogError($"[HotUpdate] 热更程序集 '{GameLogicAssembly}.dll' 读取失败");
                     onDone?.Invoke(false);
                     yield break;
                 }
 
-                var err = RuntimeApi.LoadMetadataForAOTAssembly(bytes, HomologousImageMode.SuperSet);
-                if (err != LoadImageErrorCode.OK)
-                    Debug.LogWarning($"[HotUpdate] AOT 元数据 {dll} 加载返回码：{err}（非 OK 时留意后续泛型调用）");
-            }
+                // HybridCLR 在 IL2CPP 平台接管了 Assembly.Load，使其能加载解释执行的程序集。
+                hotUpdateAssembly = Assembly.Load(dllBytes);
 #endif
+                if (hotUpdateAssembly == null)
+                {
+                    onDone?.Invoke(false);
+                    yield break;
+                }
 
-            // ── ② 加载热更程序集 ────────────────────────────────────────────
-            Assembly hotUpdateAssembly = null;
-
-#if UNITY_EDITOR
-            // 编辑器直连模式：不经打包，直接取当前 AppDomain 里已编译好的同名程序集。
-            // 改热更代码后只需等 Unity 编译，无需 CompileDll + 打资源包，迭代最快。
-            hotUpdateAssembly = AppDomain.CurrentDomain.GetAssemblies()
-                .FirstOrDefault(a => a.GetName().Name == GameLogicAssembly);
-            if (hotUpdateAssembly == null)
-                Debug.LogWarning($"[HotUpdate] 编辑器下未找到程序集 '{GameLogicAssembly}'，" +
-                                 "请确认 GameLogic.asmdef 存在且已编译。");
-#else
-            byte[] dllBytes = null;
-            yield return LoadRawBytes($"{GameLogicAssembly}.dll", b => dllBytes = b);
-
-            if (dllBytes == null || dllBytes.Length == 0)
-            {
-                Debug.LogError($"[HotUpdate] 热更程序集 '{GameLogicAssembly}.dll' 读取失败");
-                onDone?.Invoke(false);
-                yield break;
-            }
-
-            // HybridCLR 在 IL2CPP 平台接管了 Assembly.Load，使其能加载解释执行的程序集。
-            hotUpdateAssembly = Assembly.Load(dllBytes);
-#endif
-
-            if (hotUpdateAssembly == null)
-            {
-                onDone?.Invoke(false);
-                yield break;
+                s_hotUpdateAssembly = hotUpdateAssembly;
             }
 
             // ── ③ 反射找到入口并调用 ────────────────────────────────────────

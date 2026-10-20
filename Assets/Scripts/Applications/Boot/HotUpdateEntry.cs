@@ -34,13 +34,13 @@ namespace Applications
             GameBootstrap boot = GameBootstrap.Instance;
             if (boot == null)
             {
-                Debug.LogError("[GameEntry] 找不到 GameBootstrap，无法连接服务器。");
+                Debug.LogError("[HotUpdateEntry] 找不到 GameBootstrap，无法连接服务器。");
                 return;
             }
 
             if (string.IsNullOrEmpty(boot.ServerIp))
             {
-                Debug.LogError("[GameEntry] GameBootstrap.ServerIp 未配置，已跳过连接服务器。");
+                Debug.LogError("[HotUpdateEntry] GameBootstrap.ServerIp 未配置，已跳过连接服务器。");
                 return;
             }
 

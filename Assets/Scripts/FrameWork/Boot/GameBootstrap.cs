@@ -70,6 +70,27 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
         get { return "CHF"; }
     }
 
+    /// <summary>
+    /// 🔴 <c>DontDestroyOnLoad</c> 只对**根对象**生效。本组件若挂在 ---Boot--- 之类的容器下，
+    ///    Unity 只打一条 "DontDestroyOnLoad only works for root GameObjects" 警告，
+    ///    然后**静默放弃**常驻 → 切场景时被销毁 → 新场景惰性重建 →
+    ///    第二次执行完整初始化 → HybridCLR 重复 Assembly.Load(GameLogic.dll) 直接抛
+    ///    <c>ExecutionEngineException: reloading placeholder assembly is not supported!</c>
+    ///    （native 致命错误，try/catch 捕获不到，进程直接退出。2026-10-20 实测）
+    ///    这里主动提到根节点，把"忘放根对象"这类配置错误变成自愈。
+    /// </summary>
+    protected override void Awake()
+    {
+        if (transform.parent != null)
+        {
+            Debug.LogWarning($"[GameBootstrap] 当前挂在 '{transform.parent.name}' 下，" +
+                             "DontDestroyOnLoad 不会生效，已自动提到场景根节点。");
+            transform.SetParent(null, true);
+        }
+
+        base.Awake();
+    }
+
     private void Start()
     {
         StartCoroutine(Init());
@@ -124,7 +145,7 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
             yield return RunHotUpdate(eplayMode, Packages);
 
             // 3. 代码热更：补 AOT 元数据 → Assembly.Load(GameLogic) → 反射调用入口。
-            //    ⚠️ 「连接服务器」也发生在这一步，但代码写在热更入口（Applications.GameEntry）里：
+            //    ⚠️ 「连接服务器」也发生在这一步，但代码写在热更入口（Applications.HotUpdateEntry）里：
             //    NetworkManager 属于热更程序集 GameLogic，AOT 的 GameBootstrap 直接引用它会
             //    重演 2026-10-14 的剔除事故。本类只负责持有并暴露 serverIp / serverPort / playerName。
             bool codeReady = false;
@@ -156,7 +177,7 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
     /// 把 Update 转发给热更入口（<see cref="HotUpdateBootstrap.Tick"/>）。
     ///
     /// 🔴 为什么写在这里：HotUpdateBootstrap.Tick / Quit 在此之前**没有任何调用方** ——
-    ///    即使 GameEntry.Update 里写了逻辑也永远不会执行，是个静默陷阱（2026-10-14 补）。
+    ///    即使 HotUpdateEntry.Update 里写了逻辑也永远不会执行，是个静默陷阱（2026-10-14 补）。
     ///    交给本类驱动是因为它满足两个条件：AOT 程序集 + DontDestroyOnLoad 常驻。
     /// </summary>
     private void Update() => HotUpdateBootstrap.Tick(Time.deltaTime);
