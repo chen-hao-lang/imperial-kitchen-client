@@ -69,7 +69,7 @@ namespace LiteGameFramework
             if (TotalCount == 0)
             {
                 SetDetail("无需更新");
-                Report(1f);
+                ReportProgressValue(1f);
                 return;
             }
 
@@ -78,7 +78,7 @@ namespace LiteGameFramework
                 ? (float)downloader.CurrentDownloadBytes / TotalBytes
                 : (float)downloader.CurrentDownloadCount / TotalCount;
 
-            Report(p);
+            ReportProgressValue(p);
             SetDetail($"{downloader.CurrentDownloadCount}/{TotalCount}  " +
                       $"{downloader.CurrentDownloadBytes / MB:F1}/{TotalBytes / MB:F1} MB");
         }

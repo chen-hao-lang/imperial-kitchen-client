@@ -7,14 +7,6 @@ namespace LiteGameFramework
 {
     /// <summary>
     /// 单个 YooAsset 资源包的「准备阶段」进度段：创建包 → 请求版本 → 更新清单。
-    ///
-    /// 只负责清单（几百 KB）侧的准备工作，真正的 bundle 下载交给 <see cref="DownloadStep"/>。
-    /// 两者作为同一个 <see cref="ProgressFlow"/> 里相邻的两个段依次执行
-    /// （见 GameBootstrap.RunHotUpdate），好处是：
-    /// 1. 进度条能分别显示「准备资源」与「下载资源」两段，而不是一个包一个黑盒；
-    /// 2. 下载段的进度按字节实时上报，不会出现长时间不动。
-    ///
-    /// 注意：本类不做下载，所以单独用它跑完包依然是不可用的，必须再跑一次 DownloadStep。
     /// </summary>
     public class PackagePatchStep : ProgressStep
     {
@@ -103,7 +95,7 @@ namespace LiteGameFramework
         {
             // ---------- ① 初始化资源包 ----------
             SetDetail("初始化资源包");
-            Report(0.05f);
+            ReportProgressValue(0.05f);
 
             bool initOk = false;
             yield return YooAssetsLoad.Instance.InitializePackageCoroutine(
@@ -121,7 +113,7 @@ namespace LiteGameFramework
                 _onError?.Invoke("初始化资源包失败");
                 yield break;
             }
-            Report(0.35f);
+            ReportProgressValue(0.35f);
 
             // ---------- ② 请求资源版本 ----------
             SetDetail("获取资源版本");
@@ -142,7 +134,7 @@ namespace LiteGameFramework
 
             ResolvedVersion = version;
             SetDetail($"资源版本 {version}");
-            Report(0.65f);
+            ReportProgressValue(0.65f);
 
             // ---------- ③ 更新资源清单 ----------
             SetDetail("更新资源清单");

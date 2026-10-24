@@ -29,6 +29,15 @@ public class NetworkDeliveryManager : SingletonMono<NetworkDeliveryManager>
 
     protected override void Awake()
     {
+        // DontDestroyOnLoad 只对根对象生效：本组件在 GameScene 里挂在容器节点（父级 Transform）下，
+        // 不先提升为根对象会让"跨场景常驻"静默失效 —— 表现为
+        // "DontDestroyOnLoad only works for root GameObjects or components on root GameObjects"。
+        // 该节点只有本组件、无子节点，脱离父级不影响任何布局。必须在 base.Awake() 之前完成。
+        if (transform.parent != null)
+        {
+            transform.SetParent(null, true);
+        }
+
         base.Awake();
 
         if (recipeListSO == null)

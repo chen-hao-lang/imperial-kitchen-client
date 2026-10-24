@@ -14,6 +14,7 @@ public class StreamingCounter : BaseCounter, IHasPrograss
 
     public event EventHandler<IHasPrograss.OnPrograssChangeEventArgs> OnProgressChanged;
     public event EventHandler<OnStateChangedEventArgs> OnStateChanged;
+    
     public class OnStateChangedEventArgs : EventArgs
     {
         public State state;
@@ -220,9 +221,7 @@ public class StreamingCounter : BaseCounter, IHasPrograss
     }
 
     /// <summary>
-    /// 【网络】服务器广播蒸制进度（CounterProgressSync）。联网下只刷新进度条/火焰视觉，
-    /// 不折算本地计时（计时/完成由服务器权威驱动）。
-    /// 中途加入的客户端收不到“入笼”消息，靠这里首次收到 0~1 进度时补一次“蒸制中”视觉。
+    /// 更新进度
     /// </summary>
     /// <param name="_progressNormalized">进度 0~1</param>
     public override void ApplyServerProgress(float _progressNormalized)

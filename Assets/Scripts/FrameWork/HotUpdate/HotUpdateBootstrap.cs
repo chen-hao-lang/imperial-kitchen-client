@@ -28,8 +28,7 @@ namespace FrameWork.HotUpdate
         /// <summary>
         /// 热更入口类型的**完整名（含命名空间）**。
         ///
-        /// 🔴 必须是完整名：`Assembly.GetType()` 只认完整名，写 `"HotUpdateEntry"` 是**找不到**
-        ///    `Applications.HotUpdateEntry` 的 —— 这正是「热更程序集内未找到入口类型」的根因。
+        /// 🔴 必须是完整名：`Assembly.GetType()` 只认完整名，写 `"HotUpdateEntry"` 是找不到`Applications.HotUpdateEntry` 的 —— 这正是「热更程序集内未找到入口类型」的根因。
         /// 🔴 热更侧改动命名空间/类名后，这里必须同步改（下面的反射兜底只打 Warning，不会静默纠正）。
         /// 🔴 本类属于 AOT 程序集，改这一行**无法热更**，必须重新 Build Player 才生效。
         /// </summary>
@@ -68,8 +67,6 @@ namespace FrameWork.HotUpdate
         ///    "Attempting to call method ... for which no ahead of time (AOT) code was generated"。
         /// 🔴 集合必须与 PatchedAOTAssemblyList **完全一致**（多列/少列都要改）：
         ///    少列 → 运行时才炸且报错难反推；多列 → 每个文件都要进包、都要走一遍元数据解析（mscorlib 就 2MB）。
-        /// ⚠️ 2026-10-14 实测更正：本节原写 6 个，缺 <c>System.dll</c> / <c>YooAsset.dll</c>。
-        ///    这两个 dll 其实**一直躺在 Code 包里**（Assets/HotUpdate/*.bytes），只是代码没加载它们的
         ///    元数据 —— 等于备了药却没吃。现已按生成的清单补齐为 8 个。
         /// </summary>
         private static readonly string[] AotMetadataDlls =

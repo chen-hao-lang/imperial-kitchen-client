@@ -69,16 +69,7 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
     {
         get { return "CHF"; }
     }
-
-    /// <summary>
-    /// 🔴 <c>DontDestroyOnLoad</c> 只对**根对象**生效。本组件若挂在 ---Boot--- 之类的容器下，
-    ///    Unity 只打一条 "DontDestroyOnLoad only works for root GameObjects" 警告，
-    ///    然后**静默放弃**常驻 → 切场景时被销毁 → 新场景惰性重建 →
-    ///    第二次执行完整初始化 → HybridCLR 重复 Assembly.Load(GameLogic.dll) 直接抛
-    ///    <c>ExecutionEngineException: reloading placeholder assembly is not supported!</c>
-    ///    （native 致命错误，try/catch 捕获不到，进程直接退出。2026-10-20 实测）
-    ///    这里主动提到根节点，把"忘放根对象"这类配置错误变成自愈。
-    /// </summary>
+    
     protected override void Awake()
     {
         if (transform.parent != null)
@@ -128,10 +119,7 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
 
         try
         {
-            // 1. 初始化 UI 面板配置。
-            //    ⚠️ 必须排在热更之前：进度面板（ProgressHub.AutoManagePanel）依赖 UIManager 中已注册的面板控制器。
-            //    之所以这样也能成立，是因为下面给 UI 包传了 useBuiltin=true ——
-            //    「首次安装、尚未下载任何资源」时，UIConfig.json 与面板预制体会从 StreamingAssets 的内置副本读到。
+            // 1. 初始化UI配置
             yield return UIManager.Instance.InitUIConfig(
                 eplayMode,
                 ResolveHostUrl(eplayMode),
@@ -139,9 +127,6 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
                 true);
 
             // 2. 逐包热更（创建包 → 取版本 → 更新清单 → 下载 → 清理旧缓存）。
-            //    放在 UIConfig 之后、PreLoadPanel 之前：
-            //      · 在 UIConfig 之后 —— 此时进度面板已可用；
-            //      · 在 PreLoadPanel 之前 —— 预加载拿到的是刚下载下来的最新预制体。
             yield return RunHotUpdate(eplayMode, Packages);
 
             // 3. 代码热更：补 AOT 元数据 → Assembly.Load(GameLogic) → 反射调用入口。
@@ -207,6 +192,8 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
 
         string hostUrl = ResolveHostUrl(_playMode);
         string fallbackUrl = ResolveFallbackUrl(_playMode);
+        
+        // 启动热更流程
         var flow = ProgressHub.Instance.BeginFlow("HotUpdate");
         foreach (var pkg in _packages)
         {

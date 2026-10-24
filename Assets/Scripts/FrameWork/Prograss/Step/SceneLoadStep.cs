@@ -71,11 +71,11 @@ namespace LiteGameFramework
                     yield break;
                 }
 
-                Report(Handle.Progress / ProgressCeiling * 0.9f);
+                ReportProgressValue(Handle.Progress / ProgressCeiling * 0.9f);
                 yield return null;
             }
 
-            Report(0.9f);
+            ReportProgressValue(0.9f);
 
             float holdStart = Time.realtimeSinceStartup;
             // 最低停留

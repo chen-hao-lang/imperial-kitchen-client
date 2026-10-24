@@ -29,7 +29,7 @@ namespace LiteGameFramework
         /// 上报当前阶段的加载进度
         /// </summary>
         /// <param name="_prograss"></param>
-        public void Report(float _prograss)
+        public void ReportProgressValue(float _prograss)
         {
             if(IsDone || IsFailed) return;
             LocalProgress = Mathf.Clamp01(Mathf.Max(LocalProgress,_prograss));

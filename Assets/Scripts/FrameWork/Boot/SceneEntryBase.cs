@@ -5,14 +5,6 @@ using UnityEngine;
 
 /// <summary>
 /// 场景启动基类（AOT 程序集 LiteGameFramework，可直接挂在主包场景上）。
-///
-/// 只负责两件事，其余逻辑留给派生类：
-///   ① 等待 <see cref="GameBootstrap"/> 完成全局初始化（资源热更 + 代码热更）；
-///   ② 声明本场景拥有哪些面板 —— 清掉上一场景的残留，预加载并打开自己需要的面板。
-///
-/// 🔴 派生类只重写 <see cref="Init"/> 并必须调用 base.Init()。
-///    不要再写 void Start() / IEnumerator Init() —— 那会**隐藏**基类同名成员（不是重写），
-///    结果就是面板逻辑整段失效（2026-10-19 修正前的 GameRoomSceneEntry 即此状态）。
 /// </summary>
 public class SceneEntryBase : MonoBehaviour
 {
@@ -22,9 +14,13 @@ public class SceneEntryBase : MonoBehaviour
 
     [Tooltip("进入场景后需要显示的面板（建议同时列入 scenePanel）")]
     [SerializeField] private List<EUIType> openPanels = new List<EUIType>();
+    
+    [Tooltip("BGM")]
+    [SerializeField] private AudioClip bgm;
 
     protected virtual void Start()
     {
+        AudioManager.Instance.PlayBGM(bgm,true);
         StartCoroutine(Init());
     }
 
