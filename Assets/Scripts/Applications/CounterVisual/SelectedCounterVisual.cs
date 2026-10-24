@@ -6,7 +6,6 @@ using LiteGameFramework;
 public class SelectedCounterVisual : MonoBehaviour
 {
     [SerializeField] private BaseCounter baseCounter;
-    // [SerializeField] private GameObject[] visualGameObjectArray;
 
     [SerializeField] private List<MeshRenderer> _modelMeshRendererList;
 
@@ -28,7 +27,6 @@ public class SelectedCounterVisual : MonoBehaviour
                 _originMaterial.Add(_modelMeshRendererList[i].material);
             }
         }
-        // PlayerController.OnSelectedCounterChanged += Player_OnSelectedCounterChanged;
 
         EventManager.AddListener<OnLocalPlayerSpawned>(this, (_) =>
         {
@@ -38,15 +36,7 @@ public class SelectedCounterVisual : MonoBehaviour
 
     void OnDestroy()
     {
-        // ⚠️ 必须传 this：仅移除本组件的订阅。
-        // 无参重载 EventManager.RemoveAllListener() 会清空全局所有订阅，
-        // 导致跨场景存活的面板（如 PlayerReadyPanel）监听永久丢失。
         EventManager.RemoveAllListener(this);
-    }
-
-    public void AddListener(PlayerController _controller)
-    {
-        // _controller.OnSelectedCounterChanged += Player_OnSelectedCounterChanged;
     }
 
     private void Player_OnSelectedCounterChanged(OnSelectedCounterChanged _arg)

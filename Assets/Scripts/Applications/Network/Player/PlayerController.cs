@@ -15,11 +15,7 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
     /// 是否是本地玩家（自己操控的角色）
     /// </summary>
     [SerializeField] private bool _isLocalPlayer = true;
-
-    /// <summary>
-    /// 是否本地玩家的公开属性（供 PlateKitchenObject 等外部类查询）
-    /// </summary>
-    public bool IsLocalPlayer => _isLocalPlayer;
+    
     /// <summary>
     /// 服务器分配的玩家ID
     /// </summary>
@@ -304,7 +300,7 @@ public class PlayerController : MonoBehaviour, IKitchenObjectParent
     {
         this._selectedCounter = _selectedCounter;
 
-        EventManager.Invoke<OnSelectedCounterChanged>(new OnSelectedCounterChanged(_selectedCounter));
+        EventManager.Invoke(new OnSelectedCounterChanged(_selectedCounter));
     }
 
     public void SetKitchenObject(KitchenObject _kitchenObject)

@@ -3,12 +3,7 @@ using LiteGameFramework;
 using UnityEngine;
 
 /// <summary>
-/// 网络层 Facade：对外保留全部旧 API（外部调用方零改动），
-/// 内部把职责委派给：
-///  - TcpClientTransport：socket 收发、封包、主线程泵、断链收尾
-///  - HeartbeatService：心跳与收包超时检测
-///  - SessionState：会话/房间业务状态缓存
-///  - NetworkMessageRouter + 各域 Handler：消息分发
+/// 网络控制器
 /// </summary>
 public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
 {
@@ -157,7 +152,7 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
 
     #endregion
 
-    #region 发送消息（薄封装，保持原位；如需彻底可再抽静态类 NetworkSend）
+    #region 发送消息
 
     public void SendRaW(byte[] _data)
     {
