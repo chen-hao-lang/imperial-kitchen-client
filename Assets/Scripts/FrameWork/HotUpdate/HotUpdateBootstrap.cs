@@ -138,6 +138,12 @@ namespace FrameWork.HotUpdate
                 if (hotUpdateAssembly == null)
                     Debug.LogWarning($"[HotUpdate] 编辑器下未找到程序集 '{GameLogicAssembly}'，" +
                                      "请确认 GameLogic.asmdef 存在且已编译。");
+                else
+                    // 打印来源路径便于确认「跑的是本地刚编译的这份，而不是 Code 包里的旧 dll」。
+                    // 用 IsDynamic 守卫：动态程序集访问 Location 会抛 NotSupportedException，
+                    // 而这里的异常会打断协程、导致 onDone 永不回调 → 全局死锁。
+                    Debug.Log($"[HotUpdate] 编辑器直连：使用 AppDomain 中的 {GameLogicAssembly}" +
+                              $"（{(hotUpdateAssembly.IsDynamic ? "<动态程序集>" : hotUpdateAssembly.Location)}），不读取 Code 包");
 #else
                 byte[] dllBytes = null;
                 yield return LoadRawBytes($"{GameLogicAssembly}.dll", b => dllBytes = b);

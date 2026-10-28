@@ -18,6 +18,33 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
     [Space] [Header("热更模式")] [SerializeField]
     private EPlayMode eplayMode = EPlayMode.OfflinePlayMode;
 
+    [Header("编辑器调试")]
+    [Tooltip("编辑器内强制走 YooAsset 仿真模式：资源直接取自工程 AssetDatabase，不打包、不连 CDN，改完 prefab 重新 Play 即可看到效果。\n" +
+             "出包不受影响——Player 里 Application.isEditor 恒为 false，永远使用上面的『热更模式』。\n" +
+             "需要验证真实热更链路（下载 CDN 上的包）时再关掉它。")]
+    [SerializeField] private bool useEditorSimulateMode = true;
+
+    /// <summary>
+    /// 本次运行实际使用的 YooAsset 播放模式。
+    ///
+    /// 🔴 编辑器默认强制 <see cref="EPlayMode.EditorSimulateMode"/>：资源走 AssetDatabase，不进沙盒、不读 CDN。
+    ///    这样「编辑器 + 联机」可以同时成立——联机只依赖 GameLogic 里的 TCP 连接，与资源来源无关。
+    /// 🔴 判断用 <c>Application.isEditor</c> 而不是 <c>#if UNITY_EDITOR</c>：
+    ///    后者会让 Player 与编辑器编译出两份不同代码路径，本法只需一份，且 Player 端恒为 false 走原逻辑。
+    /// </summary>
+    public EPlayMode ActivePlayMode
+    {
+        get
+        {
+            if (Application.isEditor && useEditorSimulateMode)
+            {
+                return EPlayMode.EditorSimulateMode;
+            }
+
+            return eplayMode;
+        }
+    }
+
     /// <summary>
     /// 需要提前准备的资源包。顺序有语义：
     ///   · <c>UI</c> 必须第一（InitUIConfig 之后进度面板才可用）；
@@ -119,15 +146,23 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
 
         try
         {
+            EPlayMode playMode = ActivePlayMode;
+
+            if (playMode == EPlayMode.EditorSimulateMode)
+            {
+                Debug.Log("[GameBootstrap] 编辑器仿真模式：资源取自 AssetDatabase（不打包、不连 CDN）；" +
+                          "代码走 AppDomain 中已编译的 GameLogic 程序集。");
+            }
+
             // 1. 初始化UI配置
             yield return UIManager.Instance.InitUIConfig(
-                eplayMode,
-                ResolveHostUrl(eplayMode),
-                ResolveFallbackUrl(eplayMode),
+                playMode,
+                ResolveHostUrl(playMode),
+                ResolveFallbackUrl(playMode),
                 true);
 
             // 2. 逐包热更（创建包 → 取版本 → 更新清单 → 下载 → 清理旧缓存）。
-            yield return RunHotUpdate(eplayMode, Packages);
+            yield return RunHotUpdate(playMode, Packages);
 
             // 3. 代码热更：补 AOT 元数据 → Assembly.Load(GameLogic) → 反射调用入口。
             //    ⚠️ 「连接服务器」也发生在这一步，但代码写在热更入口（Applications.HotUpdateEntry）里：

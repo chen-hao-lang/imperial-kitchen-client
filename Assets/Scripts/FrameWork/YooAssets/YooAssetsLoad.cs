@@ -358,7 +358,27 @@ namespace LiteGameFramework
             if (!TryGetOrCreatePackage(_packageName, out var package))
                 return null;
 
-            var buildResult = EditorSimulateBuildInvoker.Build(_packageName, (int)EBundleType.VirtualAssetBundle);
+            // 仿真构建是**同步**调用，且失败时 BundleSimulateBuilder.SimulateBuild 直接抛异常。
+            // 必须在这里吞成 null 交给调用方的 _fail 通道：否则异常会打断 PackagePatchStep 的协程，
+            // 表现为「进度条卡死 + IsInitialized 永远 false」，排查成本极高。
+            PackageBuildResult buildResult;
+            try
+            {
+                buildResult = EditorSimulateBuildInvoker.Build(_packageName, (int)EBundleType.VirtualAssetBundle);
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[{nameof(YooAssetsLoad)}] 包 '{_packageName}' 仿真构建失败：{e.Message}。" +
+                               "请检查 BundleCollectorSetting 中该包的收集器配置（在 Collectors 窗口改完必须保存）。");
+                return null;
+            }
+
+            if (buildResult == null || string.IsNullOrEmpty(buildResult.PackageRootDirectory))
+            {
+                Debug.LogError($"[{nameof(YooAssetsLoad)}] 包 '{_packageName}' 仿真构建未产出根目录，无法初始化。");
+                return null;
+            }
+
             var packageRoot = buildResult.PackageRootDirectory;
 
             var fileSystemParams = FileSystemParameters.CreateDefaultEditorFileSystemParameters(packageRoot);
