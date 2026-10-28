@@ -226,6 +226,17 @@ namespace LiteGameFramework
             return true;
         }
 
+        /// <summary>
+        /// 异步初始化包
+        /// </summary>
+        /// <param name="_packageName"></param>
+        /// <param name="_ePlayMode"></param>
+        /// <param name="_hostServer"></param>
+        /// <param name="_fallbackHostServer"></param>
+        /// <param name="useBuiltin"></param>
+        /// <param name="_sucess"></param>
+        /// <param name="_fail"></param>
+        /// <returns></returns>
         public IEnumerator InitializePackageCoroutine(
             string _packageName,
             EPlayMode _ePlayMode = EPlayMode.EditorSimulateMode,
