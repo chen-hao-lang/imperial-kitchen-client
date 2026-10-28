@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Net.Sockets;
 using System.Threading;
 using UnityEngine;
+using UnityEngine.Profiling;
 
 /// <summary>
 /// TCP 传输层：只负责 socket 连接、收发、封包拆包、主线程泵、断链收尾。
@@ -297,7 +298,7 @@ public class TcpClientTransport : MonoBehaviour
                     byte[] bodyCopy = body;
                     MessageType typeCopy = type;
                     EnqueueOnMainThread(() => OnMessageReceived?.Invoke(typeCopy, bodyCopy));
-
+     
                     int remaining = bufferedBytes - totalLength;
                     if (remaining > 0)
                     {

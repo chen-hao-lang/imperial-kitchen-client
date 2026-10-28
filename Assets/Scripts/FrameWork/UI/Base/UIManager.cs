@@ -70,9 +70,6 @@ namespace LiteGameFramework
                                         string _fallbackHostServer = null, bool _useBuiltin = true,
                                         bool _allowOfflineFallback = true)
         {
-            // UIManager 为常驻单例，场景切换后再次调用会重复添加面板配置，此处做幂等保护。
-            // 注意：_uiConfigInitialized 只在真正注册完面板后才置位（见方法末尾），
-            // 否则中途失败会永久卡住、无法重试。
             if (_uiConfigInitialized)
             {
                 Debug.LogWarning("[UIManager] UIConfig 已初始化，跳过重复加载");
@@ -85,13 +82,6 @@ namespace LiteGameFramework
 
             // 兜底：HostPlayMode 下远端不可达（CDN 挂了 / 本机没网 / 端口没放行 / HTTP 下载被禁止）时，
             // 整包改以 OfflinePlayMode 从 StreamingAssets 内置资源启动。
-            //
-            // 为什么必须整包换模式，而不是"退回内置清单"：
-            // YooAsset 的 active manifest 只能由「请求版本 → 加载清单」这条链产生
-            // （SetActiveManifest 全仓仅 LoadPackageManifestOperation 一处调用）；
-            // 而 HostPlayMode 的版本请求走 SandboxFileSystem，只打远端、**没有内置降级**
-            // （见 SFSRequestPackageVersionOperation）。所以远端版本取不到 = 清单永远激活不了
-            // = 连 UIConfig.json 都读不出来，主菜单起不来。
             if (!configOk && _allowOfflineFallback && _playMode == EPlayMode.HostPlayMode)
             {
                 Debug.LogWarning("[UIManager] 远端 UI 资源包不可用，回退到 OfflinePlayMode（改用 StreamingAssets 内置资源）。");
@@ -114,8 +104,6 @@ namespace LiteGameFramework
                 yield break;
             }
 
-            // 全部成功后才置位幂等标记：前面的步骤（包初始化 / 清单 / 读取）任何一步失败时
-            // 都保持 false，调用方可以重试。
             _uiConfigInitialized = true;
         }
 

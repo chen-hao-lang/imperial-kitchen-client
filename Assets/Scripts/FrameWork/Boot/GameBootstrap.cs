@@ -84,13 +84,13 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
 
     private void Start()
     {
-        StartCoroutine(Init());
+        StartCoroutine(EnsureInitialized());
     }
 
-    private IEnumerator Init()
-    {
-        yield return EnsureInitialized();
-    }
+    // private IEnumerator Init()
+    // {
+    //     yield return EnsureInitialized();
+    // }
 
     /// <summary>
     /// 执行全局初始化（幂等、可重试）。
