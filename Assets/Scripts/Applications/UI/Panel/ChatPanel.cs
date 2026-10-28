@@ -63,10 +63,12 @@ public class ChatPanel : BasePanel
     {
         if (evt.IsOpen)
         {
+            UIManager.Instance.OpenPanel<ChatPanel>(EUIType.ChatPanel);
             OpenInputLabel();
         }
         else
         {
+            UIManager.Instance.HidePanel(EUIType.ChatPanel);
             CloseInputLabel();
         }
     }

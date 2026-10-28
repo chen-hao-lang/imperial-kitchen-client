@@ -21,7 +21,8 @@ public class PlayerInput : MonoBehaviour
         Pause,
         Gamepad_Interact,
         Gamepad_InteractAlternate,
-        Gamepad_Pause
+        Gamepad_Pause,
+        OpenChatPanel
     }
 
     private PlayerAction _playerAction;
