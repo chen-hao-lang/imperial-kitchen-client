@@ -2,22 +2,11 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// 蒸制台视觉表现：点火 / 熄火 + 蒸制中食物模型切换。
-/// </summary>
-/// <remarks>
-/// 本组件属于热更程序集（GameLogic），所有字段数据都来自 AB 包内 prefab 的序列化结果。
-/// 旧实现直接在 StreamingCounter.OnStateChanged 回调里解引用 upFire / downFire /
-/// boilingRecipeSO_GameObjects，只要其中任一引用在建包后缺失（或 List 反序列化成 null），
-/// 就会在 EventManager 派发链上抛 NullReferenceException —— 症状是每条 CounterStateSync
-/// 都刷一条 "Invoke&lt;OnCounterStateSync&gt; error: NullReferenceException"。
-/// 因此这里做三件事：
-/// ① 每个引用都空值守卫，单个字段缺失不再中断整条表现逻辑；
-/// ② 首次发现数据不完整时打印一次"指名到字段"的诊断，便于定位构建期丢失；
-/// ③ OnDestroy 退订事件，避免台子销毁后仍被回调。
-/// </remarks>
 public class SteamingWorkCounterVisual : MonoBehaviour
 {
+    /// <summary>
+    /// 制作某个菜单时对应的台面渲染模型
+    /// </summary>
     [Serializable]
     public struct BoilingRecipeSO_GameObject
     {
@@ -43,6 +32,7 @@ public class SteamingWorkCounterVisual : MonoBehaviour
 
     private bool subscribed;
     private bool warnedIncomplete;
+    private bool warnedMissingVisual;
 
     void Start()
     {
@@ -97,6 +87,11 @@ public class SteamingWorkCounterVisual : MonoBehaviour
         {
             SetActiveSafe(activeStreamingRecipeVisual, _streaming);
         }
+        else if (_streaming)
+        {
+            // 蒸制中却解析不到模型：只告警一次，静默失败正是该问题长期隐藏的原因
+            WarnMissingVisual();
+        }
     }
 
     /// <summary>
@@ -110,9 +105,7 @@ public class SteamingWorkCounterVisual : MonoBehaviour
             return null;
         }
 
-        KitchenObjectSO so = fireWorkCounter != null && fireWorkCounter.HasKitchenObject()
-            ? fireWorkCounter.GetKitchenObject().GetKitchenObjectSO()
-            : null;
+        KitchenObjectSO so = ResolveCurrentSteamingSO();
 
         if (so == null) return null;
 
@@ -128,6 +121,23 @@ public class SteamingWorkCounterVisual : MonoBehaviour
     }
 
     /// <summary>
+    /// 取当前蒸制中的原料 SO。
+    /// 联网下原料不是台面实体（服务器只存笼内配料，台面物品同步为 -1），
+    /// 只能从台子的“当前配方”取；单机下原料实体就摆在台面上，回落台面物品。
+    /// </summary>
+    private KitchenObjectSO ResolveCurrentSteamingSO()
+    {
+        if (fireWorkCounter == null) return null;
+
+        StreamingRecipeSO recipe = fireWorkCounter.GetCurrentSteamingRecipe();
+        if (recipe != null) return recipe.input;
+
+        return fireWorkCounter.HasKitchenObject()
+            ? fireWorkCounter.GetKitchenObject().GetKitchenObjectSO()
+            : null;
+    }
+
+    /// <summary>
     /// 安全 SetActive：null（含已销毁）直接跳过，状态已一致时不重复调用。
     /// </summary>
     private static void SetActiveSafe(GameObject _go, bool _active)
@@ -136,6 +146,22 @@ public class SteamingWorkCounterVisual : MonoBehaviour
         if (_go.activeSelf == _active) return;
 
         _go.SetActive(_active);
+    }
+
+    /// <summary>
+    /// 已进入蒸制却解析不出模型：只告警一次。
+    /// 这种情况原先完全静默（WarnIncomplete 仅在映射表为空时触发），是问题长期隐藏的原因。
+    /// </summary>
+    private void WarnMissingVisual()
+    {
+        if (warnedMissingVisual) return;
+        warnedMissingVisual = true;
+
+        KitchenObjectSO currentSO = ResolveCurrentSteamingSO();
+        string soName = currentSO != null ? currentSO.name : "未知（服务器未下发原料）";
+
+        Debug.LogWarning($"[SteamingCounterVisual] {name} 已进入蒸制但未匹配到食物模型（当前原料：{soName}）。" +
+                         "请检查 boilingRecipeSO_GameObjects 是否覆盖该原料，或 StreamingCounter 是否收到匹配的蒸制配方。", this);
     }
 
     /// <summary>数据不完整只告警一次，避免每次状态同步刷屏。</summary>

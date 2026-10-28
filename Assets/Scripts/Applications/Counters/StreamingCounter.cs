@@ -29,7 +29,7 @@ public class StreamingCounter : BaseCounter, IHasPrograss
     private State state;
     private float steamingTimer;
     private StreamingRecipeSO steamingRecipeSO;
-
+    
     void Start()
     {
         state = State.Idle;
@@ -81,11 +81,7 @@ public class StreamingCounter : BaseCounter, IHasPrograss
             }
         }
     }
-
-    public List<StreamingRecipeSO> GetSteamingRecipeSO()
-    {
-        return steamingRecipeSOArray;
-    }
+    
 
     /// <summary>
     /// 【单机专用】本地交互逻辑。联网下不会被调用（PlayerController.DoInteract 只发送意图），
@@ -177,6 +173,41 @@ public class StreamingCounter : BaseCounter, IHasPrograss
         StreamingRecipeSO recipe = GetSteamingRecipeSOWithInput(kitchenObjectSO);
         return recipe != null;
     }
+    
+    /// <summary>把服务器下发的原料索引落到当前配方上；返回配方是否有变化。</summary>
+    private bool ApplyRecipeFromServerIndex(int _ingredientIndex)
+    {
+        if (_ingredientIndex < 0 || _ingredientIndex == byte.MaxValue) return false;
+
+        KitchenObjectSO ingredientSO = KitchenObjectRegistry.Instance?.GetSOByIndex(_ingredientIndex);
+        if (ingredientSO == null)
+        {
+            Debug.LogWarning($"[StreamingCounter] 台子{NetworkCounterId} 收到无效原料索引 {_ingredientIndex}");
+            return false;
+        }
+
+        // 走既有匹配逻辑：只有本台配置过的原料才算蒸制，顺带完成配方校验
+        StreamingRecipeSO resolved = GetSteamingRecipeSOWithInput(ingredientSO);
+        if (resolved == null)
+        {
+            Debug.LogWarning($"[StreamingCounter] 台子{NetworkCounterId} 无匹配配方：{ingredientSO.name}");
+            return false;
+        }
+
+        if (steamingRecipeSO == resolved) return false;
+        steamingRecipeSO = resolved;
+        return true;
+    }
+
+
+    /// <summary>
+    /// 当前正在蒸制的配方（表现层解析原料 SO 的唯一数据源）；未在蒸制或未匹配到配方时为 null。
+    /// 联网下原料不是台面实体（服务器只存 Ingredient，台面物品为 -1），表现层必须走这里取 SO。
+    /// </summary>
+    public StreamingRecipeSO GetCurrentSteamingRecipe()
+    {
+        return steamingRecipeSO;
+    }
 
     private StreamingRecipeSO GetSteamingRecipeSOWithInput(KitchenObjectSO kitchenObjectSO)
     {
@@ -191,24 +222,30 @@ public class StreamingCounter : BaseCounter, IHasPrograss
         return null;
     }
 
-    /// <summary>
-    /// 是否已经蒸制完成
-    /// </summary>
-    /// <returns></returns>
-    public bool IsSteamed()
-    {
-        return state == State.Steamed;
-    }
-
     #region 网络驱动（服务器权威回放）
 
     /// <summary>
     /// 【网络】服务器通知原料已入笼并开始蒸制（CounterAddIngredient / CounterStateSync(1) 驱动）。
-    /// 幂等：同一轮蒸制可能同时收到“配料入笼”与“状态=1”两条消息。
+    /// 幂等：同一轮蒸制可能同时收到“配料入笼”与“状态=1”两条消息，且两者先后顺序不保证。
+    /// 关键点：原料在联网下不是台面实体（服务器只存 Ingredient / ItemIndex 保持 -1），
+    /// 因此必须在这里把配方落到 steamingRecipeSO 上，供表现层解析模型；
+    /// 状态已是蒸制中而原料此刻才到达时，仍需刷新一次表现，否则视觉层永远拿不到原料 SO。
     /// </summary>
-    public void StartSteamingFromServer()
+    /// <param name="_ingredientIndex">服务器下发的原料全局索引；-1 / 255 表示本条消息不携带原料</param>
+    public void StartSteamingFromServer(int _ingredientIndex = -1)
     {
-        if (state == State.Steaming) return;
+        bool recipeChanged = ApplyRecipeFromServerIndex(_ingredientIndex);
+        bool stateChanged = state != State.Steaming;
+
+        if (!stateChanged)
+        {
+            // 已在蒸制中：只补一次表现刷新，不重置进度、不重播开始音效
+            if (recipeChanged)
+            {
+                OnStateChanged?.Invoke(this, new OnStateChangedEventArgs { state = state });
+            }
+            return;
+        }
 
         state = State.Steaming;
         steamingTimer = 0f;
@@ -247,6 +284,8 @@ public class StreamingCounter : BaseCounter, IHasPrograss
         switch (_state)
         {
             case 0:
+                // 出笼/装盘：清掉上一轮的配方引用，避免陈旧数据让表现层解析出残留模型
+                steamingRecipeSO = null;
                 SetState(State.Idle);
                 break;
             case 1:
@@ -277,17 +316,23 @@ public class StreamingCounter : BaseCounter, IHasPrograss
         OnStreamingStateChanged(_state);
     }
 
-    /// <summary>【网络】服务器下发配料入笼（CounterAddIngredient）→ 开始蒸制。</summary>
+    /// <summary>【网络】服务器下发配料入笼（CounterAddIngredient）→ 记录原料并开始蒸制。</summary>
     public override void ApplyServerIngredient(int _ingredientIndex)
     {
-        StartSteamingFromServer();
+        StartSteamingFromServer(_ingredientIndex);
     }
 
     /// <summary>
     /// 断线重连 / 中途加入：按快照重建蒸台状态与台面物品。
+    /// 顺序关键：原料必须先于状态还原——状态回调里表现层就要用它解析模型。
     /// </summary>
     public override void ApplySnapshotState(CounterSnapshot _cs)
     {
+        if (_cs.Ingredients != null && _cs.Ingredients.Length > 0)
+        {
+            ApplyRecipeFromServerIndex(_cs.Ingredients[0]);
+        }
+
         OnStreamingStateChanged(_cs.State);        // 0/1/3
         ApplyServerProgress(_cs.Progress);
         if (_cs.ItemIndex >= 0) ApplyServerItem(_cs.ItemIndex);
@@ -296,7 +341,7 @@ public class StreamingCounter : BaseCounter, IHasPrograss
     /// <summary>上报本台子的蒸制配方表（供服务器权威推进蒸制进度）。</summary>
     public override void RegisterSelfToServer()
     {
-        NetworkManager.Instance.SendRegisterStreamingRecipes(NetworkCounterId, GetSteamingRecipeSO());
+        NetworkManager.Instance.SendRegisterStreamingRecipes(NetworkCounterId, steamingRecipeSOArray);
     }
 
     #endregion
