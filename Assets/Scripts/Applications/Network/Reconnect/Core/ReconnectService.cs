@@ -1,6 +1,9 @@
 using LiteGameFramework;
 using UnityEngine;
 
+/// <summary>
+/// 重连接状态
+/// </summary>
 public enum EReconnectState
 {
     Idle,
@@ -8,6 +11,9 @@ public enum EReconnectState
     Failed,
 }
 
+/// <summary>
+/// 重连状态改变事件
+/// </summary>
 public struct OnStateChanged : IEvent
 {
     public EReconnectState State;
@@ -17,6 +23,9 @@ public struct OnStateChanged : IEvent
     }
 }
 
+/// <summary>
+/// 重连成功事件
+/// </summary>
 public struct OnResumeGameSucceeded : IEvent
 {
     public Vector3 pos;
@@ -31,8 +40,14 @@ public struct OnResumeGameSucceeded : IEvent
     }
 }
 
+/// <summary>
+/// 重连接服务
+/// </summary>
 public sealed class ReconnectService : SingletonMono<ReconnectService>
 {
+    /// <summary>
+    /// 重连接配置
+    /// </summary>
     [SerializeField] private ReconnectConfig config;
 
     public EReconnectState State { get; private set; } = EReconnectState.Idle;
@@ -41,16 +56,27 @@ public sealed class ReconnectService : SingletonMono<ReconnectService>
 
     private INetworkTransport transport;
     private float timer;
-    private bool inFlight;              // 正在连接 / 等待认领结果
-    private bool hasSession;            // 是否已快照到可恢复会话
-    private ResumableSession session;   // ★ 断线瞬间的快照：整个重连流程只用它，避免被新临时 id 覆盖
+
+    /// <summary>
+    /// 正在连接 / 等待认领结果
+    /// </summary>
+    private bool inFlight;
+
+    /// <summary>
+    /// 是否已快照到可恢复会话
+    /// </summary>
+    private bool hasSession;
+    
+    /// <summary>
+    /// 断线瞬间的快照
+    /// </summary>
+    private ResumableSession session;
 
     protected override void Awake()
     {
         base.Awake();
         if (config == null) config = ReconnectConfig.LoadDefault();
 
-        // ★ 组合根：整个模块唯一一处提到 NetworkManager，且只当作 INetworkTransport 使用
         transport = NetworkManager.Instance;
 
         NetworkMessageRouter.Instance.Register(MessageType.ResumeGameResult, HandleResumeGameResult);
@@ -95,10 +121,10 @@ public sealed class ReconnectService : SingletonMono<ReconnectService>
         }
         StartAttempt();
     }
-
-    // ─────────────── 对外命令 ───────────────
-
-    /// <summary>玩家点“重连”：立即重试（重置计数）。</summary>
+    
+    /// <summary>
+    /// 玩家点“重连”：立即重试（重置计数）。
+    /// </summary>
     public void RequestReconnect()
     {
         if (!hasSession) return;
@@ -110,7 +136,9 @@ public sealed class ReconnectService : SingletonMono<ReconnectService>
         SetState(EReconnectState.Reconnecting);
     }
 
-    /// <summary>玩家点“返回主菜单”：放弃会话并清理。</summary>
+    /// <summary>
+    /// 玩家点“返回主菜单”：放弃会话并清理。
+    /// </summary>
     public void AbandonAndReturnToMain()
     {
         hasSession = false;
@@ -121,9 +149,7 @@ public sealed class ReconnectService : SingletonMono<ReconnectService>
         SetState(EReconnectState.Idle);
         UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenuScene");
     }
-
-    // ─────────────── 内部流程 ───────────────
-
+    
     private void HandleDisconnected(OnNetworkDisconnected _e)
     {
         // 仅"对局中掉线"才进入重连流程；大厅/房间阶段掉线不弹面板
@@ -199,16 +225,21 @@ public sealed class ReconnectService : SingletonMono<ReconnectService>
     }
 
     /// <summary>
-    /// 当前是否处于对局中（任一关卡场景）。场景名与 LevelSceneCatalog 的登记表保持一致，
-    /// 避免新增关卡后此处漏判导致掉线不进入重连流程。
+    /// 当前是否处于对局中（任一关卡场景）
     /// </summary>
     private static bool IsInGameScene() =>
         LevelSceneCatalog.IsGameScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
 
+    /// <summary>
+    /// 设置当前的重连状态
+    /// </summary>
+    /// <param name="_state"></param>
     private void SetState(EReconnectState _state)
     {
         if (State == _state) return;
+        // 设置状态
         State = _state;
+        // 触发事件
         EventManager.Invoke<OnStateChanged>(new OnStateChanged(_state));
     }
 }

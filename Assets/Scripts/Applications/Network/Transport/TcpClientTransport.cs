@@ -26,10 +26,16 @@ public class TcpClientTransport : MonoBehaviour
     private bool shouldStop;
 
     private byte[] receiveBuffer = new byte[4096];
+    /// <summary>
+    /// 下一个写入位置
+    /// </summary>
     private int bufferedBytes = 0;
 
     // 主线程消息队列
     private readonly ConcurrentQueue<Action> mainThreadActions = new ConcurrentQueue<Action>();
+    /// <summary>
+    /// 主线程id
+    /// </summary>
     private int mainThreadId;
 
     /// <summary>
@@ -81,7 +87,8 @@ public class TcpClientTransport : MonoBehaviour
         {
             tcpClient = new TcpClient();
             tcpClient.NoDelay = true;
-
+            
+            // 尝试连接
             if (!TryConnectWithTimeout(tcpClient, _ip, _port, CONNECT_TIMEOUT))
             {
                 Debug.LogError($"[TcpClientTransport] 连接超时（{CONNECT_TIMEOUT}ms）：{_ip}:{_port}");
@@ -141,9 +148,7 @@ public class TcpClientTransport : MonoBehaviour
     }
 
     /// <summary>
-    /// 主动关闭：先发 Disconnect 告知服务端，再收尾。
-    /// 🔴 顺序铁律：先关 socket 再 Join 线程 —— ReceiveLoop 阻塞在 stream.Read，
-    ///    先 Join 会白等满超时（症状：退出房间卡 1 秒）。
+    /// 主动关闭连接
     /// </summary>
     public void Close()
     {
@@ -172,8 +177,7 @@ public class TcpClientTransport : MonoBehaviour
     }
 
     /// <summary>
-    /// 断链收尾（被动断开/超时/发送失败统一入口）。幂等：先到者生效。
-    /// 不 Join 线程：调用方可能就是接收线程自己；关 socket 会解除 Read 阻塞让其自行退出。
+    /// 断开连接
     /// </summary>
     public void HandleLinkDown(string _reason)
     {
@@ -184,15 +188,16 @@ public class TcpClientTransport : MonoBehaviour
         shouldStop = true;
         bufferedBytes = 0;
 
-        // 🔴 必须主动关 socket：此刻 ReceiveLoop 正阻塞在 stream.Read 上，
-        //    不关它就会一直挂着（线程泄漏 + 旧连接残留，服务端要等保活超时才回收座位）。
         TryCloseSocket();
         receiveThread = null;
 
         Debug.LogWarning($"[TcpClientTransport] 与服务器的连接已断开（{_reason}）");
         RaiseLinkDown(_reason);
     }
-
+    
+    /// <summary>
+    /// 关闭Socket
+    /// </summary>
     private void TryCloseSocket()
     {
         try
@@ -220,9 +225,7 @@ public class TcpClientTransport : MonoBehaviour
     #region 发送
 
     /// <summary>
-    /// 底层发送：把字节数组写入网络流。
-    /// 发送操作在主线程执行，加锁保护 NetworkStream 的线程安全。
-    /// _data 为 null 表示消息构造失败（如注册表未加载导致放弃构造），此时无需发送。
+    /// 向服务器发送数据
     /// </summary>
     public void SendRaW(byte[] _data)
     {
@@ -239,8 +242,6 @@ public class TcpClientTransport : MonoBehaviour
         catch (Exception ex)
         {
             Debug.LogError($"[TcpClientTransport] 发送失败: {ex.Message}");
-            // 与原实现差异（有意为之）：发送失败统一走断链路径，
-            // 原代码只置 IsConnected=false、不回收 socket，属遗留隐患。
             HandleLinkDown($"发送失败: {ex.Message}");
         }
     }
@@ -251,12 +252,14 @@ public class TcpClientTransport : MonoBehaviour
 
     private void ReceiveLoop(object obj)
     {
+        // 声明一个4KB大小的消息抓取窗口
         byte[] tempBUffer = new byte[4096];
 
         while (!shouldStop && IsConnected)
         {
             try
             {
+                // 从流中读取信息
                 int bytesRead = stream.Read(tempBUffer, 0, tempBUffer.Length);
 
                 if (bytesRead == 0)
@@ -356,6 +359,7 @@ public class TcpClientTransport : MonoBehaviour
     /// </summary>
     private void EnsureBufferCapacity(int requiredSize)
     {
+        // 提高receiveBuffer的接受缓冲区域
         if (receiveBuffer.Length < requiredSize)
         {
             int newSize = receiveBuffer.Length * 2;

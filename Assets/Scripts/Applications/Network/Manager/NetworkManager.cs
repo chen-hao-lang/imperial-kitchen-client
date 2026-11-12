@@ -101,11 +101,10 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
 
         session.SetPlayerName(_playerName);
 
-        // 🔴 启动心跳线程（3s 周期心跳 + 收包超时检测）——
-        //    漏掉它则连接后只发一次心跳，服务器 10s 保活超时必踢人
+        // 启动心跳
         heartbeat.StartHeartbeat();
 
-        // 立即上报一次心跳：确保服务端在进入断点前就获知本客户端是"调试客户端"
+        // 立即上报一次心跳
         heartbeat.SendHeartbeatNow();
         return true;
     }
@@ -114,7 +113,7 @@ public class NetworkManager : SingletonMono<NetworkManager>, INetworkTransport
     {
         if (!IsConnect) return;
 
-        transport.Close();              // 内部：先发 Disconnect、关 socket、Join 线程
+        transport.Close();// 内部：先发 Disconnect、关 socket、Join 线程
         session.ResetLocalSession();
 
         Debug.Log("[NetworkManager] 已断开连接");

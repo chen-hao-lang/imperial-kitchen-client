@@ -62,7 +62,7 @@ public class BaseCounter : MonoBehaviour, IKitchenObjectParent
 
     private AudioClip lastSound;
     private float lastSoundTime = -999f;
-
+    
     /// <summary>
     /// 播放一次本台子的交互音效。
     /// 内置：只播自己过滤、快照期静默、剪辑级去重、2D/3D 定位。
@@ -114,12 +114,6 @@ public class BaseCounter : MonoBehaviour, IKitchenObjectParent
     /// 台面同步系列约定用 byte.MaxValue(255)，手持同步系列用负数，两者必须同时兼容。
     /// </summary>
     protected static bool IsEmptyItemId(int _id) => _id < 0 || _id == byte.MaxValue;
-
-    /// <summary>判断物品 SO 是否是盘子（protected，供交互表现判定复用）。</summary>
-    protected static bool IsPlate(KitchenObjectSO _so)
-    {
-        return _so.prefab != null && _so.prefab.GetComponent<PlateKitchenObject>() != null;
-    }
 
     /// <summary>服务器下发操作台进度（CounterProgressSync）。默认无进度语义，由切/煮/蒸台覆写。</summary>
     public virtual void ApplyServerProgress(float _progress) { }
@@ -222,7 +216,8 @@ public class BaseCounter : MonoBehaviour, IKitchenObjectParent
         if (_ctx.SoBefore != soAfter)
         {
             if (soAfter != null)
-                PlaySound(IsPlate(soAfter) ? platePutSound : putItemSound, _ctx.IsLocal);
+                PlaySound(soAfter.prefab.GetComponent<KitchenObject>().TryGetPlate(out var plate)
+                    ? platePutSound : putItemSound, _ctx.IsLocal);
             else
                 PlaySound(takeItemSound, _ctx.IsLocal);
             return;
@@ -253,6 +248,7 @@ public class BaseCounter : MonoBehaviour, IKitchenObjectParent
 
     }
 
+    #region IKitchenObjectParent
     public KitchenObject GetKitchenObject()
     {
         return kitchenObject;
@@ -282,6 +278,7 @@ public class BaseCounter : MonoBehaviour, IKitchenObjectParent
             //TODO:触发事件
         }
     }
+    #endregion
 
     /// <summary>
     /// 设置当前操作台的ID
