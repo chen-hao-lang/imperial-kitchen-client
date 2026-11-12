@@ -1,5 +1,7 @@
 using LiteGameFramework;
 using System;
+using LiteGameFramework.Event;
+using LiteGameFramework.UI;
 
 /// <summary>
 /// 联机模式下的游戏管理类
@@ -8,12 +10,13 @@ public class NetworkKitchenGameManager : SingletonMono<NetworkKitchenGameManager
 {
     /// <summary> 当前游戏状态 </summary>
     public EGameState State { get; private set; } = EGameState.WaitingToStart;
-    
+
     /// <summary> 本地是否已暂停（网络模式下仅控制 UI 层，不暂停 Time.timeScale） </summary>
     public bool IsGamePaused { get; private set; } = false;
 
     /// <summary> 本地暂停事件（网络模式下仅暂停 UI，不影响游戏世界） </summary>
     public event Action OnGamePaused;
+
     /// <summary> 本地恢复事件 </summary>
     public event Action OnGameUnpaused;
 

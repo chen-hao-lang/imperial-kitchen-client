@@ -2,6 +2,8 @@ using LiteGameFramework;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using LiteGameFramework.UI;
+using LiteGameFramework.Event;
 
 /// <summary>
 /// 玩家准备面板 —— 连接服务器后显示"准备"按钮，
@@ -12,8 +14,9 @@ public class PlayerReadyPanel : BasePanel
     [SerializeField] private TMP_Text roomIdText;
     [SerializeField] private TMP_Text currentRoomPlayerNums;
 
-    [Header("ReadButton")]
-    [SerializeField] private Button backButton;
+    [Header("ReadButton")] [SerializeField]
+    private Button backButton;
+
     [SerializeField] private Button readyButton;
     [SerializeField] private TMP_Text readyText;
     [SerializeField] private Button startGameButton;
@@ -90,15 +93,15 @@ public class PlayerReadyPanel : BasePanel
     // 退出房间
     private void OnBackButtonClick()
     {
-        if (NetworkManager.Instance.Session.IsRoomOwner)// 如果是房主
+        if (NetworkManager.Instance.Session.IsRoomOwner) // 如果是房主
         {
-            NetworkManager.Instance.SendDestroyRoom();// 向服务器发送删除房间的消息
+            NetworkManager.Instance.SendDestroyRoom(); // 向服务器发送删除房间的消息
         }
-        else// 如果不是房主
+        else // 如果不是房主
         {
-            NetworkManager.Instance.SendLevelRoom();// 向服务器发送离开房间的消息
+            NetworkManager.Instance.SendLevelRoom(); // 向服务器发送离开房间的消息
         }
-        
+
         UIManager.Instance.HidePanel(EUIType.PlayerReadyPanel);
 
         // 切换场景
@@ -136,12 +139,12 @@ public class PlayerReadyPanel : BasePanel
         bool ready = IsSelfReady();
         if (ready)
         {
-            readyText.text = "未准备";     // 当前已准备，点击将取消准备
+            readyText.text = "未准备"; // 当前已准备，点击将取消准备
             readyButton.image.color = Color.red;
         }
         else
         {
-            readyText.text = "准备";        // 当前未准备，点击将准备
+            readyText.text = "准备"; // 当前未准备，点击将准备
             readyButton.image.color = Color.green;
         }
     }
@@ -181,7 +184,8 @@ public class PlayerReadyPanel : BasePanel
     {
         if (currentRoomPlayerNums != null)
         {
-            currentRoomPlayerNums.text = $"当前人数:{NetworkManager.Instance.Session.RoomPlayers.Count} / {NetworkManager.Instance.Session.RoomMaxPlayer}";
+            currentRoomPlayerNums.text =
+                $"当前人数:{NetworkManager.Instance.Session.RoomPlayers.Count} / {NetworkManager.Instance.Session.RoomMaxPlayer}";
         }
     }
 }

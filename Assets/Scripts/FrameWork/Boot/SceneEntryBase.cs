@@ -2,25 +2,24 @@ using System.Collections;
 using System.Collections.Generic;
 using LiteGameFramework;
 using UnityEngine;
+using LiteGameFramework.UI;
 
 /// <summary>
 /// 场景启动基类（AOT 程序集 LiteGameFramework，可直接挂在主包场景上）。
 /// </summary>
 public class SceneEntryBase : MonoBehaviour
 {
-    [Header("场景面板配置")]
-    [Tooltip("本场景拥有的全部面板：进入时预加载，同时作为清理残留时的白名单")]
-    [SerializeField] private List<EUIType> scenePanel = new List<EUIType>();
+    [Header("场景面板配置")] [Tooltip("本场景拥有的全部面板：进入时预加载，同时作为清理残留时的白名单")] [SerializeField]
+    private List<EUIType> scenePanel = new List<EUIType>();
 
-    [Tooltip("进入场景后需要显示的面板（建议同时列入 scenePanel）")]
-    [SerializeField] private List<EUIType> openPanels = new List<EUIType>();
-    
-    [Tooltip("BGM")]
-    [SerializeField] private AudioClip bgm;
+    [Tooltip("进入场景后需要显示的面板（建议同时列入 scenePanel）")] [SerializeField]
+    private List<EUIType> openPanels = new List<EUIType>();
+
+    [Tooltip("BGM")] [SerializeField] private AudioClip bgm;
 
     protected virtual void Start()
     {
-        AudioManager.Instance.PlayBGM(bgm,true);
+        AudioManager.Instance.PlayBGM(bgm, true);
         StartCoroutine(Init());
     }
 

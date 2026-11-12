@@ -6,7 +6,9 @@ using UnityEngine.Analytics;
 using UnityEngine.EventSystems;
 using YooAsset;
 
-namespace LiteGameFramework
+using LiteGameFramework.Resources;
+
+namespace LiteGameFramework.UI
 {
     public class UIManager : SingletonMono<UIManager>
     {

@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using LiteGameFramework;
+using LiteGameFramework.Resources;
 using UnityEngine;
 using YooAsset;
 

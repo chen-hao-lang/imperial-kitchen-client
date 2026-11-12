@@ -1,13 +1,12 @@
-using LiteGameFramework;
+using LiteGameFramework.Event;
 using UnityEngine;
 
 public class DeliveryCounter : BaseCounter
 {
     public static DeliveryCounter Instance { get; private set; }
 
-    [Header("交付台音效")]
-    [SerializeField] private AudioClip deliverSuccessSound;  // 交付成功
-    [SerializeField] private AudioClip deliverFailSound;     // 交付失败
+    [Header("交付台音效")] [SerializeField] private AudioClip deliverSuccessSound; // 交付成功
+    [SerializeField] private AudioClip deliverFailSound; // 交付失败
 
     void Awake()
     {

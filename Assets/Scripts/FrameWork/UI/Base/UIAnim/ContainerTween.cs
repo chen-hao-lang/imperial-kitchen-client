@@ -3,7 +3,7 @@ using UnityEngine;
 using DG.Tweening;
 using UnityEngine.UI;
 
-namespace LiteGameFramework
+namespace LiteGameFramework.UI
 {
     /// <summary>
     /// 容器入场动画类型
@@ -122,7 +122,7 @@ namespace LiteGameFramework
                 var child = _children[i];
                 if (child == null) continue;
 
-                if (!child.TryGetComponent<LiteGameFramework.ITween>(out var tween)) continue;
+                if (!child.TryGetComponent<LiteGameFramework.UI.ITween>(out var tween)) continue;
 
                 Vector3 originalScale = _originalScales.TryGetValue(child, out var s) ? s : child.localScale;
                 Vector2 originalPos = _originalAnchoredPositions.TryGetValue(child, out var p) ? p : child.anchoredPosition;

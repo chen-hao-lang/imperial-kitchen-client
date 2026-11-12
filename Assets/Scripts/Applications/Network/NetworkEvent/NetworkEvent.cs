@@ -1,4 +1,4 @@
-using LiteGameFramework;
+using LiteGameFramework.Event;
 using UnityEngine;
 using System.Collections.Generic;
 

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
-using LiteGameFramework;
+using LiteGameFramework.Event;
+using LiteGameFramework.Resources;
 using UnityEngine;
 using YooAsset;
 

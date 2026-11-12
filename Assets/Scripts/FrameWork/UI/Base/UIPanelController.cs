@@ -3,6 +3,8 @@ using System.Collections;
 using System.Text;
 using UnityEngine;
 
+using LiteGameFramework.Resources;
+
 namespace LiteGameFramework
 {
     public class UIPanelController
@@ -143,7 +145,7 @@ namespace LiteGameFramework
                 panelGo = null;
                 canvas = null;
             }
-            
+
             // 加载完成后调用回调
             _callBack?.Invoke(panelGo);
         }
@@ -190,7 +192,7 @@ namespace LiteGameFramework
         /// </summary>
         public void PausePanel()
         {
-            if(panel == null) return;
+            if (panel == null) return;
             isOpen = true;
             isPause = true;
 
@@ -202,7 +204,7 @@ namespace LiteGameFramework
         /// </summary>
         public void ResumePanel()
         {
-            if(panel == null) return;
+            if (panel == null) return;
             isOpen = true;
             isPause = false;
 
@@ -233,7 +235,7 @@ namespace LiteGameFramework
             isloaded = false;
             isOpen = false;
             isPause = false;
-            if(panel == null) return;
+            if (panel == null) return;
 
             panel.ClosePanel();
 

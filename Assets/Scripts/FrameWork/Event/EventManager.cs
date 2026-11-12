@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace LiteGameFramework
+namespace LiteGameFramework.Event
 {
     public class EventManager : Singleton<EventManager>
     {

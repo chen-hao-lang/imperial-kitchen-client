@@ -2,6 +2,8 @@ using LiteGameFramework;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using LiteGameFramework.UI;
+using LiteGameFramework.Event;
 
 public class GameOverPanel : BasePanel
 {
@@ -12,10 +14,11 @@ public class GameOverPanel : BasePanel
     {
         base.OnAddListener();
 
-        if(NetworkManager.Instance != null && NetworkManager.Instance.IsConnect)
+        if (NetworkManager.Instance != null && NetworkManager.Instance.IsConnect)
         {
-            EventManager.AddListener<OnGameOver>(this,OnGameOver);
+            EventManager.AddListener<OnGameOver>(this, OnGameOver);
         }
+
         KitchenGameManager.Instance.OnStateChanged += Instance_OnStateChanged;
 
         reStartBtn.onClick.AddListener(ReStartBtnOnClick);
@@ -54,7 +57,7 @@ public class GameOverPanel : BasePanel
         recipesDeliveredText.text = $"Score:{_arg.Score}";
 
         // 非房主不允许重启游戏
-        if(!NetworkManager.Instance.Session.IsRoomOwner)
+        if (!NetworkManager.Instance.Session.IsRoomOwner)
             reStartBtn.gameObject.SetActive(false);
 
         UIManager.Instance.OpenPanel<GameOverPanel>(EUIType.GameOverPanel);

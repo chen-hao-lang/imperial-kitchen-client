@@ -1,6 +1,7 @@
 using System;
-using LiteGameFramework;
+using LiteGameFramework.Event;
 using UnityEngine;
+using LiteGameFramework.Resources;
 
 public struct OnSelectedCounterChanged : IEvent
 {

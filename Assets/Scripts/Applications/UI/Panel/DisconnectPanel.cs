@@ -1,6 +1,8 @@
 using LiteGameFramework;
 using UnityEngine;
 using UnityEngine.UI;
+using LiteGameFramework.UI;
+using LiteGameFramework.Event;
 
 /// <summary>
 /// 局内断线提示面板。断线重连（D7）已暂时禁用：
@@ -10,7 +12,7 @@ public class DisconnectPanel : BasePanel
 {
     [SerializeField] private Button reconnectButton;
     [SerializeField] private Button backToMainButton;
-    [SerializeField] private Text statusLabel;     // 新增：状态/倒计时文本
+    [SerializeField] private Text statusLabel; // 新增：状态/倒计时文本
 
     public override void OnAddListener()
     {

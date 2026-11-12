@@ -4,6 +4,9 @@ using LiteGameFramework;
 using UnityEngine;
 using YooAsset;
 
+using LiteGameFramework.Event;
+using LiteGameFramework.Resources;
+
 /// <summary>
 /// 订单管理器（服务器权威模式）。
 /// - 连接成功后上报本地配方表（C2S_RegisterRecipes），由服务器校验注册（内容由客户端提供）

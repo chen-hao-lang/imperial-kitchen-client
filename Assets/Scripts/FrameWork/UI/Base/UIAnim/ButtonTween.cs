@@ -1,9 +1,10 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using DG.Tweening;
-using LiteGameFramework;
+using LiteGameFramework.Event;
+using LiteGameFramework.UI;
 
-namespace LiteGameFramework
+namespace LiteGameFramework.UI
 {
     /// <summary>
     /// 动画触发时机

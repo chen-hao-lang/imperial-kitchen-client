@@ -1,5 +1,7 @@
 using LiteGameFramework;
-
+using LiteGameFramework.Event;
+using LiteGameFramework;
+using LiteGameFramework.UI;
 /// <summary>
 /// 会话追踪器：持续维护"最后一次可恢复会话（房间 + 自己 + 服务器地址）"。
 /// ⚠️ 记录时【不判断场景】：连接/加入房间事件都发生在进入 GameScene 之前，

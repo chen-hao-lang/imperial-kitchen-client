@@ -1,9 +1,11 @@
 using System.Collections;
-using FrameWork.HotUpdate;
+using LiteGameFramework.HotUpdate;
 using LiteGameFramework;
 using UnityEngine;
 using YooAsset;
 using System.Collections.Generic;
+using LiteGameFramework.UI;
+using LiteGameFramework.Resources;
 
 /// <summary>
 /// 全局启动器
@@ -22,7 +24,8 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
     [Tooltip("编辑器内强制走 YooAsset 仿真模式：资源直接取自工程 AssetDatabase，不打包、不连 CDN，改完 prefab 重新 Play 即可看到效果。\n" +
              "出包不受影响——Player 里 Application.isEditor 恒为 false，永远使用上面的『热更模式』。\n" +
              "需要验证真实热更链路（下载 CDN 上的包）时再关掉它。")]
-    [SerializeField] private bool useEditorSimulateMode = true;
+    [SerializeField]
+    private bool useEditorSimulateMode = true;
 
     /// <summary>
     /// 本次运行实际使用的 YooAsset 播放模式。
@@ -51,8 +54,7 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
     ///   · <c>Code</c> 必须排在代码热更之前（它就是 GameLogic.dll + AOT 元数据）。
     /// 这里给默认值是兜底：场景里未配置时 List 会是 null，直接 foreach 会 NRE。
     /// </summary>
-    [Header("需要加载的热更包")] [SerializeField]
-    private List<string> Packages = new List<string>
+    [Header("需要加载的热更包")] [SerializeField] private List<string> Packages = new List<string>
     {
         "UI",
         "GameRoomScene",
@@ -96,7 +98,7 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
     {
         get { return "CHF"; }
     }
-    
+
     protected override void Awake()
     {
         if (transform.parent != null)
@@ -227,7 +229,7 @@ public class GameBootstrap : SingletonMono<GameBootstrap>
 
         string hostUrl = ResolveHostUrl(_playMode);
         string fallbackUrl = ResolveFallbackUrl(_playMode);
-        
+
         // 启动热更流程
         var flow = ProgressHub.Instance.BeginFlow("HotUpdate");
         foreach (var pkg in _packages)

@@ -1,8 +1,9 @@
-using LiteGameFramework;
+using LiteGameFramework.Event;
 
 public sealed class OrderSnapshotApplier : ISnapshotApplier
 {
     public int Order => 40;
+
     public void Apply(RoomSnapshot _s)
     {
         NetworkDeliveryManager.Instance?.RestoreWaitingRecipes(_s.Recipes);

@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
-using LiteGameFramework;
+using LiteGameFramework.UI;
+using LiteGameFramework.Event;
 using UnityEngine;
 
 /// <summary>

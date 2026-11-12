@@ -4,6 +4,8 @@ using LiteGameFramework;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using LiteGameFramework.UI;
+using LiteGameFramework.Event;
 
 public class ChatPanel : BasePanel
 {
@@ -56,6 +58,7 @@ public class ChatPanel : BasePanel
         {
             EventManager.RemoveListener<OnNetworkMessage>(this, OnReciveMessage);
         }
+
         EventManager.RemoveListener<OnOpenChatPanelEvent>(this, OpenOrClosePanel);
     }
 
@@ -158,6 +161,7 @@ public class ChatPanel : BasePanel
         {
             StopCoroutine(autoCloseCoroutine);
         }
+
         autoCloseCoroutine = StartCoroutine(AutoCloseMessageLabel());
     }
 

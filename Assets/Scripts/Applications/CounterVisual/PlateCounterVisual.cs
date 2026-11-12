@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using LiteGameFramework;
+using LiteGameFramework.Event;
 using UnityEngine;
 
 public class PlateCounterVisual : MonoBehaviour

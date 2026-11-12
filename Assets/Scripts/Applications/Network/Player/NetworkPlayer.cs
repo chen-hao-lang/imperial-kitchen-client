@@ -1,6 +1,5 @@
-using System;
-using LiteGameFramework;
 using UnityEngine;
+using LiteGameFramework.Event;
 
 public class NetworkPlayer : MonoBehaviour, IKitchenObjectParent
 {
@@ -102,7 +101,7 @@ public class NetworkPlayer : MonoBehaviour, IKitchenObjectParent
         // 如果盘子还没挂到这个玩家身上，则移动它（抑制回声）
         if (heldKitchenObject != _plate)
         {
-            _plate.gameObject.SetActive(true);   // 盘子实体挂到玩家手上前激活
+            _plate.gameObject.SetActive(true); // 盘子实体挂到玩家手上前激活
             _plate.SuppressOwnerSync = true;
             _plate.SetKitchenObjectParent(this);
             _plate.SuppressOwnerSync = false;

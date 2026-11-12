@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System;
-using LiteGameFramework;
+using LiteGameFramework.Event;
 
 public class NetworkCountersManager : MonoBehaviour
 {

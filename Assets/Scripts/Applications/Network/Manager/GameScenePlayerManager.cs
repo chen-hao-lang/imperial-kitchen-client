@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
-using LiteGameFramework;
-using Unity.VisualScripting;
+using LiteGameFramework.Event;
+using LiteGameFramework.Resources;
 
 public class GameScenePlayerManager : MonoBehaviour
 {

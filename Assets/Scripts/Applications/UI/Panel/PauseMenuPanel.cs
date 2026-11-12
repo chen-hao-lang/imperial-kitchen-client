@@ -2,6 +2,7 @@ using LiteGameFramework;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using LiteGameFramework.UI;
 
 public class PauseMenuPanel : BasePanel
 {

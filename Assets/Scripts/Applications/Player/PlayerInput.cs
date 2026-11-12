@@ -1,9 +1,10 @@
 using System;
-using LiteGameFramework;
+using LiteGameFramework.Event;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using LiteGameFramework;
 
 public class PlayerInput : MonoBehaviour
 {

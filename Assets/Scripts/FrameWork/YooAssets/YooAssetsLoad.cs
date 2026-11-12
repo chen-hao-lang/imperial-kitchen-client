@@ -4,7 +4,9 @@ using System.Collections.Generic;
 using UnityEngine;
 using YooAsset;
 
-namespace LiteGameFramework
+using LiteGameFramework.Event;
+
+namespace LiteGameFramework.Resources
 {
     /// <summary>
     /// Singleton helper for initializing YooAssets and loading/unloading package assets.

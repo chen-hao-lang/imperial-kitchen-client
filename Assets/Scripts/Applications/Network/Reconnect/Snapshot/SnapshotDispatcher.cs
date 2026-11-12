@@ -1,7 +1,7 @@
-using System.Collections;
 using System.Collections.Generic;
 using LiteGameFramework;
 using UnityEngine;
+using LiteGameFramework.Event;
 
 public class SnapshotDispatcher : SingletonMono<SnapshotDispatcher>
 {

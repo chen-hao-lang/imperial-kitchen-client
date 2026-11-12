@@ -2,6 +2,8 @@ using LiteGameFramework;
 using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
+using LiteGameFramework.UI;
+using LiteGameFramework.Event;
 
 public class GamePlayingClockUI : BasePanel
 {

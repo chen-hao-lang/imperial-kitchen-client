@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
-using LiteGameFramework;
+using LiteGameFramework.Event;
 
 public class SelectedCounterVisual : MonoBehaviour
 {
@@ -9,8 +9,7 @@ public class SelectedCounterVisual : MonoBehaviour
 
     [SerializeField] private List<MeshRenderer> _modelMeshRendererList;
 
-    [Header("视觉效果")]
-    [SerializeField] private Material _selectedMaterial;
+    [Header("视觉效果")] [SerializeField] private Material _selectedMaterial;
     [SerializeField] private float _selectScale = 1.05f;
     [SerializeField] private float _duration = 0.5f;
     private List<Material> _originMaterial;
@@ -28,10 +27,8 @@ public class SelectedCounterVisual : MonoBehaviour
             }
         }
 
-        EventManager.AddListener<OnLocalPlayerSpawned>(this, (_) =>
-        {
-            EventManager.AddListener<OnSelectedCounterChanged>(this,Player_OnSelectedCounterChanged);
-        });
+        EventManager.AddListener<OnLocalPlayerSpawned>(this,
+            (_) => { EventManager.AddListener<OnSelectedCounterChanged>(this, Player_OnSelectedCounterChanged); });
     }
 
     void OnDestroy()

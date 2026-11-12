@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
-using LiteGameFramework;
+using LiteGameFramework.Event;
 
 public class PlateManager : MonoBehaviour
 {
@@ -75,21 +75,22 @@ public class PlateManager : MonoBehaviour
     /// 盘子上下操作台的表现事件：玩家 → 台面 = PlatePut；台面 → 玩家 = TakeItem。
     /// 事件不带 playerId，因此用移动前的持有者 id 判定是否本机玩家触发（“只播自己”）。
     /// </summary>
-    private void RaisePlateCue(bool _isNewEntity, int _prevOwnerType, int _prevOwnerId, int _newOwnerType, int _newOwnerId)
+    private void RaisePlateCue(bool _isNewEntity, int _prevOwnerType, int _prevOwnerId, int _newOwnerType,
+        int _newOwnerId)
     {
         if (_isNewEntity) return;
 
         bool isLocal;
         BaseCounter counter;
 
-        if (_newOwnerType == 1 && _prevOwnerType == 0)          // 玩家 → 操作台
+        if (_newOwnerType == 1 && _prevOwnerType == 0) // 玩家 → 操作台
         {
             counter = NetworkCountersManager.Instance?.GetCounter(_newOwnerId);
             if (counter == null) return;
             isLocal = NetworkManager.Instance != null && _prevOwnerId == NetworkManager.Instance.PlayerID;
             counter.PlayPlatePutSound(isLocal);
         }
-        else if (_newOwnerType == 0 && _prevOwnerType == 1)     // 操作台 → 玩家
+        else if (_newOwnerType == 0 && _prevOwnerType == 1) // 操作台 → 玩家
         {
             counter = NetworkCountersManager.Instance?.GetCounter(_prevOwnerId);
             if (counter == null) return;
@@ -163,6 +164,7 @@ public class PlateManager : MonoBehaviour
                 Debug.LogWarning($"[PlateManager] 操作台 {_ownerId} 未找到，无法移动盘子 {_plate.NetworkPlateId}");
                 return;
             }
+
             _plate.gameObject.SetActive(true);
             MovePlateTo(_plate, counter);
         }
@@ -187,6 +189,7 @@ public class PlateManager : MonoBehaviour
             KitchenObjectSO so = KitchenObjectRegistry.Instance?.GetSOByIndex(id);
             if (so != null) soList.Add(so);
         }
+
         _plate.ResetIngredient(soList);
     }
 
@@ -209,6 +212,7 @@ public class PlateManager : MonoBehaviour
 
             Destroy(plate.gameObject);
         }
+
         plates.Clear();
 
         // 2) 重建：对每个快照先登记实体，再走统一的“移动+应用”路径
@@ -244,6 +248,7 @@ public class PlateManager : MonoBehaviour
         {
             return true;
         }
+
         return false;
     }
 
@@ -266,6 +271,7 @@ public class PlateManager : MonoBehaviour
         {
             return true;
         }
+
         return false;
     }
 

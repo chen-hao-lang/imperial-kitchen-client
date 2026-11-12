@@ -1,6 +1,7 @@
 using LiteGameFramework;
 using UnityEngine;
 using UnityEngine.UI;
+using LiteGameFramework.UI;
 
 public class MainMenuPanel : BasePanel
 {
@@ -33,7 +34,7 @@ public class MainMenuPanel : BasePanel
     public override void OnRemoveListener()
     {
         base.OnRemoveListener();
-        
+
         setBtn.onClick.RemoveAllListeners();
         playBtn.onClick.RemoveAllListeners();
         quitBtn.onClick.RemoveAllListeners();

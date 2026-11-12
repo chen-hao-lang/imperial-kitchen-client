@@ -1,3 +1,5 @@
+using LiteGameFramework.Event;
+
 namespace LiteGameFramework
 {
     public struct OnDownloadStart : IEvent

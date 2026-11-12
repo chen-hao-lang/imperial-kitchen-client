@@ -1,4 +1,4 @@
-using LiteGameFramework;
+using LiteGameFramework.Event;
 
 /// <summary>
 /// 盘子域消息处理：配料增减/生成/归属/销毁。

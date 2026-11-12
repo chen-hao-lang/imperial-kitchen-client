@@ -4,22 +4,23 @@ using LiteGameFramework;
 using TMPro;
 using UnityEngine.UI;
 using System.Linq;
+using LiteGameFramework.UI;
+using LiteGameFramework.Event;
+using LiteGameFramework.Resources;
 
 public class RoomPanel : BasePanel
 {
     [SerializeField] private Button backButton;
 
-    [Header("加入房间")]
-    [SerializeField] private TMP_InputField roomIdInputField;
+    [Header("加入房间")] [SerializeField] private TMP_InputField roomIdInputField;
     [SerializeField] private Button findButton;
     [SerializeField] private Button clearButton;
     [SerializeField] private RectTransform roomListsParent;
     [SerializeField] private string singleRoomInfoItemName = "SingRoomItem";
-    private Dictionary<int,SingRoomItem> roomInfoList = new Dictionary<int,SingRoomItem>();
+    private Dictionary<int, SingRoomItem> roomInfoList = new Dictionary<int, SingRoomItem>();
     private bool isInit = false;
 
-    [Header("创建房间")]
-    [SerializeField] private TMP_InputField roomName;
+    [Header("创建房间")] [SerializeField] private TMP_InputField roomName;
     [SerializeField] private TMP_Dropdown roomVisual;
     [SerializeField] private TMP_Dropdown playerSelect;
     [SerializeField] private Button createRoomButton;
@@ -64,11 +65,11 @@ public class RoomPanel : BasePanel
 
     private void OnFindButtonClick()
     {
-        if(roomIdInputField.text != null)
+        if (roomIdInputField.text != null)
         {
-            foreach(var roomId in roomInfoList.Keys)
+            foreach (var roomId in roomInfoList.Keys)
             {
-                if(roomId != int.Parse(roomIdInputField.text))
+                if (roomId != int.Parse(roomIdInputField.text))
                 {
                     roomInfoList[roomId].gameObject.SetActive(false);
                 }
@@ -78,7 +79,7 @@ public class RoomPanel : BasePanel
 
     private void OnClreaButtonOnCllick()
     {
-        foreach(var room in roomInfoList.Values)
+        foreach (var room in roomInfoList.Values)
         {
             room.gameObject.SetActive(true);
         }
@@ -89,9 +90,9 @@ public class RoomPanel : BasePanel
         // 向服务器发送是哪个客户端（playerId）创建了房间
         string maxPlayerText = playerSelect.options[playerSelect.value].text;
         int maxPlayerNum = int.Parse(maxPlayerText);
-        
+
         // NetworkManager.Instance.RoomMaxPlayer = maxPlayerNum;
-        NetworkManager.Instance.SendRequestRoomCreate(maxPlayerNum,roomName.text);
+        NetworkManager.Instance.SendRequestRoomCreate(maxPlayerNum, roomName.text);
     }
 
     /// <summary>
@@ -110,18 +111,20 @@ public class RoomPanel : BasePanel
             {
                 CreateRoomItem(roomInfo);
             }
+
             return;
         }
 
         // 直接删除，新建
-        foreach(var roomInfo in roomInfoList.Values.ToList())
+        foreach (var roomInfo in roomInfoList.Values.ToList())
         {
             Destroy(roomInfo.gameObject);
         }
+
         roomInfoList.Clear();
 
         // 新建 
-        foreach(var roomInfo in newRoomInfos)
+        foreach (var roomInfo in newRoomInfos)
         {
             CreateRoomItem(roomInfo);
         }
@@ -144,13 +147,14 @@ public class RoomPanel : BasePanel
 
             SingRoomItem roomItem = go.GetComponent<SingRoomItem>();
 
-            if(roomItem == null)
+            if (roomItem == null)
             {
                 Debug.LogError("[RoomPanel] 加载的UI组件SingleRoomInfo不存在组件SingRoomItem");
                 return;
             }
+
             roomItem.Init(roomInfo.roomId, roomInfo.roomName, $"{roomInfo.currentPlayerNum} / {roomInfo.maxPlayer}");
             roomInfoList[roomInfo.roomId] = roomItem;
-        },"UI");
+        }, "UI");
     }
 }

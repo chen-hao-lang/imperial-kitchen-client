@@ -6,8 +6,9 @@ using HybridCLR;
 using LiteGameFramework;
 using UnityEngine;
 using YooAsset;
+using LiteGameFramework.Resources;
 
-namespace FrameWork.HotUpdate
+namespace LiteGameFramework.HotUpdate
 {
     /// <summary>
     /// 代码热更新引导（AOT 侧，属于 LiteGameFramework 程序集）。

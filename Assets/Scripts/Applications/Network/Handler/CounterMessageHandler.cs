@@ -1,4 +1,4 @@
-using LiteGameFramework;
+using LiteGameFramework.Event;
 
 /// <summary>
 /// 操作台域消息处理：进度/配料/状态/远程盘子移除 + 玩家交互同步。

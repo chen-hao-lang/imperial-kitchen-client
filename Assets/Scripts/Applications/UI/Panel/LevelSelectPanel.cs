@@ -1,6 +1,8 @@
 using LiteGameFramework;
 using UnityEngine;
 using UnityEngine.UI;
+using LiteGameFramework.UI;
+using LiteGameFramework.Event;
 
 /// <summary>
 /// 关卡选择面板 —— 房主在房间内点击"开始游戏"后弹出，用于选择本局关卡。
@@ -12,12 +14,13 @@ using UnityEngine.UI;
 /// </summary>
 public class LevelSelectPanel : BasePanel
 {
-    [Header("Level Buttons")]
-    [SerializeField] private Button level01Button;
+    [Header("Level Buttons")] [SerializeField]
+    private Button level01Button;
+
     [SerializeField] private Button level02Button;
 
-    [Header("Back Button")]
-    [SerializeField] private Button backButton;
+    [Header("Back Button")] [SerializeField]
+    private Button backButton;
 
     /// <summary>关卡 01 对应的关卡索引（与 LevelSceneCatalog 的登记表保持一致）</summary>
     private const int LEVEL_INDEX_01 = 1;

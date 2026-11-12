@@ -2,155 +2,176 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace LiteGameFramework
+namespace LiteGameFramework.FSM
 {
     public class StateMachine
-{
-    private IState currentState;
-
-    /// <summary>
-    /// 黑板，用于存储状态机之间的各种数据
-    /// </summary>
-    private Dictionary<string, System.Object> blackboard;
-    
-    /// <summary>
-    /// 各个状态之间的装换条件
-    /// </summary>
-    private Dictionary<Type, List<Transition>> transitions;
-    
-    private List<Transition> currentTransitions;
-    private List<Transition> anyTransitions;
-    private static List<Transition> EmptyTransitions;
-
-    private class Transition
     {
-        /// <summary>
-        /// 转换条件
-        /// </summary>
-        public Func<bool> Condition { get; }
+        private IState currentState;
 
         /// <summary>
-        /// 目标状态
+        /// 黑板，用于存储状态机之间的各种数据
         /// </summary>
-        public IState To { get; }
+        private Dictionary<string, System.Object> blackboard;
 
-        public Transition(IState _to, Func<bool> _condition)
+        /// <summary>
+        /// 各个状态之间的装换条件
+        /// </summary>
+        private Dictionary<Type, List<Transition>> transitions;
+
+        private List<Transition> currentTransitions;
+        private List<Transition> anyTransitions;
+        private static List<Transition> EmptyTransitions;
+
+        /// <summary>
+        /// 转换类
+        /// 主要用来存储跳转目标、跳转条件（委托）
+        /// </summary>
+        private class Transition
         {
-            To = _to;
-            Condition = _condition;
-        }
-    }
+            /// <summary>
+            /// 转换条件
+            /// </summary>
+            public Func<bool> Condition { get; }
 
-    public StateMachine()
-    {
-        blackboard = new Dictionary<string, object>();
-        transitions = new Dictionary<Type, List<Transition>>();
-        currentTransitions = new List<Transition>();
-        anyTransitions = new List<Transition>();
-        EmptyTransitions = new();
-    }
+            /// <summary>
+            /// 目标状态
+            /// </summary>
+            public IState To { get; }
 
-    public void Tick()
-    {
-        var transition = GetTransition();
-        if (transition != null)
-        {
-            SetState(transition.To);
-        }
-
-        if (currentState != null)
-        {
-            currentState.Tick();
-        }
-    }
-
-    public void SetState(IState _state)
-    {
-        if (currentState == _state)
-            return;
-
-        currentState?.OnExit();
-        currentState = _state;
-
-        transitions.TryGetValue(currentState.GetType(), out currentTransitions);
-        if (currentTransitions == null)
-        {
-            currentTransitions = EmptyTransitions;
-        }
-        currentState.OnEnter();
-    }
-
-    public void AddTransition(IState _from, IState _to, Func<bool> _predicate)
-    {
-        if (!transitions.TryGetValue(_from.GetType(), out var transition))
-        {
-            transition = new List<Transition>();
-            transitions.Add(_from.GetType(), transition);
-        }
-
-        transition.Add(new Transition(_to, _predicate));
-    }
-
-    public void AddAnyTransition(IState _statte, Func<bool> _predicate)
-    {
-        anyTransitions.Add(new Transition(_statte, _predicate));
-    }
-
-    private Transition GetTransition()
-    {
-        foreach (var transition in anyTransitions)
-        {
-            if (transition.Condition())
+            public Transition(IState _to, Func<bool> _condition)
             {
-                return transition;
+                To = _to;
+                Condition = _condition;
             }
         }
 
-        foreach (var transition in currentTransitions)
+        public StateMachine()
         {
-            if (transition.Condition())
+            blackboard = new Dictionary<string, object>();
+            transitions = new Dictionary<Type, List<Transition>>();
+            currentTransitions = new List<Transition>();
+            anyTransitions = new List<Transition>();
+            EmptyTransitions = new();
+        }
+
+        public void Tick()
+        {
+            var transition = GetTransition();
+            if (transition != null)
             {
-                return transition;
+                SetState(transition.To);
+            }
+
+            if (currentState != null)
+            {
+                currentState.Tick();
             }
         }
 
-        return null;
-    }
+        public void SetState(IState _state)
+        {
+            if (currentState == _state)
+                return;
 
-    public void AddBlackboardData(string _key, System.Object _value)
-    {
-        if (!blackboard.ContainsKey(_key))
-        {
-            blackboard.Add(_key, _value);
-        }
-        else
-        {
-            blackboard[_key] = _value;
-        }
-    }
+            currentState?.OnExit();
+            currentState = _state;
 
-    public System.Object GetBlackboardData(string _key)
-    {
-        if (blackboard.ContainsKey(_key))
-        {
-            return blackboard[_key];
+            transitions.TryGetValue(currentState.GetType(), out currentTransitions);
+            if (currentTransitions == null)
+            {
+                currentTransitions = EmptyTransitions;
+            }
+
+            currentState.OnEnter();
         }
-        else
+        
+        /// <summary>
+        /// 添加从A状态跳转到B状态的条件
+        /// </summary>
+        /// <param name="_from">状态A</param>
+        /// <param name="_to">状态B</param>
+        /// <param name="_predicate">跳转条件</param>
+        public void AddTransition(IState _from, IState _to, Func<bool> _predicate)
         {
-            Debug.LogError($"不存在该数据：{_key}");
+            if (!transitions.TryGetValue(_from.GetType(), out var transition))
+            {
+                transition = new List<Transition>();
+                transitions.Add(_from.GetType(), transition);
+            }
+
+            transition.Add(new Transition(_to, _predicate));
+        }
+
+        public void AddAnyTransition(IState _statte, Func<bool> _predicate)
+        {
+            anyTransitions.Add(new Transition(_statte, _predicate));
+        }
+
+        private Transition GetTransition()
+        {
+            foreach (var transition in anyTransitions)
+            {
+                if (transition.Condition())
+                {
+                    return transition;
+                }
+            }
+
+            foreach (var transition in currentTransitions)
+            {
+                if (transition.Condition())
+                {
+                    return transition;
+                }
+            }
+
             return null;
         }
-    }
+        
+        /// <summary>
+        /// 添加黑板数据
+        /// </summary>
+        /// <param name="_key">黑板键</param>
+        /// <param name="_value">黑板值</param>
+        public void AddBlackboardData(string _key, System.Object _value)
+        {
+            if (!blackboard.ContainsKey(_key))
+            {
+                blackboard.Add(_key, _value);
+            }
+            else
+            {
+                blackboard[_key] = _value;
+            }
+        }
+        
+        /// <summary>
+        /// 获取黑板键对于的数据
+        /// </summary>
+        /// <param name="_key">键</param>
+        /// <returns></returns>
+        public System.Object GetBlackboardData(string _key)
+        {
+            if (blackboard.ContainsKey(_key))
+            {
+                return blackboard[_key];
+            }
+            else
+            {
+                Debug.LogError($"不存在该数据：{_key}");
+                return null;
+            }
+        }
 
-    /// <summary>
-    /// 标记流程失败，同时记录失败步骤和错误信息。
-    /// 配合 AddAnyTransition 使用，可让状态机立刻跳到统一的失败状态。
-    /// </summary>
-    public void MarkFailed(string step, string message)
-    {
-        AddBlackboardData("PatchFailed", true);
-        AddBlackboardData("PatchErrorStep", step);
-        AddBlackboardData("PatchErrorMessage", message);
+        /// <summary>
+        /// 标记流程失败，同时记录失败步骤和错误信息。
+        /// 配合 AddAnyTransition 使用，可让状态机立刻跳到统一的失败状态。
+        /// </summary>
+        public void MarkFailed(string step, string message)
+        {
+            AddBlackboardData("PatchFailed", true);
+            AddBlackboardData("PatchErrorStep", step);
+            AddBlackboardData("PatchErrorMessage", message);
+        }
     }
-}
 }

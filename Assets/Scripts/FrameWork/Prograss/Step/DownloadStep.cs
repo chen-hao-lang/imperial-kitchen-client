@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using YooAsset;
-using UnityEngine;
+
+using LiteGameFramework.Resources;
 
 namespace LiteGameFramework
 {
